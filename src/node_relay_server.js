@@ -124,7 +124,7 @@ class NodeRelayServer {
   }
 
   //从本地拉推到远端
-  onRelayPush(url, app, name) {
+  onRelayPush(url, app, name, srcId) {
     let conf = {};
     conf.app = app;
     conf.name = name;
@@ -132,16 +132,22 @@ class NodeRelayServer {
     conf.ffmpeg = this.config.relay.ffmpeg;
     conf.inPath = `rtmp://127.0.0.1:${this.config.rtmp.port}/${app}/${name}`;
     conf.ouPath = url;
+    if (app == 'selective-relay' && name != 'spstatic01_hd') {
+      return;
+    }
     let session = new NodeRelaySession(conf);
     const id = session.id;
     context.sessions.set(id, session);
     session.on('end', (id) => {
       context.sessions.delete(id);
       this.dynamicSessions.delete(id);
+      if (!!context.sessions.get(srcId)) {
+        this.onRelayPush(url, app, name);
+      }
     });
     this.dynamicSessions.set(id, session);
     session.run();
-    Logger.log('[relay dynamic push] start id=' + id, conf.inPath, 'to', conf.ouPath);
+    Logger.log('[relay dynamic push] start srcid=' + srcId, 'id=' + id, conf.inPath, 'to', conf.ouPath);
     context.nodeEvent.emit("relayPushDone", id);
   }
 
@@ -203,10 +209,17 @@ class NodeRelayServer {
           conf.ouPath += '?';
           conf.ouPath += querystring.encode(args);
         }
+        if (!!conf.pattern && !(new RegExp(conf.pattern).test(streamPath))) {
+          return;
+        }
         let session = new NodeRelaySession(conf);
         session.id = id;
         session.on('end', (id) => {
           this.dynamicSessions.delete(id);
+          if (!!context.sessions.get(id)) {
+            this.onPostPublish(id, streamPath, args);
+            Logger.log('[relay dynamic push] restart id=' + id, conf.inPath, 'to', conf.ouPath);
+          }
         });
         this.dynamicSessions.set(id, session);
         session.run();

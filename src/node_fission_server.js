@@ -54,7 +54,8 @@ class NodeFissionServer {
       let [ruleApp, ruleName] = _.slice(regRes, 1);
       if ((app === ruleApp || ruleApp === '*') && (name === ruleName || ruleName === '*')) {
         let s = context.sessions.get(id);
-        if (s.isLocal && name.split('_')[1]) {
+        const nameSegments = name.split('_');
+        if (s.isLocal && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
           continue;
         }
         let conf = task;

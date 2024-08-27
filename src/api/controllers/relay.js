@@ -139,8 +139,13 @@ async function pushStream(req, res, next) {
   let url = req.body.url;
   let app = req.body.app;
   let name = req.body.name;
+  const relaySession = Array.from(this.sessions.values()).filter(
+    (session) =>
+      app === session.conf.app &&
+      name === session.conf.name
+  )[0] || null;
   if (url && app && name) {
-    process.nextTick(() => this.nodeEvent.emit('relayPush', url, app, name));
+    process.nextTick(() => this.nodeEvent.emit('relayPush', url, app, name, relaySession.id));
     let ret = await once(this.nodeEvent, 'relayPushDone');
     res.send(ret[0]);
   } else {
