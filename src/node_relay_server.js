@@ -200,11 +200,12 @@ class NodeRelayServer {
     while (i--) {
       let conf = this.config.relay.tasks[i];
       let isPush = conf.mode === 'push';
+      const edge = !!conf.edge && (typeof conf.edge === typeof {} ? (conf.edge[stream] || conf.edge["_default"] || "") : conf.edge);
       if (isPush && app === conf.app) {
-        let hasApp = conf.edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
+        let hasApp = edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
         conf.ffmpeg = this.config.relay.ffmpeg;
         conf.inPath = `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`;
-        conf.ouPath = conf.appendName === false ? conf.edge : (hasApp ? `${conf.edge}/${stream}` : `${conf.edge}${streamPath}`);
+        conf.ouPath = conf.appendName === false ? edge : (hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`);
         if (Object.keys(args).length > 0) {
           conf.ouPath += '?';
           conf.ouPath += querystring.encode(args);
