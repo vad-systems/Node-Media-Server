@@ -211,7 +211,7 @@ class NodeRelayServer {
         }
         Logger.log("[rtmp postPublish] patterncheck", conf.pattern, streamPath);
         if (!!conf.pattern && !(new RegExp(conf.pattern).test(streamPath))) {
-          return;
+          continue;
         }
         let session = new NodeRelaySession(conf);
         session.id = id;
