@@ -138,7 +138,7 @@ class NodeRelayServer {
     session.on('end', (id) => {
       context.sessions.delete(id);
       this.dynamicSessions.delete(id);
-      if (!!context.sessions.get(srcId)) {
+      if (!!srcId && !!context.sessions.get(srcId)) {
         this.onRelayPush(url, app, name);
       }
     });

@@ -6,6 +6,7 @@
 const { get, set } = require('lodash');
 const Express = require('express');
 const { once } = require('events');
+const Logger = require("../../node_core_logger");
 
 /**
  * get all relay tasks
@@ -144,8 +145,10 @@ async function pushStream(req, res, next) {
       app === session.conf.app &&
       name === session.conf.name
   )[0] || null;
+  Logger.log('[event:relayPush] trigger relay push check', url, app, name);
   if (url && app && name) {
-    process.nextTick(() => this.nodeEvent.emit('relayPush', url, app, name, relaySession.id));
+    Logger.log('[event:relayPush] trigger relay push yes', url, app, name);
+    process.nextTick(() => this.nodeEvent.emit('relayPush', url, app, name, relaySession?.id));
     let ret = await once(this.nodeEvent, 'relayPushDone');
     res.send(ret[0]);
   } else {
