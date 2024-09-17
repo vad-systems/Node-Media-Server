@@ -188,12 +188,14 @@ class NodeRelayServer {
   }
 
   onPostPublish(id, streamPath, args) {
+    Logger.log("[rtmp postPublish] Check for relays", id, streamPath);
     if (!this.config.relay.tasks) {
       return;
     }
     let regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
     let [app, stream] = _.slice(regRes, 1);
     let i = this.config.relay.tasks.length;
+    Logger.log("[rtmp postPublish] Check for relays", app, stream, i);
     while (i--) {
       let conf = this.config.relay.tasks[i];
       let isPush = conf.mode === 'push';
@@ -207,6 +209,7 @@ class NodeRelayServer {
           conf.ouPath += '?';
           conf.ouPath += querystring.encode(args);
         }
+        Logger.log("[rtmp postPublish] patterncheck", conf.pattern, streamPath);
         if (!!conf.pattern && !(new RegExp(conf.pattern).test(streamPath))) {
           return;
         }
