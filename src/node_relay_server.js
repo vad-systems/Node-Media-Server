@@ -132,9 +132,6 @@ class NodeRelayServer {
     conf.ffmpeg = this.config.relay.ffmpeg;
     conf.inPath = `rtmp://127.0.0.1:${this.config.rtmp.port}/${app}/${name}`;
     conf.ouPath = url;
-    if (app == 'selective-relay' && name != 'spstatic01_hd') {
-      return;
-    }
     let session = new NodeRelaySession(conf);
     const id = session.id;
     context.sessions.set(id, session);
