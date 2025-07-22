@@ -138,12 +138,12 @@ class NodeRelayServer {
     session.on('end', (id) => {
       context.sessions.delete(id);
       this.dynamicSessions.delete(id);
-      if (!!srcId && !!context.sessions.get(srcId)) {
-        setTimeout(() => {
+      setTimeout(() => {
+        if (!!srcId && !!context.sessions.get(srcId)) {
           Logger.log('[relay dynamic push] restart srcid=' + srcId, 'id=' + id, conf.inPath, 'to', conf.ouPath);
           this.onRelayPush(url, app, name, srcId);
-        }, 200);
-      }
+        }
+      }, 1000);
     });
     this.dynamicSessions.set(id, session);
     session.run();
@@ -223,12 +223,12 @@ class NodeRelayServer {
         session.on('end', (id) => {
           context.sessions.delete(id);
           this.dynamicSessions.delete(id);
-          if (!!srcId && !!context.sessions.get(srcId)) {
-            setTimeout(() => {
+          setTimeout(() => {
+            if (!!srcId && !!context.sessions.get(srcId)) {
               Logger.log('[relay dynamic push] restart srcId=' + srcId + ' id=' + newId, conf.inPath, 'to', conf.ouPath);
               this.onPostPublish(srcId, streamPath, args);
-            }, 200);
-          }
+            }
+          }, 1000);
         });
         this.dynamicSessions.set(newId, session);
         session.run();
