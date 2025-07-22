@@ -36,9 +36,9 @@ class NodeRelayServer {
     }
 
     startNewRelaySession(conf, srcId, streamPath, args) {
-        Logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
         let session = new NodeRelaySession(conf);
         const id = session.id;
+        Logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
         context.sessions.set(id, session);
         session.on('end', (id) => {
             Logger.log('[relay dynamic push] ended', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
