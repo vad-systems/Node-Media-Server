@@ -10,7 +10,7 @@ const {sessions} = require("./node_core_ctx");
 
 class NodeRelayServer {
     constructor(config) {
-        this.config = config;
+        this.config = _.cloneDeep(config);
         this.dynamicSessions = new Map();
     }
 
@@ -85,7 +85,7 @@ class NodeRelayServer {
         let i = tasks.length;
         Logger.log("[rtmp postPublish] Check for relays", `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
         while (i--) {
-            let conf = tasks[i];
+            let conf = _.cloneDeep(tasks[i]);
             let isPush = conf.mode === 'push';
             const edge = !!conf.edge && (typeof conf.edge === typeof {} ? (conf.edge[stream] || conf.edge["_default"] || "") : conf.edge);
             Logger.log("[rtmp postPublish] Check for relays", `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);

@@ -1,5 +1,6 @@
 const NodeCoreUtils = require('./node_core_utils');
 const EventEmitter = require('events');
+const _ = require("lodash");
 
 class NodeSession extends EventEmitter {
     conf = null;
@@ -7,7 +8,7 @@ class NodeSession extends EventEmitter {
 
     constructor(conf) {
         super();
-        this.conf = conf;
+        this.conf = _.cloneDeep(conf);
         this.id = NodeCoreUtils.generateNewSessionID();
     }
 }
