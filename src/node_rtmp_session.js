@@ -1,19 +1,13 @@
-//
-//  Created by Mingliang Chen on 18/4/1.
-//  illuspas[a]gmail.com
-//  Copyright (c) 2018 Nodemedia. All rights reserved.
-//
-
 const QueryString = require('querystring');
 const AV = require('./node_core_av');
 const { AUDIO_SOUND_RATE, AUDIO_CODEC_NAME, VIDEO_CODEC_NAME } = require('./node_core_av');
-
 const AMF = require('./node_core_amf');
 const Handshake = require('./node_rtmp_handshake');
 const NodeCoreUtils = require('./node_core_utils');
-const NodeFlvSession = require('./node_flv_session');
+const NodeHttpSession = require('./node_http_session');
 const context = require('./node_core_ctx');
 const Logger = require('./node_core_logger');
+const NodeSession = require('./node_session');
 
 const N_CHUNK_STREAM = 8;
 const RTMP_VERSION = 3;
@@ -114,12 +108,11 @@ const RtmpPacket = {
   }
 };
 
-class NodeRtmpSession {
+class NodeRtmpSession extends NodeSession {
   constructor(config, socket) {
-    this.config = config;
+    super(config);
     this.socket = socket;
     this.res = socket;
-    this.id = NodeCoreUtils.generateNewSessionID();
     this.ip = socket.remoteAddress;
     this.TAG = 'rtmp';
 
@@ -135,12 +128,12 @@ class NodeRtmpSession {
     this.inPackets = new Map();
 
     this.inChunkSize = RTMP_CHUNK_SIZE;
-    this.outChunkSize = config.rtmp.chunk_size ? config.rtmp.chunk_size : RTMP_CHUNK_SIZE;
-    this.pingTime = config.rtmp.ping ? config.rtmp.ping * 1000 : RTMP_PING_TIME;
-    this.pingTimeout = config.rtmp.ping_timeout ? config.rtmp.ping_timeout * 1000 : RTMP_PING_TIMEOUT;
+    this.outChunkSize = this.conf.rtmp.chunk_size ? this.conf.rtmp.chunk_size : RTMP_CHUNK_SIZE;
+    this.pingTime = this.conf.rtmp.ping ? this.conf.rtmp.ping * 1000 : RTMP_PING_TIME;
+    this.pingTimeout = this.conf.rtmp.ping_timeout ? this.conf.rtmp.ping_timeout * 1000 : RTMP_PING_TIMEOUT;
     this.pingInterval = null;
 
-    this.isLocal = this.ip === '127.0.0.1' || this.ip === '::1' || this.ip == '::ffff:127.0.0.1';
+    this.isLocal = this.ip === '127.0.0.1' || this.ip === '::1' || this.ip === '::ffff:127.0.0.1';
     this.isStarting = false;
     this.isPublishing = false;
     this.isPlaying = false;
@@ -681,7 +674,7 @@ class NodeRtmpSession {
     packet.header.length = packet.payload.length;
     packet.header.timestamp = this.parserPacket.clock;
     let rtmpChunks = this.rtmpChunksCreate(packet);
-    let flvTag = NodeFlvSession.createFlvTag(packet);
+    let flvTag = NodeHttpSession.createFlvTag(packet);
 
     //cache gop
     if (this.rtmpGopCacheQueue != null) {
@@ -705,7 +698,7 @@ class NodeRtmpSession {
           rtmpChunks.writeUInt32LE(playerSession.playStreamId, 8);
           playerSession.res.write(rtmpChunks);
         }
-      } else if (playerSession instanceof NodeFlvSession) {
+      } else if (playerSession instanceof NodeHttpSession) {
         playerSession.res.write(flvTag, null, e => {
           //websocket will throw a error if not set the cb when closed
         });
@@ -817,7 +810,7 @@ class NodeRtmpSession {
     packet.header.length = packet.payload.length;
     packet.header.timestamp = this.parserPacket.clock;
     let rtmpChunks = this.rtmpChunksCreate(packet);
-    let flvTag = NodeFlvSession.createFlvTag(packet);
+    let flvTag = NodeHttpSession.createFlvTag(packet);
 
     //cache gop
     if (this.rtmpGopCacheQueue != null) {
@@ -846,7 +839,7 @@ class NodeRtmpSession {
           rtmpChunks.writeUInt32LE(playerSession.playStreamId, 8);
           playerSession.res.write(rtmpChunks);
         }
-      } else if (playerSession instanceof NodeFlvSession) {
+      } else if (playerSession instanceof NodeHttpSession) {
         playerSession.res.write(flvTag, null, e => {
           //websocket will throw a error if not set the cb when closed
         });
@@ -888,7 +881,7 @@ class NodeRtmpSession {
         packet.payload = this.metaData;
         packet.header.length = packet.payload.length;
         let rtmpChunks = this.rtmpChunksCreate(packet);
-        let flvTag = NodeFlvSession.createFlvTag(packet);
+        let flvTag = NodeHttpSession.createFlvTag(packet);
 
         for (let playerId of this.players) {
           let playerSession = context.sessions.get(playerId);
@@ -897,7 +890,7 @@ class NodeRtmpSession {
               rtmpChunks.writeUInt32LE(playerSession.playStreamId, 8);
               playerSession.socket.write(rtmpChunks);
             }
-          } else if (playerSession instanceof NodeFlvSession) {
+          } else if (playerSession instanceof NodeHttpSession) {
             playerSession.res.write(flvTag, null, e => {
               //websocket will throw a error if not set the cb when closed
             });
@@ -1120,8 +1113,8 @@ class NodeRtmpSession {
       return;
     }
 
-    if (this.config.auth && this.config.auth.publish && !this.isLocal) {
-      let results = NodeCoreUtils.verifyAuth(this.publishArgs.sign, this.publishStreamPath, this.config.auth.secret);
+    if (this.conf.auth && this.conf.auth.publish && !this.isLocal) {
+      let results = NodeCoreUtils.verifyAuth(this.publishArgs.sign, this.publishStreamPath, this.conf.auth.secret);
       if (!results) {
         Logger.log(`[rtmp publish] Unauthorized. id=${this.id} streamPath=${this.publishStreamPath} streamId=${this.publishStreamId} sign=${this.publishArgs.sign} `);
         this.sendStatusMessage(this.publishStreamId, 'error', 'NetStream.publish.Unauthorized', 'Authorization required.');
@@ -1166,8 +1159,8 @@ class NodeRtmpSession {
       return;
     }
 
-    if (this.config.auth && this.config.auth.play && !this.isLocal) {
-      let results = NodeCoreUtils.verifyAuth(this.playArgs.sign, this.playStreamPath, this.config.auth.secret);
+    if (this.conf.auth && this.conf.auth.play && !this.isLocal) {
+      let results = NodeCoreUtils.verifyAuth(this.playArgs.sign, this.playStreamPath, this.conf.auth.secret);
       if (!results) {
         Logger.log(`[rtmp play] Unauthorized. id=${this.id} streamPath=${this.playStreamPath}  streamId=${this.playStreamId} sign=${this.playArgs.sign}`);
         this.sendStatusMessage(this.playStreamId, 'error', 'NetStream.play.Unauthorized', 'Authorization required.');

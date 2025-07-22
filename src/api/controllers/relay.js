@@ -91,72 +91,6 @@ function getStreamByName(req, res, next) {
 }
 
 /**
- * create relay url to url task
- * @param {Express.Request} req 
- * @param {Express.Response} res 
- * @param {*} next 
- */
-async function relayStream(req, res, next) {
-  let path = req.body.path;
-  let url = req.body.url;
-  if (path && url) {
-    process.nextTick(() => this.nodeEvent.emit('relayTask', path, url));
-    let ret = await once(this.nodeEvent, 'relayTaskDone');
-    res.send(ret[0]);
-  } else {
-    res.sendStatus(400);
-  }
-}
-
-
-/**
- * create relay pull task
- * @param {Express.Request} req 
- * @param {Express.Response} res 
- * @param {*} next 
- */
-async function pullStream(req, res, next) {
-  let url = req.body.url;
-  let app = req.body.app;
-  let name = req.body.name;
-  let rtsp_transport = req.body.rtsp_transport ? req.body.rtsp_transport : null;
-  if (url && app && name) {
-    process.nextTick(() => this.nodeEvent.emit('relayPull', url, app, name, rtsp_transport));
-    let ret = await once(this.nodeEvent, 'relayPullDone');
-    res.send(ret[0]);
-
-  } else {
-    res.sendStatus(400);
-  }
-}
-
-/**
- * create relay push task
- * @param {Express.Request} req 
- * @param {Express.Response} res 
- * @param {*} next 
- */
-async function pushStream(req, res, next) {
-  let url = req.body.url;
-  let app = req.body.app;
-  let name = req.body.name;
-  const relaySession = Array.from(this.sessions.values()).filter(
-    (session) =>
-      app === session.conf.app &&
-      name === session.conf.name
-  )[0] || null;
-  Logger.log('[event relayPush] trigger relay push check', url, app, name);
-  if (url && app && name) {
-    Logger.log('[event relayPush] trigger relay push yes', url, app, name);
-    process.nextTick(() => this.nodeEvent.emit('relayPush', url, app, name, relaySession?.id));
-    let ret = await once(this.nodeEvent, 'relayPushDone');
-    res.send(ret[0]);
-  } else {
-    res.sendStatus(400);
-  }
-}
-
-/**
  * delete relay task
  * @param {Express.Request} req 
  * @param {Express.Response} res 
@@ -176,8 +110,5 @@ module.exports = {
   getStreams,
   getStreamByID,
   getStreamByName,
-  relayStream,
-  pullStream,
-  pushStream,
   delStream,
 };

@@ -87,7 +87,7 @@ function getStreams(req, res, next) {
 
           break;
         }
-        case 'NodeFlvSession': {
+        case 'NodeHttpSession': {
           stats[app][stream]['subscribers'].push({
             app: app,
             stream: stream,
