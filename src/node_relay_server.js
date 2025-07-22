@@ -139,7 +139,10 @@ class NodeRelayServer {
       context.sessions.delete(id);
       this.dynamicSessions.delete(id);
       if (!!srcId && !!context.sessions.get(srcId)) {
-        this.onRelayPush(url, app, name);
+        setTimeout(() => {
+          Logger.log('[relay dynamic push] restart srcid=' + srcId, 'id=' + id, conf.inPath, 'to', conf.ouPath);
+          this.onRelayPush(url, app, name, srcId);
+        }, 200);
       }
     });
     this.dynamicSessions.set(id, session);
@@ -214,17 +217,21 @@ class NodeRelayServer {
           continue;
         }
         let session = new NodeRelaySession(conf);
-        session.id = id;
+        const newId = session.id;
+        const originalId = id;
+        context.sessions.set(newId, session);
         session.on('end', (id) => {
           this.dynamicSessions.delete(id);
           if (!!context.sessions.get(id)) {
-            this.onPostPublish(id, streamPath, args);
-            Logger.log('[relay dynamic push] restart id=' + id, conf.inPath, 'to', conf.ouPath);
+            setTimeout(() => {
+              Logger.log('[relay dynamic push] restart id=' + newId, conf.inPath, 'to', conf.ouPath);
+              this.onPostPublish(originalId, streamPath, args);
+            }, 200);
           }
         });
-        this.dynamicSessions.set(id, session);
+        this.dynamicSessions.set(newId, session);
         session.run();
-        Logger.log('[relay dynamic push] start id=' + id, conf.inPath, 'to', conf.ouPath);
+        Logger.log('[relay dynamic push] start id=' + newId, conf.inPath, 'to', conf.ouPath);
       }
     }
 
