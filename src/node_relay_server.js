@@ -19,6 +19,7 @@ class NodeRelayServer {
     this.staticCycle = null;
     this.staticSessions = new Map();
     this.dynamicSessions = new Map();
+    this.isRestartAttemptRunning = new Map();
   }
 
   async run() {
@@ -134,19 +135,22 @@ class NodeRelayServer {
     conf.ouPath = url;
     let session = new NodeRelaySession(conf);
     const id = session.id;
+    const restartKey = srcId + "-" + url;
     context.sessions.set(id, session);
     session.on('end', (id) => {
       context.sessions.delete(id);
       this.dynamicSessions.delete(id);
       setTimeout(() => {
-        if (!!srcId && !!context.sessions.get(srcId)) {
+        if (!!srcId && !!context.sessions.get(srcId) && !this.isRestartAttemptRunning.has(restartKey)) {
           Logger.log('[relay dynamic push] restart srcid=' + srcId, 'id=' + id, conf.inPath, 'to', conf.ouPath);
+          this.isRestartAttemptRunning.set(restartKey, true);
           this.onRelayPush(url, app, name, srcId);
         }
       }, 1000);
     });
     this.dynamicSessions.set(id, session);
     session.run();
+    this.isRestartAttemptRunning.delete(restartKey);
     Logger.log('[relay dynamic push] start srcid=' + srcId, 'id=' + id, conf.inPath, 'to', conf.ouPath);
     context.nodeEvent.emit("relayPushDone", id);
   }
@@ -219,19 +223,22 @@ class NodeRelayServer {
         let session = new NodeRelaySession(conf);
         const newId = session.id;
         const srcId = id;
+        const restartKey = srcId + "-" + i;
         context.sessions.set(newId, session);
         session.on('end', (id) => {
           context.sessions.delete(id);
           this.dynamicSessions.delete(id);
           setTimeout(() => {
-            if (!!srcId && !!context.sessions.get(srcId)) {
+            if (!!srcId && !!context.sessions.get(srcId) && !this.isRestartAttemptRunning.has(restartKey)) {
               Logger.log('[relay dynamic push] restart srcId=' + srcId + ' id=' + newId, conf.inPath, 'to', conf.ouPath);
+                this.isRestartAttemptRunning.set(restartKey, true);
               this.onPostPublish(srcId, streamPath, args);
             }
           }, 1000);
         });
         this.dynamicSessions.set(newId, session);
         session.run();
+        this.isRestartAttemptRunning.delete(restartKey);
         Logger.log('[relay dynamic push] start id=' + newId, conf.inPath, 'to', conf.ouPath);
       }
     }
