@@ -36,6 +36,13 @@ class NodeRelayServer {
     }
 
     startNewRelaySession(conf, srcId, streamPath, args) {
+        for (let session of context.sessions.values()) {
+            if (session.conf.inPath === conf.inPath && session.conf.ouPath === conf.ouPath) {
+                Logger.log('[relay dynamic push] session still running', `srcid=${srcId}`, conf.inPath, 'to', conf.ouPath);
+                return null;
+            }
+        }
+
         let session = new NodeRelaySession(conf);
         const id = session.id;
         Logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
