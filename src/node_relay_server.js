@@ -221,6 +221,7 @@ class NodeRelayServer {
         const srcId = id;
         context.sessions.set(newId, session);
         session.on('end', (id) => {
+          context.sessions.delete(id);
           this.dynamicSessions.delete(id);
           if (!!srcId && !!context.sessions.get(srcId)) {
             setTimeout(() => {
