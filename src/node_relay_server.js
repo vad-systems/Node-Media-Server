@@ -218,14 +218,14 @@ class NodeRelayServer {
         }
         let session = new NodeRelaySession(conf);
         const newId = session.id;
-        const originalId = id;
+        const srcId = id;
         context.sessions.set(newId, session);
         session.on('end', (id) => {
           this.dynamicSessions.delete(id);
-          if (!!context.sessions.get(id)) {
+          if (!!srcId && !!context.sessions.get(srcId)) {
             setTimeout(() => {
-              Logger.log('[relay dynamic push] restart id=' + newId, conf.inPath, 'to', conf.ouPath);
-              this.onPostPublish(originalId, streamPath, args);
+              Logger.log('[relay dynamic push] restart srcId=' + srcId + ' id=' + newId, conf.inPath, 'to', conf.ouPath);
+              this.onPostPublish(srcId, streamPath, args);
             }, 200);
           }
         });
