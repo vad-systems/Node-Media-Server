@@ -1,0 +1,99 @@
+import _ from "lodash";
+import fs from "fs";
+import {Logger} from './node_core_logger';
+import {NodeTransSession} from './node_trans_session';
+import context from "./node_core_ctx";
+import {getFFmpegUrl, getFFmpegVersion} from "./node_core_utils";
+import {Arguments, Config, SessionID, TransSessionConfig} from "./types";
+
+const mkdirp = require('mkdirp');
+
+class NodeTransServer {
+    config: Config;
+    transSessions: Map<SessionID, NodeTransSession> = new Map();
+
+    constructor(config: Config) {
+        this.config = config;
+    }
+
+    async run() {
+        const mediaroot = this.config.http.mediaroot;
+        const ffmpeg = this.config.trans.ffmpeg;
+
+        try {
+            mkdirp.sync(mediaroot);
+            fs.accessSync(mediaroot, fs.constants.W_OK);
+        } catch (error) {
+            Logger.error(`Node Media Trans Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
+            return;
+        }
+
+        try {
+            fs.accessSync(ffmpeg, fs.constants.X_OK);
+        } catch (error) {
+            Logger.error(`Node Media Trans Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
+            return;
+        }
+
+        const version = await getFFmpegVersion(ffmpeg);
+        if (version === '' || parseInt(version.split('.')[0]) < 4) {
+            Logger.error('Node Media Trans Server startup failed. ffmpeg requires version 4.0.0 above');
+            Logger.error('Download the latest ffmpeg static program:', getFFmpegUrl());
+            return;
+        }
+
+        const tasks = this.config.trans.tasks || [];
+        let i = tasks.length;
+        let apps = '';
+        while (i--) {
+            apps += tasks[i].app;
+            apps += ' ';
+        }
+
+        context.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
+        context.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
+
+        Logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
+    }
+
+    onPostPublish(id: SessionID, streamPath: string, args: Arguments) {
+        const regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
+        const [app, name] = _.slice(regRes, 1);
+
+        const {tasks, ffmpeg} = this.config.trans;
+        let i = tasks.length;
+        const mediaroot = this.config.http.mediaroot;
+
+        while (i--) {
+            let taskConfig = _.cloneDeep(tasks[i]);
+            let sessionConfig: TransSessionConfig = {
+                ..._.cloneDeep(taskConfig),
+                ffmpeg,
+                mediaroot: mediaroot,
+                rtmpPort: this.config.rtmp.port,
+                streamPath: streamPath,
+                streamApp: app,
+                streamName: name,
+            };
+            sessionConfig.args = args;
+
+            if (app === taskConfig.app) {
+                let session = new NodeTransSession(sessionConfig);
+                this.transSessions.set(id, session);
+                session.on('end', (id) => {
+                    this.transSessions.delete(id);
+                });
+                session.run();
+            }
+        }
+    }
+
+    onDonePublish(id: SessionID, streamPath: string, args: Arguments) {
+        const session = this.transSessions.get(id);
+        if (session) {
+            session.end();
+        }
+    }
+}
+
+export { NodeTransServer };

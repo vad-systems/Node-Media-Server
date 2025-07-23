@@ -1,40 +1,52 @@
 {
-  "name": "node-media-server",
-  "version": "2.7.0",
-  "description": "A Node.js implementation of RTMP Server",
+  "name": "@vad-systems/node-media-server",
+  "version": "0.1.0-dev1",
+  "description": "A Node.js implementation of RTMP Server based on @illuspas/Node-Media-Server",
   "bin": "bin/app.js",
-  "main": "src/node_media_server.js",
+  "main": "dist/node_media_server.js",
+  "types": "src/node_media_server.ts",
   "scripts": {
     "start": "node bin/app.js",
-    "test": "node test/test_run.js"
+    "test": "node test/test_run.js",
+    "build": "tsc -p tsconfig.json"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/illuspas/Node-Media-Server.git"
+    "url": "git+https://github.com/vad-systems/Node-Media-Server.git"
   },
   "keywords": [
     "rtmp",
     "flv",
     "server"
   ],
-  "author": "Chen Mingliang",
+  "author": {
+    "name": "VAD Systems"
+  },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/illuspas/Node-Media-Server/issues"
+    "url": "https://github.com/vad-systems/Node-Media-Server/issues"
   },
-  "homepage": "https://github.com/illuspas/Node-Media-Server#readme",
+  "homepage": "https://github.com/vad-systems/Node-Media-Server#readme",
   "dependencies": {
-    "basic-auth-connect": "^1.0.0",
-    "chalk": "^4.1.0",
-    "dateformat": "^4.6.3",
-    "express": "^4.19.2",
-    "http2-express-bridge": "^1.0.7",
+    "basic-auth-connect": "^1.1.0",
+    "chalk": "^5.4.1",
+    "dateformat": "^5.0.3",
+    "express": "^5.0.3",
+    "http2-express": "^1.0.1",
     "lodash": "^4.17.21",
     "minimist": "^1.2.8",
-    "mkdirp": "^2.1.5",
-    "ws": "^8.13.0"
+    "mkdirp": "^3.0.1",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/dateformat": "^5.0.3",
+    "@types/express": "^5.0.3",
+    "@types/lodash": "^4.17.20",
+    "@types/node": "^24.1.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.8.3"
   },
   "engines": {
-    "node": ">=8.0.0"
+    "node": ">=20.0.0"
   }
 }
