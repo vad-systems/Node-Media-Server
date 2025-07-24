@@ -1,3 +1,4 @@
+import * as types from "./types";
 import {Config, NodeEventMap} from "./types";
 import _ from 'lodash';
 import {Logger} from './node_core_logger';
@@ -7,6 +8,7 @@ import {NodeTransServer} from './node_trans_server';
 import {NodeRelayServer} from './node_relay_server';
 import {NodeFissionServer} from './node_fission_server';
 import context from './node_core_ctx';
+
 const Package = require('../package.json');
 
 class NodeMediaServer {
@@ -16,6 +18,8 @@ class NodeMediaServer {
     transServer?: NodeTransServer;
     relayServer?: NodeRelayServer;
     fissionServer?: NodeFissionServer;
+
+    static types = types;
 
     constructor(config: Config) {
         this.config = _.cloneDeep(config);

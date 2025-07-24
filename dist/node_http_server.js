@@ -61,7 +61,6 @@ class NodeHttpServer {
             this.onConnect(nmsReq, nmsRes);
         });
         const adminEntry = path_1.default.join(__dirname + '/../public/admin/index.html');
-        console.log(adminEntry);
         if (fs_1.default.existsSync(adminEntry)) {
             app.get('/admin/*splat', (req, res) => {
                 res.sendFile(adminEntry);

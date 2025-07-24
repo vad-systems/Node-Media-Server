@@ -64,7 +64,6 @@ class NodeHttpServer {
         });
 
         const adminEntry = path.join(__dirname + '/../public/admin/index.html');
-        console.log(adminEntry);
         if (fs.existsSync(adminEntry)) {
             app.get('/admin/*splat', (req: Express.Request, res: Express.Response) => {
                 res.sendFile(adminEntry);

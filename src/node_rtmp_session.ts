@@ -526,13 +526,15 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
             this.sendACK(this.inAckSize);
         }
 
-        this.bitrateCache.bytes += bytes;
-        let current_time = Date.now();
-        let diff = current_time - this.bitrateCache.last_update;
-        if (diff >= this.bitrateCache.intervalMs) {
-            this.bitrate = Math.round(this.bitrateCache.bytes * 8 / diff);
-            this.bitrateCache.bytes = 0;
-            this.bitrateCache.last_update = current_time;
+        if (this.bitrateCache) {
+            this.bitrateCache.bytes += bytes;
+            let current_time = Date.now();
+            let diff = current_time - this.bitrateCache.last_update;
+            if (diff >= this.bitrateCache.intervalMs) {
+                this.bitrate = Math.round(this.bitrateCache.bytes * 8 / diff);
+                this.bitrateCache.bytes = 0;
+                this.bitrateCache.last_update = current_time;
+            }
         }
     }
 
@@ -960,7 +962,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
         let offset = this.parserPacket.header.type === RTMP_TYPE_FLEX_MESSAGE ? 1 : 0;
         let payload = this.parserPacket.payload.slice(offset, this.parserPacket.header.length); // TODO: Deprecation
         let invokeMessage = AMF.decodeAmf0Cmd(payload);
-        Logger.debug(invokeMessage);
+        Logger.debug(this.id, invokeMessage.cmd, invokeMessage);
         switch (invokeMessage.cmd) {
             case 'connect':
                 this.onConnect(invokeMessage);

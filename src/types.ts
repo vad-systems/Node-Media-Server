@@ -152,7 +152,7 @@ export type TransConfig = {
 
 export type RelayTaskConfig = {
     readonly mode: Mode;
-    readonly edge: Map<string, string> | string;
+    readonly edge: NodeJS.Dict<string> | string;
     readonly app: string;
     readonly rescale?: string;
     readonly rtsp_transport?: RtspTransport;
