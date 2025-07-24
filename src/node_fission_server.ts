@@ -5,12 +5,13 @@ import {NodeFissionSession} from "./node_fission_session";
 import context from './node_core_ctx';
 import {getFFmpegVersion, getFFmpegUrl} from './node_core_utils';
 import {Arguments, Config, FissionSessionConfig, SessionID} from "./types";
+import {NodeRelaySession} from "./node_relay_session";
 
 const mkdirp = require('mkdirp');
 
 class NodeFissionServer {
     config: Config;
-    fissionSessions: Map<SessionID, NodeFissionSession> = new Map();
+    fissionSessions: Map<SessionID, Map<SessionID, NodeFissionSession>> = new Map();
 
     constructor(config: Config) {
         this.config = config;
@@ -44,14 +45,14 @@ class NodeFissionServer {
         Logger.log(`Node Media Fission Server started, MediaRoot: ${this.config.http.mediaroot}, ffmpeg version: ${version}`);
     }
 
-    onPostPublish(id: SessionID, streamPath: string, args: Arguments) {
+    onPostPublish(srcId: SessionID, streamPath: string, args: Arguments) {
         let regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
         let [app, name] = _.slice(regRes, 1);
         for (let task of this.config.fission.tasks) {
             regRes = /(.*)\/(.*)/gi.exec(task.rule);
             let [ruleApp, ruleName] = _.slice(regRes, 1);
             if ((app === ruleApp || ruleApp === '*') && (name === ruleName || ruleName === '*')) {
-                let s = context.sessions.get(id);
+                let s = context.sessions.get(srcId);
                 const nameSegments = name.split('_');
                 if (s.isLocal && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
                     continue;
@@ -68,27 +69,73 @@ class NodeFissionServer {
                 };
                 sessionConf.args = args;
                 let session = new NodeFissionSession(sessionConf);
-                this.fissionSessions.set(id, session);
+                const id = session.id;
+                Logger.log('[fission] start', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                context.sessions.set(id, session);
                 session.on('end', (id) => {
                     this.fissionSessions.delete(id);
+
+                    Logger.log('[fission] ended', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                    context.sessions.delete(id);
+                    const fissionSessionsForSrc = this.fissionSessions.get(srcId);
+                    if (fissionSessionsForSrc) {
+                        fissionSessionsForSrc.delete(id);
+                    }
+                    setTimeout(() => {
+                        if (!!srcId && !!context.sessions.get(srcId)) {
+                            Logger.log('[fission] restart', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                            this.onPostPublish(srcId, streamPath, args);
+                        }
+                    }, 1000);
                 });
+                const fissionSessionsForSrc = this.fissionSessions.get(srcId);
+                if (fissionSessionsForSrc) {
+                    fissionSessionsForSrc.set(id, session);
+                } else {
+                    const newMap = new Map();
+                    newMap.set(id, session);
+                    this.fissionSessions.set(srcId, newMap);
+                }
                 session.run();
+                Logger.log('[fission] started', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
             }
         }
     }
 
     onDonePublish(id: SessionID, streamPath: string, args: Arguments) {
-        let session = this.fissionSessions.get(id);
-        if (session) {
-            session.end();
+        for (let [srcId, sessions] of this.fissionSessions) {
+            if (id === srcId) {
+                for (let [_, session] of sessions) {
+                    session.end();
+                }
+                let session = context.sessions.get(srcId);
+
+                if (session && session instanceof NodeRelaySession) {
+                    session.end();
+                }
+            } else {
+                for (let [sessionId, session] of sessions) {
+                    if (id === sessionId) {
+                        session.end();
+                    }
+                }
+            }
         }
     }
 
     stop() {
-        this.fissionSessions.forEach(session => {
-            session.end();
-        })
+        for (let [srcId, sessions] of this.fissionSessions) {
+            for (let [_, session] of sessions) {
+                session.end();
+            }
+
+            let session = context.sessions.get(srcId);
+
+            if (session && session instanceof NodeRelaySession) {
+                session.end();
+            }
+        }
     }
 }
 
-export { NodeFissionServer };
+export {NodeFissionServer};

@@ -33,7 +33,7 @@ class NodeRelayServer {
         context.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
         context.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
 
-        Logger.log('Node Media Relay Server started');
+        Logger.log(`Node Media Relay Server started, ffmpeg version: ${version}`);
     }
 
     startNewRelaySession(conf: RelaySessionConfig, srcId: SessionID, streamPath: string, args: Arguments) {

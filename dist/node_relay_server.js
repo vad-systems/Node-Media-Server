@@ -43,7 +43,7 @@ class NodeRelayServer {
             }
             node_core_ctx_1.default.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
             node_core_ctx_1.default.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
-            node_core_logger_1.Logger.log('Node Media Relay Server started');
+            node_core_logger_1.Logger.log(`Node Media Relay Server started, ffmpeg version: ${version}`);
         });
     }
     startNewRelaySession(conf, srcId, streamPath, args) {

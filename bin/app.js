@@ -126,11 +126,11 @@ const config = {
         cert: __dirname + '/cert.pem',
     },
     relay: {
-        ffmpeg: 'C:\\Users\\fejpe\\ffmpeg\\bin\\ffmpeg.exe',
+        ffmpeg: 'ffmpeg',
         tasks: relayTasks,
     },
     fission: {
-        ffmpeg: 'C:\\Users\\fejpe\\ffmpeg\\bin\\ffmpeg.exe',
+        ffmpeg: 'ffmpeg',
         tasks: fissionTasks,
     },
     auth: {
