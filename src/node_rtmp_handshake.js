@@ -1,4 +1,4 @@
-const Crypto = require('crypto');
+const Crypto = require("crypto");
 
 const MESSAGE_FORMAT_0 = 0;
 const MESSAGE_FORMAT_1 = 1;
@@ -7,21 +7,23 @@ const MESSAGE_FORMAT_2 = 2;
 const RTMP_SIG_SIZE = 1536;
 const SHA256DL = 32;
 
-const RandomCrud = Buffer.from([
-    0xf0, 0xee, 0xc2, 0x4a, 0x80, 0x68, 0xbe, 0xe8,
-    0x2e, 0x00, 0xd0, 0xd1, 0x02, 0x9e, 0x7e, 0x57,
-    0x6e, 0xec, 0x5d, 0x2d, 0x29, 0x80, 0x6f, 0xab,
-    0x93, 0xb8, 0xe6, 0x36, 0xcf, 0xeb, 0x31, 0xae
-]);
+const RandomCrud = Buffer.from(
+    [
+        0xf0, 0xee, 0xc2, 0x4a, 0x80, 0x68, 0xbe, 0xe8,
+        0x2e, 0x00, 0xd0, 0xd1, 0x02, 0x9e, 0x7e, 0x57,
+        0x6e, 0xec, 0x5d, 0x2d, 0x29, 0x80, 0x6f, 0xab,
+        0x93, 0xb8, 0xe6, 0x36, 0xcf, 0xeb, 0x31, 0xae,
+    ],
+);
 
-const GenuineFMSConst = 'Genuine Adobe Flash Media Server 001';
-const GenuineFMSConstCrud = Buffer.concat([Buffer.from(GenuineFMSConst, 'utf8'), RandomCrud]);
+const GenuineFMSConst = "Genuine Adobe Flash Media Server 001";
+const GenuineFMSConstCrud = Buffer.concat([Buffer.from(GenuineFMSConst, "utf8"), RandomCrud]);
 
-const GenuineFPConst = 'Genuine Adobe Flash Player 001';
-const GenuineFPConstCrud = Buffer.concat([Buffer.from(GenuineFPConst, 'utf8'), RandomCrud]);
+const GenuineFPConst = "Genuine Adobe Flash Player 001";
+const GenuineFPConstCrud = Buffer.concat([Buffer.from(GenuineFPConst, "utf8"), RandomCrud]);
 
 function calcHmac(data, key) {
-    let hmac = Crypto.createHmac('sha256', key);
+    let hmac = Crypto.createHmac("sha256", key);
     hmac.update(data);
     return hmac.digest();
 }
@@ -68,7 +70,10 @@ function generateS1(messageFormat) {
         serverDigestOffset = GetServerGenuineConstDigestOffset(handshakeBytes.slice(772, 776));
     }
 
-    let msg = Buffer.concat([handshakeBytes.slice(0, serverDigestOffset), handshakeBytes.slice(serverDigestOffset + SHA256DL)], RTMP_SIG_SIZE - SHA256DL);
+    let msg = Buffer.concat([
+                                handshakeBytes.slice(0, serverDigestOffset),
+                                handshakeBytes.slice(serverDigestOffset + SHA256DL),
+                            ], RTMP_SIG_SIZE - SHA256DL);
     let hash = calcHmac(msg, GenuineFMSConst);
     hash.copy(handshakeBytes, serverDigestOffset, 0, 32);
     return handshakeBytes;
@@ -103,4 +108,4 @@ function generateS0S1S2(clientsig) {
     return allBytes;
 }
 
-module.exports = {generateS0S1S2};
+module.exports = { generateS0S1S2 };

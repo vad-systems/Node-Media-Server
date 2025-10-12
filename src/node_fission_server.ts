@@ -1,13 +1,10 @@
-import _ from 'lodash';
 import fs from 'fs';
-import {Logger} from "./node_core_logger";
-import {NodeFissionSession} from "./node_fission_session";
-import context from './node_core_ctx';
-import {getFFmpegVersion, getFFmpegUrl} from './node_core_utils';
-import {Arguments, Config, FissionSessionConfig, SessionID} from "./types";
-import {NodeRelaySession} from "./node_relay_session";
-
-const mkdirp = require('mkdirp');
+import _ from 'lodash';
+import { context, Logger, NodeCoreUtils } from './core/index.js';
+import { NodeFissionSession } from './node_fission_session.js';
+import { NodeRelaySession } from './node_relay_session.js';
+import { Arguments, Config, FissionSessionConfig, SessionID } from './types.js';
+import * as mkdirp from 'mkdirp';
 
 class NodeFissionServer {
     config: Config;
@@ -19,7 +16,7 @@ class NodeFissionServer {
 
     async run() {
         try {
-            mkdirp.sync(this.config.http.mediaroot);
+            mkdirp.sync(this.config.http.mediaroot.toString());
             fs.accessSync(this.config.http.mediaroot, fs.constants.W_OK);
         } catch (error) {
             Logger.error(`Node Media Fission Server startup failed. MediaRoot:${this.config.http.mediaroot} cannot be written.`);
@@ -33,10 +30,10 @@ class NodeFissionServer {
             return;
         }
 
-        let version = await getFFmpegVersion(this.config.fission.ffmpeg);
+        let version = await NodeCoreUtils.getFFmpegVersion(this.config.fission.ffmpeg);
         if (version === '' || parseInt(version.split('.')[0]) < 4) {
             Logger.error('Node Media Fission Server startup failed. ffmpeg requires version 4.0.0 above');
-            Logger.error('Download the latest ffmpeg static program:', getFFmpegUrl());
+            Logger.error('Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
             return;
         }
 
@@ -51,7 +48,11 @@ class NodeFissionServer {
         for (let task of this.config.fission.tasks) {
             regRes = /(.*)\/(.*)/gi.exec(task.rule);
             let [ruleApp, ruleName] = _.slice(regRes, 1);
-            if ((app === ruleApp || ruleApp === '*') && (name === ruleName || ruleName === '*')) {
+            if ((
+                app === ruleApp || ruleApp === '*'
+            ) && (
+                name === ruleName || ruleName === '*'
+            )) {
                 let s = context.sessions.get(srcId);
                 const nameSegments = name.split('_');
                 if (s.isLocal && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
@@ -70,12 +71,24 @@ class NodeFissionServer {
                 sessionConf.args = args;
                 let session = new NodeFissionSession(sessionConf);
                 const id = session.id;
-                Logger.log('[fission] start', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                Logger.log(
+                    '[fission] start',
+                    `srcid=${srcId}`,
+                    `id=${id}`,
+                    sessionConf.streamPath,
+                    `x${taskConf.model.length}`,
+                );
                 context.sessions.set(id, session);
                 session.on('end', (id) => {
                     this.fissionSessions.delete(id);
 
-                    Logger.log('[fission] ended', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                    Logger.log(
+                        '[fission] ended',
+                        `srcid=${srcId}`,
+                        `id=${id}`,
+                        sessionConf.streamPath,
+                        `x${taskConf.model.length}`,
+                    );
                     context.sessions.delete(id);
                     const fissionSessionsForSrc = this.fissionSessions.get(srcId);
                     if (fissionSessionsForSrc) {
@@ -83,7 +96,13 @@ class NodeFissionServer {
                     }
                     setTimeout(() => {
                         if (!!srcId && !!context.sessions.get(srcId)) {
-                            Logger.log('[fission] restart', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                            Logger.log(
+                                '[fission] restart',
+                                `srcid=${srcId}`,
+                                `id=${id}`,
+                                sessionConf.streamPath,
+                                `x${taskConf.model.length}`,
+                            );
                             this.onPostPublish(srcId, streamPath, args);
                         }
                     }, 1000);
@@ -97,7 +116,13 @@ class NodeFissionServer {
                     this.fissionSessions.set(srcId, newMap);
                 }
                 session.run();
-                Logger.log('[fission] started', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                Logger.log(
+                    '[fission] started',
+                    `srcid=${srcId}`,
+                    `id=${id}`,
+                    sessionConf.streamPath,
+                    `x${taskConf.model.length}`,
+                );
             }
         }
     }
@@ -138,4 +163,4 @@ class NodeFissionServer {
     }
 }
 
-export {NodeFissionServer};
+export { NodeFissionServer };

@@ -1,10 +1,8 @@
 import URL from 'url';
-import {Logger} from './node_core_logger';
-import context from './node_core_ctx';
-import NodeCoreUtils from './node_core_utils';
-import {NodeSession} from './node_session';
-import {NodeRtmpSession} from './node_rtmp_session';
-import {Arguments, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse} from "./types";
+import { context, Logger, NodeCoreUtils } from './core/index.js';
+import { NodeRtmpSession } from './node_rtmp_session.js';
+import { NodeSession } from './node_session.js';
+import { Arguments, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from './types.js';
 
 type FlvPayload = {
     length: number;
@@ -50,7 +48,7 @@ class NodeHttpSession extends NodeSession<never, HttpSessionConfig> {
         super(
             config,
             req.remoteAddress,
-            req.nmsConnectionType === NodeConnectionType.WS ? 'websocket-flv' : 'http-flv'
+            req.nmsConnectionType === NodeConnectionType.WS ? 'websocket-flv' : 'http-flv',
         );
         this.req = req.req;
         this.res = res.res;
@@ -79,7 +77,7 @@ class NodeHttpSession extends NodeSession<never, HttpSessionConfig> {
         let method = this.req.method;
         let urlInfo = URL.parse(this.req.url, true);
         let streamPath = urlInfo.pathname.split('.')[0];
-        this.connectCmdObj = {ip: this.remoteIp, method, streamPath, query: urlInfo.query};
+        this.connectCmdObj = { ip: this.remoteIp, method, streamPath, query: urlInfo.query };
         this.connectTime = new Date();
         this.isStarting = true;
         Logger.log(`[${this.TAG} connect] id=${this.id} remoteIp=${this.remoteIp} args=${JSON.stringify(urlInfo.query)}`);
@@ -165,7 +163,9 @@ class NodeHttpSession extends NodeSession<never, HttpSessionConfig> {
     onStartPlay() {
         let publisherId = context.publishers.get(this.playStreamPath);
         let publisher = context.sessions.get(publisherId);
-        if (!(publisher instanceof NodeRtmpSession)) {
+        if (!(
+            publisher instanceof NodeRtmpSession
+        )) {
             return;
         }
 
@@ -222,10 +222,16 @@ class NodeHttpSession extends NodeSession<never, HttpSessionConfig> {
         let tagBuffer = Buffer.alloc(PreviousTagSize + 4);
         tagBuffer[0] = packet.header.type;
         tagBuffer.writeUIntBE(packet.header.length, 1, 3);
-        tagBuffer[4] = (packet.header.timestamp >> 16) & 0xff;
-        tagBuffer[5] = (packet.header.timestamp >> 8) & 0xff;
+        tagBuffer[4] = (
+            packet.header.timestamp >> 16
+        ) & 0xff;
+        tagBuffer[5] = (
+            packet.header.timestamp >> 8
+        ) & 0xff;
         tagBuffer[6] = packet.header.timestamp & 0xff;
-        tagBuffer[7] = (packet.header.timestamp >> 24) & 0xff;
+        tagBuffer[7] = (
+            packet.header.timestamp >> 24
+        ) & 0xff;
         tagBuffer.writeUIntBE(0, 8, 3);
         tagBuffer.writeUInt32BE(PreviousTagSize, PreviousTagSize);
         packet.payload.copy(tagBuffer, 11, 0, packet.header.length);

@@ -1,5 +1,5 @@
-import {PathLike} from "fs";
-import Http from "http";
+import { PathLike } from 'fs';
+import Http from 'http';
 
 export enum LogType {
     NONE = 0,
@@ -182,9 +182,7 @@ export type FissionConfig = {
     readonly tasks: FissionTaskConfig[];
 }
 
-export type ClusterConfig = {
-
-}
+export type ClusterConfig = {}
 
 export type AuthConfig = {
     readonly api?: boolean;

@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -13,13 +46,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeTransServer = void 0;
-const lodash_1 = __importDefault(require("lodash"));
 const fs_1 = __importDefault(require("fs"));
-const node_core_logger_1 = require("./node_core_logger");
-const node_trans_session_1 = require("./node_trans_session");
-const node_core_ctx_1 = __importDefault(require("./node_core_ctx"));
-const node_core_utils_1 = require("./node_core_utils");
-const mkdirp = require('mkdirp');
+const lodash_1 = __importDefault(require("lodash"));
+const index_js_1 = require("./core/index.js");
+const node_trans_session_js_1 = require("./node_trans_session.js");
+const mkdirp = __importStar(require("mkdirp"));
 class NodeTransServer {
     constructor(config) {
         this.transSessions = new Map();
@@ -30,24 +61,24 @@ class NodeTransServer {
             const mediaroot = this.config.http.mediaroot;
             const ffmpeg = this.config.trans.ffmpeg;
             try {
-                mkdirp.sync(mediaroot);
+                mkdirp.sync(mediaroot.toString());
                 fs_1.default.accessSync(mediaroot, fs_1.default.constants.W_OK);
             }
             catch (error) {
-                node_core_logger_1.Logger.error(`Node Media Trans Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
+                index_js_1.Logger.error(`Node Media Trans Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
                 return;
             }
             try {
                 fs_1.default.accessSync(ffmpeg, fs_1.default.constants.X_OK);
             }
             catch (error) {
-                node_core_logger_1.Logger.error(`Node Media Trans Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
+                index_js_1.Logger.error(`Node Media Trans Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
                 return;
             }
-            const version = yield (0, node_core_utils_1.getFFmpegVersion)(ffmpeg);
+            const version = yield index_js_1.NodeCoreUtils.getFFmpegVersion(ffmpeg);
             if (version === '' || parseInt(version.split('.')[0]) < 4) {
-                node_core_logger_1.Logger.error('Node Media Trans Server startup failed. ffmpeg requires version 4.0.0 above');
-                node_core_logger_1.Logger.error('Download the latest ffmpeg static program:', (0, node_core_utils_1.getFFmpegUrl)());
+                index_js_1.Logger.error('Node Media Trans Server startup failed. ffmpeg requires version 4.0.0 above');
+                index_js_1.Logger.error('Download the latest ffmpeg static program:', index_js_1.NodeCoreUtils.getFFmpegUrl());
                 return;
             }
             const tasks = this.config.trans.tasks || [];
@@ -57,9 +88,9 @@ class NodeTransServer {
                 apps += tasks[i].app;
                 apps += ' ';
             }
-            node_core_ctx_1.default.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
-            node_core_ctx_1.default.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
-            node_core_logger_1.Logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
+            index_js_1.context.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
+            index_js_1.context.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
+            index_js_1.Logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
         });
     }
     onPostPublish(id, streamPath, args) {
@@ -73,7 +104,7 @@ class NodeTransServer {
             let sessionConfig = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConfig)), { ffmpeg, mediaroot: mediaroot, rtmpPort: this.config.rtmp.port, streamPath: streamPath, streamApp: app, streamName: name });
             sessionConfig.args = args;
             if (app === taskConfig.app) {
-                let session = new node_trans_session_1.NodeTransSession(sessionConfig);
+                let session = new node_trans_session_js_1.NodeTransSession(sessionConfig);
                 this.transSessions.set(id, session);
                 session.on('end', (id) => {
                     this.transSessions.delete(id);

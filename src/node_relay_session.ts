@@ -1,6 +1,6 @@
-import {NodeFfmpegSession} from './node_ffmpeg_session';
-import {Logger} from './node_core_logger';
-import {RelaySessionConfig, RtspTransport} from "./types";
+import { Logger } from './core/index.js';
+import { NodeFfmpegSession } from './node_ffmpeg_session.js';
+import { RelaySessionConfig, RtspTransport } from './types.js';
 
 class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
     ts = null;
@@ -17,9 +17,11 @@ class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
             '-i', this.conf.inPath,
             '-c:v', 'h264',
             '-c:a', 'copy',
-            ...(this.conf.rescale ? ['-vf', `scale=${this.conf.rescale}`] : []),
+            ...(
+                this.conf.rescale ? ['-vf', `scale=${this.conf.rescale}`] : []
+            ),
             '-f', format,
-            this.conf.ouPath
+            this.conf.ouPath,
         ];
 
         if (this.conf.inPath[0] === '/' || this.conf.inPath[1] === ':') {

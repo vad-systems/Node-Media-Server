@@ -4,25 +4,28 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeSession = void 0;
-const lodash_1 = __importDefault(require("lodash"));
 const events_1 = __importDefault(require("events"));
-const node_core_utils_1 = __importDefault(require("./node_core_utils"));
+const lodash_1 = __importDefault(require("lodash"));
+const index_js_1 = require("./core/index.js");
 class NodeSession extends events_1.default {
     constructor(conf, remoteIp, tag) {
         super();
         this.id = null;
         this.conf = lodash_1.default.cloneDeep(conf);
-        this.id = node_core_utils_1.default.generateNewSessionID();
+        this.id = index_js_1.NodeCoreUtils.generateNewSessionID();
         this.remoteIp = remoteIp;
         this.TAG = tag;
     }
     getConfig(key = null) {
-        if (!key)
+        if (!key) {
             return;
-        if (typeof this.conf != 'object')
+        }
+        if (typeof this.conf != 'object') {
             return;
-        if (this.conf.args && typeof this.conf.args === 'object' && this.conf.args[key])
+        }
+        if (this.conf.args && typeof this.conf.args === 'object' && this.conf.args[key]) {
             return this.conf.args[key];
+        }
         return this.conf[key];
     }
     isLocal() {
