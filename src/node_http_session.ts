@@ -2,7 +2,7 @@ import URL from 'url';
 import { context, Logger, NodeCoreUtils } from './core/index.js';
 import { NodeRtmpSession } from './node_rtmp_session.js';
 import { NodeSession } from './node_session.js';
-import { Arguments, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from './types.js';
+import { Arguments, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from './types/index.js';
 
 type FlvPayload = {
     length: number;

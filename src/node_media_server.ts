@@ -5,8 +5,8 @@ import { NodeHttpServer } from './node_http_server.js';
 import { NodeRelayServer } from './node_relay_server.js';
 import { NodeRtmpServer } from './node_rtmp_server.js';
 import { NodeTransServer } from './node_trans_server.js';
-import * as types from './types.js';
-import { Config, NodeEventMap } from './types.js';
+import * as types from './types/index.js';
+import { Config, NodeEventMap } from './types/index.js';
 
 const Package = require('../package.json');
 

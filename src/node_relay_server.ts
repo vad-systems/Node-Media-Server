@@ -3,7 +3,8 @@ import _ from 'lodash';
 import querystring from 'querystring';
 import { Logger, context, NodeCoreUtils } from './core/index.js';
 import { NodeRelaySession } from './node_relay_session.js';
-import { Arguments, Config, Mode, RelaySessionConfig, SessionID } from './types.js';
+import { Arguments, Config, RelayMode, RelaySessionConfig, SessionID } from './types/index.js';
+import asRegExp from './util/asRegExp.js';
 
 class NodeRelayServer {
     config: Config;
@@ -98,7 +99,7 @@ class NodeRelayServer {
         Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
         while (i--) {
             let taskConf = _.cloneDeep(tasks[i]);
-            let isPush = taskConf.mode === Mode.PUSH;
+            let isPush = taskConf.mode === RelayMode.PUSH;
             const edge = !!taskConf.edge && (
                 typeof taskConf.edge === typeof {} ? (
                     taskConf.edge[stream] || taskConf.edge['_default'] || ''
@@ -112,7 +113,8 @@ class NodeRelayServer {
                 `i=${i}`,
                 `edge=${edge}`,
             );
-            if (isPush && app === taskConf.app) {
+            const pattern = asRegExp(taskConf.pattern);
+            if (isPush && (app === taskConf.app && (!pattern || pattern.test(streamPath)))) {
                 let hasApp = edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
                 let sessionConf: RelaySessionConfig = {
                     ..._.cloneDeep(taskConf),
@@ -135,11 +137,7 @@ class NodeRelayServer {
                     `edge=${edge}`,
                     `pattern=${taskConf.pattern}`,
                 );
-                if (!!taskConf.pattern && !(
-                    new RegExp(taskConf.pattern).test(streamPath)
-                )) {
-                    continue;
-                }
+
                 this.startNewRelaySession(sessionConf, id, streamPath, args);
             }
         }

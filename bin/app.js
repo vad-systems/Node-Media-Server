@@ -32,22 +32,28 @@ if (argv.help) {
 const relayTasks = [
     {
         app: 'live-in',
-        mode: NodeMediaServer.types.Mode.PUSH,
+        mode: NodeMediaServer.types.RelayMode.PUSH,
         edge: 'rtmp://127.0.0.1:1935/live',
     },
     {
         app: 'live-in',
-        mode: NodeMediaServer.types.Mode.PUSH,
+        mode: NodeMediaServer.types.RelayMode.PUSH,
         pattern: '/test(1|2)$',
         edge: 'rtmp://127.0.0.1:1935/relay-yt',
     },
     {
         app: 'relay-yt',
-        mode: NodeMediaServer.types.Mode.PUSH,
-        edge: {
-            'test1': 'rtmp://127.0.0.1:1935/yt-out/test1_yt',
-            'test2': 'rtmp://127.0.0.1:1935/yt-out/test2_yt',
-        },
+        pattern: '/test1$',
+        mode: NodeMediaServer.types.RelayMode.PUSH,
+        edge: 'rtmp://127.0.0.1:1935/yt-out/test1_yt',
+        appendName: false,
+        rescale: '1920:1080',
+    },
+    {
+        app: 'relay-yt',
+        pattern: '/test2$',
+        mode: NodeMediaServer.types.RelayMode.PUSH,
+        edge: 'rtmp://127.0.0.1:1935/yt-out/test2_yt',
         appendName: false,
         rescale: '1920:1080',
     },
@@ -59,7 +65,7 @@ const relayTasks = [
  */
 const fissionTasks = [
     {
-        rule: "live/*",
+        pattern: "live/.*",
         model: [
             {
                 ab: "64k",

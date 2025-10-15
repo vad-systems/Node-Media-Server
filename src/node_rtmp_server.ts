@@ -4,7 +4,7 @@ import Net from 'net';
 import Tls from 'tls';
 import { Logger, context } from './core/index.js';
 import { NodeRtmpSession } from './node_rtmp_session.js';
-import { Config } from './types.js';
+import { Config } from './types/index.js';
 
 const RTMP_PORT = 1935;
 const RTMPS_PORT = 443;

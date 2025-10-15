@@ -2,8 +2,9 @@ import fs from 'fs';
 import _ from 'lodash';
 import { Logger, context, NodeCoreUtils } from './core/index.js';
 import { NodeTransSession } from './node_trans_session.js';
-import { Arguments, Config, SessionID, TransSessionConfig } from './types.js';
+import { Arguments, Config, SessionID, TransSessionConfig } from './types/index.js';
 import * as mkdirp from 'mkdirp';
+import asRegExp from './util/asRegExp.js';
 
 class NodeTransServer {
     config: Config;
@@ -74,7 +75,8 @@ class NodeTransServer {
             };
             sessionConfig.args = args;
 
-            if (app === taskConfig.app) {
+            const pattern = asRegExp(taskConfig.pattern);
+            if (app === taskConfig.app && (!pattern || pattern.test(streamPath))) {
                 let session = new NodeTransSession(sessionConfig);
                 this.transSessions.set(id, session);
                 session.on('end', (id) => {

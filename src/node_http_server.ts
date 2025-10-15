@@ -12,7 +12,7 @@ import streamsRoute from './api/routes/streams.js';
 import { context, Logger } from './core/index.js';
 import { NodeHttpSession } from './node_http_session.js';
 import { NodeRtmpSession } from './node_rtmp_session.js';
-import { Config, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from './types.js';
+import { Config, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from './types/index.js';
 import H2EBridge from 'http2-express';
 import basicAuth from 'basic-auth-connect';
 

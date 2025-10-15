@@ -1,6 +1,6 @@
 import { Logger } from './core/index.js';
 import { NodeFfmpegSession } from './node_ffmpeg_session.js';
-import { FissionSessionConfig } from './types.js';
+import { FissionSessionConfig } from './types/index.js';
 
 class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig> {
     constructor(conf: FissionSessionConfig) {
