@@ -1,21 +1,25 @@
 import fs from 'fs';
 import _ from 'lodash';
 import { context, Logger, NodeCoreUtils } from './core/index.js';
+import NodeConfigurableServer from './node_configurable_server.js';
 import { NodeFissionSession } from './node_fission_session.js';
 import { NodeRelaySession } from './node_relay_session.js';
 import { Arguments, Config, FissionSessionConfig, SessionID } from './types/index.js';
 import * as mkdirp from 'mkdirp';
 import asRegExp from './util/asRegExp.js';
 
-class NodeFissionServer {
-    config: Config;
-    fissionSessions: Map<SessionID, Map<SessionID, NodeFissionSession>> = new Map();
+class NodeFissionServer extends NodeConfigurableServer<Config> {
+    fissionSessions: Map<SessionID, Map<SessionID, NodeFissionSession>>;
 
     constructor(config: Config) {
-        this.config = config;
+        super(config);
+        this.onPostPublish = this.onPostPublish.bind(this);
+        this.onDonePublish = this.onDonePublish.bind(this);
     }
 
     async run() {
+        this.fissionSessions = new Map();
+
         try {
             mkdirp.sync(this.config.http.mediaroot.toString());
             fs.accessSync(this.config.http.mediaroot, fs.constants.W_OK);
@@ -38,8 +42,8 @@ class NodeFissionServer {
             return;
         }
 
-        context.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
-        context.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
+        context.nodeEvent.on('postPublish', this.onPostPublish);
+        context.nodeEvent.on('donePublish', this.onDonePublish);
         Logger.log(`Node Media Fission Server started, MediaRoot: ${this.config.http.mediaroot}, ffmpeg version: ${version}`);
     }
 
@@ -145,6 +149,9 @@ class NodeFissionServer {
     }
 
     stop() {
+        context.nodeEvent.off('postPublish', this.onPostPublish);
+        context.nodeEvent.off('donePublish', this.onDonePublish);
+
         for (let [srcId, sessions] of this.fissionSessions) {
             for (let [_, session] of sessions) {
                 session.end();
@@ -156,6 +163,8 @@ class NodeFissionServer {
                 session.end();
             }
         }
+
+        Logger.log(`Node Media Fission Server stopped.`);
     }
 }
 
