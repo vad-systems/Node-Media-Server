@@ -1,5 +1,5 @@
 import { FfmpegSessionConfig } from '../session.js';
-import { TaskConfig } from './task.js';
+import { SelectiveTaskConfig, TaskConfig } from './task.js';
 
 export enum RelayMode {
     PUSH = 'push',
@@ -13,7 +13,7 @@ export enum RtspTransport {
     HTTP = 'http',
 }
 
-export type RelayTaskConfig = TaskConfig & {
+type RelayTaskConfig = {
     readonly mode: RelayMode;
     readonly edge: string;
     readonly rescale?: string;
@@ -21,12 +21,20 @@ export type RelayTaskConfig = TaskConfig & {
     readonly appendName?: boolean;
 }
 
-export type RelayConfig = {
-    readonly ffmpeg: string;
-    readonly tasks: RelayTaskConfig[];
+export type RelayPullTaskConfig = RelayTaskConfig & TaskConfig & {
+    readonly mode: RelayMode.PULL;
 }
 
-export type RelaySessionConfig = RelayTaskConfig & FfmpegSessionConfig<never> & {
+export type RelayPushTaskConfig = RelayTaskConfig & SelectiveTaskConfig & {
+    readonly mode: RelayMode.PUSH;
+}
+
+export type RelayConfig = {
+    readonly ffmpeg: string;
+    readonly tasks: (RelayPushTaskConfig | RelayPullTaskConfig)[];
+}
+
+export type RelaySessionConfig = (RelayPushTaskConfig | RelayPullTaskConfig) & FfmpegSessionConfig<never> & {
     inPath: string;
     ouPath: string;
 }

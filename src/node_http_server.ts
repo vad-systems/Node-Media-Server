@@ -1,7 +1,9 @@
+import basicAuth from 'basic-auth-connect';
 import bodyParser from 'body-parser';
 import Express from 'express';
 import fs, { PathLike } from 'fs';
 import Http from 'http';
+import H2EBridge from 'http2-express';
 import Https from 'https';
 import _ from 'lodash';
 import path from 'path';
@@ -13,27 +15,24 @@ import { context, Logger } from './core/index.js';
 import NodeConfigurableServer from './node_configurable_server.js';
 import { NodeHttpSession } from './node_http_session.js';
 import { NodeRtmpSession } from './node_rtmp_session.js';
-import { Arguments, Config, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse, SessionID } from './types/index.js';
-import H2EBridge from 'http2-express';
-import basicAuth from 'basic-auth-connect';
+import { Arguments, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse, SessionID } from './types/index.js';
 
 const HTTP_PORT = 80;
 const HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
 
-class NodeHttpServer extends NodeConfigurableServer<Config> {
-    mediaroot: PathLike;
-    port: number;
-    httpServer: Http.Server;
-    wsServer: WebSocket.Server;
+class NodeHttpServer extends NodeConfigurableServer {
+    private mediaroot: PathLike;
+    private port: number;
+    private httpServer: Http.Server;
+    private wsServer: WebSocket.Server;
 
-    sport?: number;
-    httpsServer?: Https.Server;
-    wssServer?: WebSocket.Server;
+    private sport?: number;
+    private httpsServer?: Https.Server;
+    private wssServer?: WebSocket.Server;
 
-    constructor(config: Config) {
-        super(config);
-
+    constructor() {
+        super();
         this.onPostPlay = this.onPostPlay.bind(this);
         this.onPostPublish = this.onPostPublish.bind(this);
         this.onDoneConnect = this.onDoneConnect.bind(this);
@@ -112,6 +111,8 @@ class NodeHttpServer extends NodeConfigurableServer<Config> {
     }
 
     async run() {
+        await super.run();
+
         this.initServer();
 
         this.httpServer.listen(this.port, () => {
@@ -147,7 +148,7 @@ class NodeHttpServer extends NodeConfigurableServer<Config> {
             Logger.error(`Node Media WebSocket Server ${e}`);
         });
         this.wsServer.on('close', () => {
-            Logger.error(`Node Media WebSocket Server closed`);
+            Logger.log(`Node Media WebSocket Server closed`);
         });
 
         if (this.httpsServer) {
@@ -184,7 +185,7 @@ class NodeHttpServer extends NodeConfigurableServer<Config> {
                 Logger.error(`Node Media WebSocketSecure Server ${e}`);
             });
             this.wssServer.on('close', () => {
-                Logger.error(`Node Media WebSocketSecure Server closed`);
+                Logger.log(`Node Media WebSocketSecure Server closed`);
             });
         }
 
@@ -216,6 +217,8 @@ class NodeHttpServer extends NodeConfigurableServer<Config> {
     }
 
     stop() {
+        super.stop();
+
         context.nodeEvent.off('postPlay', this.onPostPlay);
         context.nodeEvent.off('postPublish', this.onPostPublish);
         context.nodeEvent.off('doneConnect', this.onDoneConnect);

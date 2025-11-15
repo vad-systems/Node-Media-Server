@@ -1,6 +1,8 @@
 #!/usr/bin/env node 
 
-const NodeMediaServer = require('..');
+const { default: NodeMediaServer } = require('..');
+const RelayMode = NodeMediaServer.types.RelayMode;
+const LogType = NodeMediaServer.types.LogType;
 let argv = require('minimist')(process.argv.slice(2),
     {
         string: ['rtmp_port', 'http_port', 'https_port'],
@@ -32,19 +34,19 @@ if (argv.help) {
 const relayTasks = [
     {
         app: 'live-in',
-        mode: NodeMediaServer.types.RelayMode.PUSH,
+        mode: RelayMode.PUSH,
         edge: 'rtmp://127.0.0.1:1935/live',
     },
     {
         app: 'live-in',
-        mode: NodeMediaServer.types.RelayMode.PUSH,
+        mode: RelayMode.PUSH,
         pattern: '/test(1|2)$',
         edge: 'rtmp://127.0.0.1:1935/relay-yt',
     },
     {
         app: 'relay-yt',
         pattern: '/test1$',
-        mode: NodeMediaServer.types.RelayMode.PUSH,
+        mode: RelayMode.PUSH,
         edge: 'rtmp://127.0.0.1:1935/yt-out/test1_yt',
         appendName: false,
         rescale: '1920:1080',
@@ -52,7 +54,7 @@ const relayTasks = [
     {
         app: 'relay-yt',
         pattern: '/test2$',
-        mode: NodeMediaServer.types.RelayMode.PUSH,
+        mode: RelayMode.PUSH,
         edge: 'rtmp://127.0.0.1:1935/yt-out/test2_yt',
         appendName: false,
         rescale: '1920:1080',
@@ -106,7 +108,7 @@ const fissionTasks = [
  * @type Config
  */
 const config = {
-    logType: NodeMediaServer.types.LogType.DEBUG,
+    logType: LogType.DEBUG,
     rtmp: {
         port: parseInt(argv.rtmp_port, 10),
         chunk_size: 60000,
@@ -132,11 +134,11 @@ const config = {
         cert: __dirname + '/cert.pem',
     },
     relay: {
-        ffmpeg: 'ffmpeg',
+        ffmpeg: '/opt/homebrew/bin/ffmpeg',
         tasks: relayTasks,
     },
     fission: {
-        ffmpeg: 'ffmpeg',
+        ffmpeg: '/opt/homebrew/bin/ffmpeg',
         tasks: fissionTasks,
     },
     auth: {
@@ -194,4 +196,3 @@ nms.on('postPlay', (id, StreamPath, args) => {
 nms.on('donePlay', (id, StreamPath, args) => {
     console.log('[NodeEvent on donePlay]', `id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
 });
-

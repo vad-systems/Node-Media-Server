@@ -1,8 +1,8 @@
 import { PathLike } from 'fs';
 import { FfmpegSessionConfig } from '../session.js';
-import { TaskConfig } from './task.js';
+import { SelectiveTaskConfig } from './task.js';
 
-export type TransTaskConfig = TaskConfig & {
+export type TransTaskConfig = SelectiveTaskConfig & {
     readonly rtmp?: boolean;
     readonly rtmpApp?: string;
     readonly mp4?: boolean;

@@ -1,6 +1,6 @@
 import { Socket } from 'net';
 import QueryString from 'querystring';
-import { context, Logger, av, amf, NodeCoreUtils } from './core/index.js';
+import { amf, av, context, Logger, NodeCoreUtils } from './core/index.js';
 import { NodeHttpSession } from './node_http_session.js';
 import Handshake from './node_rtmp_handshake.js';
 import { NodeSession } from './node_session.js';
@@ -1222,7 +1222,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
             return;
         }
 
-        if (this.conf.auth && this.conf.auth.publish && !this.isLocal) {
+        if (this.conf.auth && this.conf.auth.publish && !this.isLocal()) {
             let results = NodeCoreUtils.verifyAuth(
                 this.publishArgs['sign'],
                 this.publishStreamPath,
@@ -1296,7 +1296,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
             return;
         }
 
-        if (this.conf.auth && this.conf.auth.play && !this.isLocal) {
+        if (this.conf.auth && this.conf.auth.play && !this.isLocal()) {
             let results = NodeCoreUtils.verifyAuth(this.playArgs['sign'], this.playStreamPath, this.conf.auth.secret);
             if (!results) {
                 Logger.log(`[rtmp play] Unauthorized. id=${this.id} streamPath=${this.playStreamPath}  streamId=${this.playStreamId} sign=${this.playArgs['sign']}`);

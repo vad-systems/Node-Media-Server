@@ -1,21 +1,33 @@
-import _ from 'lodash';
+import { context } from './core/index.js';
+import { Config } from './types/index.js';
 
-abstract class NodeConfigurableServer<C> {
-    config: C;
+abstract class NodeConfigurableServer {
+    private running: boolean;
+    protected config: Config;
 
-    protected constructor(config: C) {
-        this.config = _.cloneDeep(config);
+    protected constructor() {
+        this.config = context.configProvider.getConfig();
+
+        this.onConfigChanged = this.onConfigChanged.bind(this);
+        context.nodeEvent.on('configChanged', this.onConfigChanged);
     }
 
-    async updateConfig(config: C) {
-        this.stop();
-        this.config = _.cloneDeep(config);
-        await this.run();
+    private async onConfigChanged() {
+        this.config = context.configProvider.getConfig();
+
+        if (this.running) {
+            this.stop();
+            await this.run();
+        }
     }
 
-    abstract run(): Promise<void>;
+    async run() {
+        this.running = true;
+    }
 
-    abstract stop(): void;
+    public stop() {
+        this.running = false;
+    }
 }
 
 export default NodeConfigurableServer;

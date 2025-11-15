@@ -14,6 +14,7 @@ const setLogType = (type) => {
     }
     logType = type;
 };
+context_js_1.default.nodeEvent.on('configChanged', () => setLogType(context_js_1.default.configProvider.getConfig().logType));
 const logTime = () => {
     let nowDate = new Date();
     return nowDate.toLocaleDateString() + ' ' + nowDate.toLocaleTimeString([], { hour12: false });

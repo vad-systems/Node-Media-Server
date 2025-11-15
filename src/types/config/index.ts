@@ -21,7 +21,7 @@ export type AuthConfig = {
     readonly secret?: string;
 }
 
-export type Config = {
+export type ConfigType = {
     readonly http?: HttpConfig;
     readonly https?: HttpsConfig;
     readonly rtmp?: RtmpConfig;
@@ -33,4 +33,31 @@ export type Config = {
     readonly auth?: AuthConfig;
 
     readonly logType?: LogType;
+}
+
+export class Config {
+    readonly http?: HttpConfig;
+    readonly https?: HttpsConfig;
+    readonly rtmp?: RtmpConfig;
+    readonly trans?: TransConfig;
+    readonly relay?: RelayConfig;
+    readonly fission?: FissionConfig;
+
+    readonly cluster?: ClusterConfig;
+    readonly auth?: AuthConfig;
+
+    readonly logType?: LogType;
+
+    constructor(config: ConfigType) {
+        this.http = config.http;
+        this.https = config.https;
+        this.rtmp = config.rtmp;
+        this.trans = config.trans;
+        this.relay = config.relay;
+        this.fission = config.fission;
+        this.fission = config.fission;
+        this.cluster = config.cluster;
+        this.auth = config.auth;
+        this.logType = config.logType;
+    }
 }

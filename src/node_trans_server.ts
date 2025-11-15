@@ -1,24 +1,24 @@
 import fs from 'fs';
 import _ from 'lodash';
-import { Logger, context, NodeCoreUtils } from './core/index.js';
-import NodeConfigurableServer from './node_configurable_server.js';
-import { NodeRelaySession } from './node_relay_session.js';
-import { NodeTransSession } from './node_trans_session.js';
-import { Arguments, Config, SessionID, TransSessionConfig } from './types/index.js';
 import * as mkdirp from 'mkdirp';
-import asRegExp from './util/asRegExp.js';
+import { context, Logger, NodeCoreUtils } from './core/index.js';
+import NodeConfigurableServer from './node_configurable_server.js';
+import { NodeTransSession } from './node_trans_session.js';
+import { Arguments, SessionID, TransSessionConfig } from './types/index.js';
+import checkSelectiveTask from './util/checkSelectiveTask.js';
 
-class NodeTransServer extends NodeConfigurableServer<Config> {
-    transSessions: Map<SessionID, NodeTransSession> = new Map();
+class NodeTransServer extends NodeConfigurableServer {
+    private transSessions: Map<SessionID, NodeTransSession> = new Map();
 
-    constructor(config: Config) {
-        super(config);
-
+    constructor() {
+        super();
         this.onDonePublish = this.onDonePublish.bind(this);
         this.onPostPublish = this.onPostPublish.bind(this);
     }
 
     async run() {
+        await super.run();
+
         const mediaroot = this.config.http.mediaroot;
         const ffmpeg = this.config.trans.ffmpeg;
 
@@ -79,15 +79,16 @@ class NodeTransServer extends NodeConfigurableServer<Config> {
             };
             sessionConfig.args = args;
 
-            const pattern = asRegExp(taskConfig.pattern);
-            if (app === taskConfig.app && (!pattern || pattern.test(streamPath))) {
-                let session = new NodeTransSession(sessionConfig);
-                this.transSessions.set(id, session);
-                session.on('end', (id) => {
-                    this.transSessions.delete(id);
-                });
-                session.run();
+            if (!checkSelectiveTask(taskConfig, app, streamPath)) {
+                continue;
             }
+
+            let session = new NodeTransSession(sessionConfig);
+            this.transSessions.set(id, session);
+            session.on('end', (id) => {
+                this.transSessions.delete(id);
+            });
+            session.run();
         }
     }
 
@@ -99,6 +100,8 @@ class NodeTransServer extends NodeConfigurableServer<Config> {
     }
 
     stop() {
+        super.stop();
+
         context.nodeEvent.off('postPublish', this.onPostPublish);
         context.nodeEvent.off('donePublish', this.onDonePublish);
 

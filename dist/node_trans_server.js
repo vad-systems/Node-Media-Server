@@ -48,20 +48,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeTransServer = void 0;
 const fs_1 = __importDefault(require("fs"));
 const lodash_1 = __importDefault(require("lodash"));
+const mkdirp = __importStar(require("mkdirp"));
 const index_js_1 = require("./core/index.js");
 const node_configurable_server_js_1 = __importDefault(require("./node_configurable_server.js"));
 const node_trans_session_js_1 = require("./node_trans_session.js");
-const mkdirp = __importStar(require("mkdirp"));
-const asRegExp_js_1 = __importDefault(require("./util/asRegExp.js"));
+const checkSelectiveTask_js_1 = __importDefault(require("./util/checkSelectiveTask.js"));
 class NodeTransServer extends node_configurable_server_js_1.default {
-    constructor(config) {
-        super(config);
+    constructor() {
+        super();
         this.transSessions = new Map();
         this.onDonePublish = this.onDonePublish.bind(this);
         this.onPostPublish = this.onPostPublish.bind(this);
     }
     run() {
+        const _super = Object.create(null, {
+            run: { get: () => super.run }
+        });
         return __awaiter(this, void 0, void 0, function* () {
+            yield _super.run.call(this);
             const mediaroot = this.config.http.mediaroot;
             const ffmpeg = this.config.trans.ffmpeg;
             try {
@@ -107,15 +111,15 @@ class NodeTransServer extends node_configurable_server_js_1.default {
             let taskConfig = lodash_1.default.cloneDeep(tasks[i]);
             let sessionConfig = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConfig)), { ffmpeg, mediaroot: mediaroot, rtmpPort: this.config.rtmp.port, streamPath: streamPath, streamApp: app, streamName: name });
             sessionConfig.args = args;
-            const pattern = (0, asRegExp_js_1.default)(taskConfig.pattern);
-            if (app === taskConfig.app && (!pattern || pattern.test(streamPath))) {
-                let session = new node_trans_session_js_1.NodeTransSession(sessionConfig);
-                this.transSessions.set(id, session);
-                session.on('end', (id) => {
-                    this.transSessions.delete(id);
-                });
-                session.run();
+            if (!(0, checkSelectiveTask_js_1.default)(taskConfig, app, streamPath)) {
+                continue;
             }
+            let session = new node_trans_session_js_1.NodeTransSession(sessionConfig);
+            this.transSessions.set(id, session);
+            session.on('end', (id) => {
+                this.transSessions.delete(id);
+            });
+            session.run();
         }
     }
     onDonePublish(id, streamPath, args) {
@@ -125,6 +129,7 @@ class NodeTransServer extends node_configurable_server_js_1.default {
         }
     }
     stop() {
+        super.stop();
         index_js_1.context.nodeEvent.off('postPublish', this.onPostPublish);
         index_js_1.context.nodeEvent.off('donePublish', this.onDonePublish);
         for (let [id, session] of this.transSessions) {
