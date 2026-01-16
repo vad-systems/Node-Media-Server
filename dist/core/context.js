@@ -16,11 +16,13 @@ let stat = {
 };
 const configProvider = new config_js_1.default();
 const context = {
+    server: null,
     sessions,
     publishers,
     idlePlayers,
     nodeEvent,
     stat,
     configProvider,
+    rollingLog: [],
 };
 exports.default = context;

@@ -1,6 +1,5 @@
 const OS = require("os");
 const Package = require("../../../package.json");
-const { HttpConfig, HttpsConfig, RtmpConfig, TransConfig, RelayConfig, FissionConfig, LogType, ClusterConfig, AuthConfig } = require("../../types/index.js");
 function cpuAverage() {
     //Initialise sum of idle and time of cores and fetch CPU info
     let totalIdle = 0, totalTick = 0;
@@ -84,6 +83,26 @@ function getConfig(req, res, next) {
 function updateConfig(req, res, next) {
     throw new Error("Not implemented");
 }
+function getStatus(req, res, next) {
+    const response = {
+        fission: {
+            running: this.server.fissionServer.isRunning(),
+        },
+        http: {
+            running: this.server.httpServer.isRunning(),
+        },
+        relay: {
+            running: this.server.relayServer.isRunning(),
+        },
+        rtmp: {
+            running: this.server.rtmpServer.isRunning(),
+        },
+        trans: {
+            running: this.server.transServer.isRunning(),
+        },
+    };
+    res.json(response);
+}
 function getInfo(req, res, next) {
     let s = this.sessions;
     percentageCPU().then((cpuload) => {
@@ -128,6 +147,7 @@ function getInfo(req, res, next) {
 }
 module.exports = {
     getInfo,
+    getStatus,
     getConfig,
     updateConfig,
 };

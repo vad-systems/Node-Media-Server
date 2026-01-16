@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import ConfigProvider from '../core/config.js';
-import { NodeSession } from '../node_session.js';
+import NodeMediaServer from '../NodeMediaServer.js';
+import { NodeSession } from '../server/NodeSession.js';
 
 export type SessionID = string;
 
@@ -34,6 +35,7 @@ export enum LogType {
 }
 
 export type Context = {
+    server: NodeMediaServer | null,
     sessions: Map<SessionID, NodeSession<any, any>>;
     publishers: Map<string, SessionID>;
     idlePlayers: Set<SessionID>;
@@ -44,4 +46,5 @@ export type Context = {
         accepted: number;
     };
     configProvider: ConfigProvider;
+    rollingLog: any[][];
 };

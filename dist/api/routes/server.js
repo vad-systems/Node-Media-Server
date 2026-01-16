@@ -8,6 +8,7 @@ const server_js_1 = __importDefault(require("../controllers/server.js"));
 exports.default = (context) => {
     let router = express_1.default.Router();
     router.get('/', server_js_1.default.getInfo.bind(context));
+    router.get('/status', server_js_1.default.getStatus.bind(context));
     router.get('/config', server_js_1.default.getConfig.bind(context));
     router.patch('/config', server_js_1.default.updateConfig.bind(context));
     return router;
