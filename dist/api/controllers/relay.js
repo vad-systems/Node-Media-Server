@@ -1,9 +1,8 @@
-const { get, set } = require('lodash');
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const lodash_1 = require("lodash");
 /**
  * get all relay tasks
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @param {*} next
  */
 function getStreams(req, res, next) {
     let stats = {};
@@ -12,8 +11,8 @@ function getStreams(req, res, next) {
             return;
         }
         let { app, name } = session.conf;
-        if (!get(stats, [app, name])) {
-            set(stats, [app, name], {
+        if (!(0, lodash_1.get)(stats, [app, name])) {
+            (0, lodash_1.set)(stats, [app, name], {
                 relays: [],
             });
         }
@@ -31,9 +30,6 @@ function getStreams(req, res, next) {
 }
 /**
  * get relay task by id
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @param {*} next
  */
 function getStreamByID(req, res, next) {
     const relaySession = Array.from(this.sessions.values()).filter((session) => session.constructor.name === 'NodeRelaySession' &&
@@ -51,9 +47,6 @@ function getStreamByID(req, res, next) {
 }
 /**
  * get relay task by name
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @param {*} next
  */
 function getStreamByName(req, res, next) {
     const relaySession = Array.from(this.sessions.values()).filter((session) => session.constructor.name === 'NodeRelaySession' &&
@@ -71,9 +64,6 @@ function getStreamByName(req, res, next) {
 }
 /**
  * delete relay task
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @param {*} next
  */
 function delStream(req, res, next) {
     let relaySession = this.sessions.get(req.params.id);
@@ -85,7 +75,7 @@ function delStream(req, res, next) {
         res.sendStatus(404);
     }
 }
-module.exports = {
+exports.default = {
     getStreams,
     getStreamByID,
     getStreamByName,

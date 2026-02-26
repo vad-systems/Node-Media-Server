@@ -1,32 +1,29 @@
-const OS = require("os");
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const os_1 = __importDefault(require("os"));
 const Package = require("../../../package.json");
 function cpuAverage() {
-    //Initialise sum of idle and time of cores and fetch CPU info
     let totalIdle = 0, totalTick = 0;
-    let cpus = OS.cpus();
-    //Loop through CPU cores
+    let cpus = os_1.default.cpus();
     for (let i = 0, len = cpus.length; i < len; i++) {
-        //Select CPU core
         let cpu = cpus[i];
-        //Total up the time in the cores tick
-        for (type in cpu.times) {
+        for (let type in cpu.times) {
             totalTick += cpu.times[type];
         }
-        //Total up the idle time of the core
         totalIdle += cpu.times.idle;
     }
-    //Return the average Idle and Tick times
     return { idle: totalIdle / cpus.length, total: totalTick / cpus.length };
 }
 function percentageCPU() {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
         let startMeasure = cpuAverage();
         setTimeout(() => {
             let endMeasure = cpuAverage();
-            //Calculate the difference in idle and total time between the measures
             let idleDifference = endMeasure.idle - startMeasure.idle;
             let totalDifference = endMeasure.total - startMeasure.total;
-            //Calculate the average percentage CPU usage
             let percentageCPU = 100 - ~~(100 * idleDifference / totalDifference);
             resolve(percentageCPU);
         }, 100);
@@ -57,22 +54,23 @@ function getSessionsInfo(sessions) {
     return info;
 }
 function getConfig(req, res, next) {
-    const { http, https, rtmp, trans, relay, fission } = this.configProvider.getConfig();
+    const config = this.configProvider.getConfig();
+    const { http, https, rtmp, trans, relay, fission } = config;
     const response = {
         http: {
-            mediaroot: http.mediaroot,
-            port: http.port,
-            allow_origin: http.allow_origin,
+            mediaroot: http === null || http === void 0 ? void 0 : http.mediaroot,
+            port: http === null || http === void 0 ? void 0 : http.port,
+            allow_origin: http === null || http === void 0 ? void 0 : http.allow_origin,
         },
         https: {
-            port: https.port,
+            port: https === null || https === void 0 ? void 0 : https.port,
         },
         rtmp: {
-            port: rtmp.port,
-            chunk_size: rtmp.chunk_size,
-            ping: rtmp.ping,
-            ping_timeout: rtmp.ping_timeout,
-            gop_cache: rtmp.gop_cache,
+            port: rtmp === null || rtmp === void 0 ? void 0 : rtmp.port,
+            chunk_size: rtmp === null || rtmp === void 0 ? void 0 : rtmp.chunk_size,
+            ping: rtmp === null || rtmp === void 0 ? void 0 : rtmp.ping,
+            ping_timeout: rtmp === null || rtmp === void 0 ? void 0 : rtmp.ping_timeout,
+            gop_cache: rtmp === null || rtmp === void 0 ? void 0 : rtmp.gop_cache,
         },
         trans,
         relay,
@@ -84,21 +82,22 @@ function updateConfig(req, res, next) {
     throw new Error("Not implemented");
 }
 function getStatus(req, res, next) {
+    var _a, _b, _c, _d, _e;
     const response = {
         fission: {
-            running: this.server.fissionServer.isRunning(),
+            running: ((_a = this.server.fissionServer) === null || _a === void 0 ? void 0 : _a.isRunning()) || false,
         },
         http: {
-            running: this.server.httpServer.isRunning(),
+            running: ((_b = this.server.httpServer) === null || _b === void 0 ? void 0 : _b.isRunning()) || false,
         },
         relay: {
-            running: this.server.relayServer.isRunning(),
+            running: ((_c = this.server.relayServer) === null || _c === void 0 ? void 0 : _c.isRunning()) || false,
         },
         rtmp: {
-            running: this.server.rtmpServer.isRunning(),
+            running: ((_d = this.server.rtmpServer) === null || _d === void 0 ? void 0 : _d.isRunning()) || false,
         },
         trans: {
-            running: this.server.transServer.isRunning(),
+            running: ((_e = this.server.transServer) === null || _e === void 0 ? void 0 : _e.isRunning()) || false,
         },
     };
     res.json(response);
@@ -109,19 +108,19 @@ function getInfo(req, res, next) {
         let sinfo = getSessionsInfo(s);
         let info = {
             os: {
-                arch: OS.arch(),
-                platform: OS.platform(),
-                release: OS.release(),
+                arch: os_1.default.arch(),
+                platform: os_1.default.platform(),
+                release: os_1.default.release(),
             },
             cpu: {
-                num: OS.cpus().length,
+                num: os_1.default.cpus().length,
                 load: cpuload,
-                model: OS.cpus()[0].model,
-                speed: OS.cpus()[0].speed,
+                model: os_1.default.cpus()[0].model,
+                speed: os_1.default.cpus()[0].speed,
             },
             mem: {
-                totle: OS.totalmem(),
-                free: OS.freemem(),
+                totle: os_1.default.totalmem(),
+                free: os_1.default.freemem(),
             },
             net: {
                 inbytes: this.stat.inbytes + sinfo.inbytes,
@@ -145,7 +144,7 @@ function getInfo(req, res, next) {
         res.json(info);
     });
 }
-module.exports = {
+exports.default = {
     getInfo,
     getStatus,
     getConfig,

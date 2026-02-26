@@ -54,6 +54,17 @@ const error = (...args: any[]) => {
     addRollingLog(...logEntry);
 };
 
+const warn = (...args: any[]) => {
+    context.nodeEvent.emit('warnMessage', ...args);
+    if (logType < LogType.ERROR) {
+        return;
+    }
+
+    const logEntry = [logTime(), process.pid, chalk.bold.yellow('[WARN]'), ...args]
+    console.log(...logEntry);
+    addRollingLog(...logEntry);
+};
+
 const debug = (...args: any[]) => {
     context.nodeEvent.emit('debugMessage', ...args);
     if (logType < LogType.DEBUG) {
@@ -79,7 +90,8 @@ const ffdebug = (...args: any[]) => {
 const Logger = {
     setLogType, setRollingLogLength,
 
-    log, error, debug, ffdebug,
+    log, warn, error, debug, ffdebug,
 };
 
 export { Logger };
+export default Logger;

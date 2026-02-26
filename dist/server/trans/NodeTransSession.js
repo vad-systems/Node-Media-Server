@@ -121,9 +121,6 @@ class NodeTransSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
         index_js_1.Logger.log('[trans]', `id=${this.id}`, 'cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
-    end() {
-        this.ffmpeg_exec.kill();
-    }
     deleteHlsFiles(ouPath) {
         if ((!ouPath && !this.getConfig('hls')) || this.getConfig('hlsKeep')) {
             return;

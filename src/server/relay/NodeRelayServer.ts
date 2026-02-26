@@ -2,7 +2,9 @@ import fs from 'fs';
 import _ from 'lodash';
 import querystring from 'querystring';
 import { context, Logger, NodeCoreUtils } from '../../core/index.js';
+import { NodeAvSession } from '../NodeAvSession.js';
 import NodeConfigurableServer from '../NodeConfigurableServer.js';
+import { NodeSession } from '../NodeSession.js';
 import { NodeRelaySession } from './NodeRelaySession.js';
 import { Arguments, RelayMode, RelayPushTaskConfig, RelaySessionConfig, SessionID } from '../../types/index.js';
 import checkSelectiveTask from '../../util/checkSelectiveTask.js';
@@ -41,7 +43,7 @@ class NodeRelayServer extends NodeConfigurableServer {
 
     startNewRelaySession(conf: RelaySessionConfig, srcId: SessionID, streamPath: string, args: Arguments) {
         for (let session of context.sessions.values()) {
-            if (session.getConfig('inPath') === conf.inPath && session.conf.ouPath === conf.ouPath) {
+            if (session.getConfig('inPath') === conf.inPath && session.getConfig('ouPath') === conf.ouPath) {
                 Logger.log(
                     '[relay dynamic push] session still running',
                     `srcid=${srcId}`,
@@ -65,16 +67,20 @@ class NodeRelayServer extends NodeConfigurableServer {
                 dynamicSessionsForSrc.delete(id);
             }
             setTimeout(() => {
-                if (!!srcId && !!context.sessions.get(srcId)) {
-                    Logger.log(
-                        '[relay dynamic push] restart',
-                        `srcid=${srcId}`,
-                        `id=${id}`,
-                        conf.inPath,
-                        'to',
-                        conf.ouPath,
-                    );
-                    this.onPostPublish(srcId, streamPath, args);
+                if (!!srcId) {
+                    const [_x, broadcast] = [...context.broadcasts.entries()]
+                        .find(([_x, broadcast]) => broadcast.publisher?.id === srcId);
+                    if (!!broadcast) {
+                        Logger.log(
+                            '[relay dynamic push] restart',
+                            `srcid=${srcId}`,
+                            `id=${id}`,
+                            conf.inPath,
+                            'to',
+                            conf.ouPath,
+                        );
+                        this.onPostPublish(broadcast.publisher);
+                    }
                 }
             }, 1000);
         });
@@ -91,37 +97,38 @@ class NodeRelayServer extends NodeConfigurableServer {
         return session;
     }
 
-    onPostPublish(id: SessionID, streamPath: string, args: Arguments) {
-        Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `streamPath=${streamPath}`);
+    onPostPublish(session: NodeSession<any, any>) {
+        Logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`);
         const { tasks } = this.config.relay;
         if (!tasks) {
             return;
         }
-        let regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
-        let [app, stream] = _.slice(regRes, 1);
-        let i = tasks.length;
-        Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
-        while (i--) {
-            let taskConf = _.cloneDeep(tasks[i]);
-            const edge = !!taskConf.edge && (
-                typeof taskConf.edge === typeof {} ? (
-                    taskConf.edge[stream] || taskConf.edge['_default'] || ''
-                ) : taskConf.edge
-            );
-            Logger.log(
-                '[rtmp postPublish] Check for relays',
-                `id=${id}`,
-                `app=${app}`,
-                `stream=${stream}`,
-                `i=${i}`,
-                `edge=${edge}`,
-            );
+        if (session instanceof NodeAvSession) {
+            let regRes = /\/(.*)\/(.*)/gi.exec(session.streamPath);
+            let [app, stream] = _.slice(regRes, 1);
+            let i = tasks.length;
+            Logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
+            while (i--) {
+                let taskConf = _.cloneDeep(tasks[i]);
+                const edge = !!taskConf.edge && (
+                    typeof taskConf.edge === typeof {} ? (
+                        taskConf.edge[stream] || taskConf.edge['_default'] || ''
+                    ) : taskConf.edge
+                );
+                Logger.log(
+                    '[rtmp postPublish] Check for relays',
+                    `id=${session.id}`,
+                    `app=${app}`,
+                    `stream=${stream}`,
+                    `i=${i}`,
+                    `edge=${edge}`,
+                );
 
-            if (taskConf.mode === RelayMode.PUSH) {
-                this.handlePushTask(taskConf, app, streamPath, edge, stream, args, id);
+                if (taskConf.mode === RelayMode.PUSH) {
+                    this.handlePushTask(taskConf, app, session.streamPath, edge, stream, session.streamQuery, session.id);
+                }
             }
         }
-
     }
 
     private handlePushTask(
@@ -155,9 +162,9 @@ class NodeRelayServer extends NodeConfigurableServer {
         this.startNewRelaySession(sessionConf, id, streamPath, args);
     }
 
-    onDonePublish(id: SessionID, streamPath: string, args: Arguments) {
+    onDonePublish(session: NodeSession<any, any>) {
         for (let [srcId, sessions] of this.dynamicSessions) {
-            if (id === srcId) {
+            if (session.id === srcId) {
                 for (let [_, session] of sessions) {
                     session.end();
                 }
@@ -168,7 +175,7 @@ class NodeRelayServer extends NodeConfigurableServer {
                 }
             } else {
                 for (let [sessionId, session] of sessions) {
-                    if (id === sessionId) {
+                    if (session.id === sessionId) {
                         session.end();
                     }
                 }

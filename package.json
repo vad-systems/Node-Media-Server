@@ -1,13 +1,12 @@
 {
   "name": "@vad-systems/node-media-server",
-  "version": "0.1.0-dev10",
+  "version": "0.1.0-dev11",
   "description": "A Node.js implementation of RTMP Server based on @illuspas/Node-Media-Server",
   "bin": "bin/app.js",
   "main": "dist/NodeMediaServer.js",
   "types": "src/NodeMediaServer.ts",
   "scripts": {
     "start": "node bin/app.js",
-    "test": "node test/test_run.js",
     "build": "tsc -p tsconfig.json"
   },
   "repository": {
@@ -44,6 +43,7 @@
     "@types/lodash": "^4.17.20",
     "@types/node": "^22.18.10",
     "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
   "engines": {

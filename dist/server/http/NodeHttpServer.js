@@ -31,8 +31,8 @@ const NodeConfigurableServer_js_1 = __importDefault(require("../NodeConfigurable
 const NodeHttpSession_js_1 = require("./NodeHttpSession.js");
 const NodeRtmpSession_js_1 = require("../rtmp/NodeRtmpSession.js");
 const index_js_2 = require("../../types/index.js");
-const HTTP_PORT = 80;
-const HTTPS_PORT = 443;
+const DEFAULTHTTP_PORT = 80;
+const DEFAULT_HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
 class NodeHttpServer extends NodeConfigurableServer_js_1.default {
     constructor() {
@@ -42,7 +42,7 @@ class NodeHttpServer extends NodeConfigurableServer_js_1.default {
         this.onDoneConnect = this.onDoneConnect.bind(this);
     }
     initServer() {
-        this.port = this.config.http.port || HTTP_PORT;
+        this.port = this.config.http.port || DEFAULTHTTP_PORT;
         this.mediaroot = this.config.http.mediaroot || HTTP_MEDIAROOT;
         const app = (0, http2_express_1.default)(express_1.default);
         app.use(body_parser_1.default.json());
@@ -59,13 +59,14 @@ class NodeHttpServer extends NodeConfigurableServer_js_1.default {
                 req,
                 nmsConnectionType: index_js_2.NodeConnectionType.HTTP,
                 remoteAddress: req.ip,
+                remotePort: req.socket.remotePort,
             };
             const nmsRes = {
                 res,
             };
             this.handleConnect(nmsReq, nmsRes);
         });
-        const adminEntry = path_1.default.join(__dirname + '/../public/admin/index.html');
+        const adminEntry = path_1.default.join(__dirname + '/../../../public/admin/index.html');
         if (fs_1.default.existsSync(adminEntry)) {
             app.get('/admin/*splat', (req, res) => {
                 res.sendFile(adminEntry);
@@ -79,7 +80,7 @@ class NodeHttpServer extends NodeConfigurableServer_js_1.default {
             app.use('/api/server', (0, server_js_1.default)(index_js_1.context));
             app.use('/api/relay', (0, relay_js_1.default)(index_js_1.context));
         }
-        app.use(express_1.default.static(path_1.default.join(__dirname + '/../public')));
+        app.use(express_1.default.static(path_1.default.join(__dirname + '/../../../public')));
         app.use(express_1.default.static(this.mediaroot.toString()));
         if (this.config.http.webroot) {
             app.use(express_1.default.static(this.config.http.webroot));
@@ -93,7 +94,7 @@ class NodeHttpServer extends NodeConfigurableServer_js_1.default {
             if (this.config.https.passphrase) {
                 Object.assign(options, { passphrase: this.config.https.passphrase });
             }
-            this.sport = this.config.https.port || HTTPS_PORT;
+            this.sport = this.config.https.port || DEFAULT_HTTPS_PORT;
             this.httpsServer = https_1.default.createServer(options, app);
         }
     }
@@ -119,6 +120,7 @@ class NodeHttpServer extends NodeConfigurableServer_js_1.default {
                     req,
                     nmsConnectionType: index_js_2.NodeConnectionType.WS,
                     remoteAddress: req.socket.remoteAddress,
+                    remotePort: req.socket.remotePort,
                 };
                 const nmsRes = {
                     res: ws,
@@ -150,6 +152,7 @@ class NodeHttpServer extends NodeConfigurableServer_js_1.default {
                         req,
                         nmsConnectionType: index_js_2.NodeConnectionType.WS,
                         remoteAddress: req.socket.remoteAddress,
+                        remotePort: req.socket.remotePort,
                     };
                     const nmsRes = {
                         res: ws,
@@ -171,14 +174,13 @@ class NodeHttpServer extends NodeConfigurableServer_js_1.default {
             index_js_1.context.nodeEvent.on('doneConnect', this.onDoneConnect);
         });
     }
-    onPostPlay(id, streamPath, args) {
+    onPostPlay(session) {
         index_js_1.context.stat.accepted++;
     }
-    onPostPublish(id, streamPath, args) {
+    onPostPublish(session) {
         index_js_1.context.stat.accepted++;
     }
-    onDoneConnect(id, connectCmdObj) {
-        let session = index_js_1.context.sessions.get(id);
+    onDoneConnect(session) {
         if (session instanceof NodeHttpSession_js_1.NodeHttpSession) {
             let socket = session.req.socket;
             index_js_1.context.stat.inbytes += socket.bytesRead;

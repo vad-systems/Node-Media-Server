@@ -32,5 +32,7 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
     stop() {
         this.end();
     }
+    sendBuffer(buffer) {
+    }
 }
 exports.NodeFfmpegSession = NodeFfmpegSession;

@@ -48,6 +48,15 @@ const error = (...args) => {
     console.log(...logEntry);
     addRollingLog(...logEntry);
 };
+const warn = (...args) => {
+    context_js_1.default.nodeEvent.emit('warnMessage', ...args);
+    if (logType < index_js_1.LogType.ERROR) {
+        return;
+    }
+    const logEntry = [logTime(), process.pid, chalk_1.default.bold.yellow('[WARN]'), ...args];
+    console.log(...logEntry);
+    addRollingLog(...logEntry);
+};
 const debug = (...args) => {
     context_js_1.default.nodeEvent.emit('debugMessage', ...args);
     if (logType < index_js_1.LogType.DEBUG) {
@@ -68,6 +77,7 @@ const ffdebug = (...args) => {
 };
 const Logger = {
     setLogType, setRollingLogLength,
-    log, error, debug, ffdebug,
+    log, warn, error, debug, ffdebug,
 };
 exports.Logger = Logger;
+exports.default = Logger;

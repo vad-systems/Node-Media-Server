@@ -32,7 +32,7 @@ abstract class NodeConfigurableServer {
         return this.running;
     }
 
-    async run() {
+    public async run() {
         this.running = true;
     }
 

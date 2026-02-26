@@ -13,12 +13,13 @@ import serverRoute from '../../api/routes/server.js';
 import streamsRoute from '../../api/routes/streams.js';
 import { context, Logger } from '../../core/index.js';
 import NodeConfigurableServer from '../NodeConfigurableServer.js';
+import { NodeSession } from '../NodeSession.js';
 import { NodeHttpSession } from './NodeHttpSession.js';
 import { NodeRtmpSession } from '../rtmp/NodeRtmpSession.js';
-import { Arguments, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse, SessionID } from '../../types/index.js';
+import { HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from '../../types/index.js';
 
-const HTTP_PORT = 80;
-const HTTPS_PORT = 443;
+const DEFAULTHTTP_PORT = 80;
+const DEFAULT_HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
 
 class NodeHttpServer extends NodeConfigurableServer {
@@ -39,7 +40,7 @@ class NodeHttpServer extends NodeConfigurableServer {
     }
 
     initServer() {
-        this.port = this.config.http.port || HTTP_PORT;
+        this.port = this.config.http.port || DEFAULTHTTP_PORT;
         this.mediaroot = this.config.http.mediaroot || HTTP_MEDIAROOT;
 
         const app = H2EBridge(Express);
@@ -63,6 +64,7 @@ class NodeHttpServer extends NodeConfigurableServer {
                 req,
                 nmsConnectionType: NodeConnectionType.HTTP,
                 remoteAddress: req.ip,
+                remotePort: req.socket.remotePort,
             };
             const nmsRes = {
                 res,
@@ -70,7 +72,7 @@ class NodeHttpServer extends NodeConfigurableServer {
             this.handleConnect(nmsReq, nmsRes);
         });
 
-        const adminEntry = path.join(__dirname + '/../public/admin/index.html');
+        const adminEntry = path.join(__dirname + '/../../../public/admin/index.html');
         if (fs.existsSync(adminEntry)) {
             app.get('/admin/*splat', (req: Express.Request, res: Express.Response) => {
                 res.sendFile(adminEntry);
@@ -89,7 +91,7 @@ class NodeHttpServer extends NodeConfigurableServer {
             app.use('/api/relay', relayRoute(context));
         }
 
-        app.use(Express.static(path.join(__dirname + '/../public')));
+        app.use(Express.static(path.join(__dirname + '/../../../public')));
         app.use(Express.static(this.mediaroot.toString()));
         if (this.config.http.webroot) {
             app.use(Express.static(this.config.http.webroot));
@@ -105,7 +107,7 @@ class NodeHttpServer extends NodeConfigurableServer {
             if (this.config.https.passphrase) {
                 Object.assign(options, { passphrase: this.config.https.passphrase });
             }
-            this.sport = this.config.https.port || HTTPS_PORT;
+            this.sport = this.config.https.port || DEFAULT_HTTPS_PORT;
             this.httpsServer = Https.createServer(options, app);
         }
     }
@@ -134,6 +136,7 @@ class NodeHttpServer extends NodeConfigurableServer {
                 req,
                 nmsConnectionType: NodeConnectionType.WS,
                 remoteAddress: req.socket.remoteAddress,
+                remotePort: req.socket.remotePort,
             };
             const nmsRes = {
                 res: ws,
@@ -171,6 +174,7 @@ class NodeHttpServer extends NodeConfigurableServer {
                     req,
                     nmsConnectionType: NodeConnectionType.WS,
                     remoteAddress: req.socket.remoteAddress,
+                    remotePort: req.socket.remotePort,
                 };
                 const nmsRes = {
                     res: ws,
@@ -194,17 +198,15 @@ class NodeHttpServer extends NodeConfigurableServer {
         context.nodeEvent.on('doneConnect', this.onDoneConnect);
     }
 
-    onPostPlay(id: SessionID, streamPath: string, args: Arguments) {
+    onPostPlay(session: NodeSession<any, any>) {
         context.stat.accepted++;
     }
 
-    onPostPublish(id: SessionID, streamPath: string, args: Arguments) {
+    onPostPublish(session: NodeSession<any, any>) {
         context.stat.accepted++;
     }
 
-    onDoneConnect(id: SessionID, connectCmdObj: any) {
-        let session = context.sessions.get(id);
-
+    onDoneConnect(session: NodeSession<any, any>) {
         if (session instanceof NodeHttpSession) {
             let socket = session.req.socket;
             context.stat.inbytes += socket.bytesRead;

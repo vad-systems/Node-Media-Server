@@ -12,6 +12,7 @@ export enum NodeConnectionType {
 export class NodeHttpRequest {
     req: Express.Request | Http.IncomingMessage;
     remoteAddress: string;
+    remotePort: number;
     nmsConnectionType: NodeConnectionType;
 }
 

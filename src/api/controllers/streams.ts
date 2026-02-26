@@ -1,15 +1,43 @@
-const _ = require('lodash');
+import _ from 'lodash';
+import { NextFunction, Request, Response } from 'express';
+import { Context } from '../../types/index.js';
 
-function getStreams(req, res, next) {
-    let stats = {};
+function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
+    let stats: any = {};
 
-    this.sessions.forEach(function (session, id) {
+        this.broadcasts.forEach((broadcast, key) => {
+            const [k, app, name] = key.split("/");
+            _.setWith(stats, [app, name], {
+                key,
+                app,
+                name,
+                publisher: broadcast.publisher ? {
+                    id: broadcast.publisher.id,
+                    ip: broadcast.publisher.ip,
+                    protocol: broadcast.publisher.protocol,
+                    createTime: broadcast.publisher.createTime,
+                    videoCodec: broadcast.publisher.videoCodec,
+                    videoWidth: broadcast.publisher.videoWidth,
+                    videoHeight: broadcast.publisher.videoHeight,
+                    videoFramerate: broadcast.publisher.videoFramerate,
+                    audioCodec: broadcast.publisher.audioCodec,
+                    audioChannels: broadcast.publisher.audioChannels,
+                    audioSamplerate: broadcast.publisher.audioSamplerate,
+                    inBytes: broadcast.publisher.inBytes,
+                } : null,
+                subscribers: broadcast.subscribers?.size || 0
+            });
+        });
+
+    this.sessions.forEach(function (session: any, id) {
         if (session.isStarting) {
             let regRes = /\/(.*)\/(.*)/gi.exec(
-                session.publishStreamPath || session.playStreamPath
+                session.publishStreamPath || session.playStreamPath,
             );
 
-            if (regRes === null) return;
+            if (regRes === null) {
+                return;
+            }
 
             let [app, stream] = _.slice(regRes, 1);
 
@@ -84,31 +112,33 @@ function getStreams(req, res, next) {
     res.json(stats);
 }
 
-function getStream(req, res, next) {
-    let streamStats = {
+function getStream(this: Context, req: Request, res: Response, next: NextFunction) {
+    let streamStats: any = {
         isLive: false,
         viewers: 0,
         duration: 0,
         bitrate: 0,
         startTime: null,
-        arguments: {}
+        arguments: {},
     };
 
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
 
-    let publisherSession = this.sessions.get(
-        this.publishers.get(publishStreamPath)
+    let publisherSession: any = this.sessions.get(
+        this.publishers.get(publishStreamPath),
     );
 
     streamStats.isLive = !!publisherSession;
     streamStats.viewers = _.filter(
         Array.from(this.sessions.values()),
-        session => {
+        (session: any) => {
             return session.playStreamPath === publishStreamPath;
-        }
+        },
     ).length;
     streamStats.duration = streamStats.isLive
-        ? Math.ceil((Date.now() - publisherSession.startTimestamp) / 1000)
+        ? Math.ceil((
+            Date.now() - publisherSession.startTimestamp
+        ) / 1000)
         : 0;
     streamStats.bitrate =
         streamStats.duration > 0 ? publisherSession.bitrate : 0;
@@ -120,21 +150,21 @@ function getStream(req, res, next) {
     res.json(streamStats);
 }
 
-function delStream(req, res, next) {
+function delStream(this: Context, req: Request, res: Response, next: NextFunction) {
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
     let publisherSession = this.sessions.get(
-        this.publishers.get(publishStreamPath)
+        this.publishers.get(publishStreamPath),
     );
 
     if (publisherSession) {
         publisherSession.stop();
         res.json('ok');
     } else {
-        res.json({error: 'stream not found'}, 404);
+        res.status(404).json({ error: 'stream not found' });
     }
 }
 
-module.exports = {
+export default {
     delStream,
     getStreams,
     getStream,

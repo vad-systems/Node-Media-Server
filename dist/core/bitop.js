@@ -18,7 +18,7 @@ class Bitop {
             }
             this.iserro = false;
             d = this.bufoff + n > 8 ? 8 - this.bufoff : n;
-            v <<= d;
+            v = v * Math.pow(2, d);
             v += (this.buffer[this.bufpos] >> (8 - this.bufoff - d)) & (0xff >> (8 - d));
             this.bufoff += d;
             n -= d;
@@ -41,7 +41,7 @@ class Bitop {
         let n;
         for (n = 0; this.read(1) == 0 && !this.iserro; n++)
             ;
-        return (1 << n) + this.read(n) - 1;
+        return Math.pow(2, n) + this.read(n) - 1;
     }
 }
 exports.default = Bitop;

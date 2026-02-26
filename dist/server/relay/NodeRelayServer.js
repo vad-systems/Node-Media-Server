@@ -17,6 +17,7 @@ const fs_1 = __importDefault(require("fs"));
 const lodash_1 = __importDefault(require("lodash"));
 const querystring_1 = __importDefault(require("querystring"));
 const index_js_1 = require("../../core/index.js");
+const NodeAvSession_js_1 = require("../NodeAvSession.js");
 const NodeConfigurableServer_js_1 = __importDefault(require("../NodeConfigurableServer.js"));
 const NodeRelaySession_js_1 = require("./NodeRelaySession.js");
 const index_js_2 = require("../../types/index.js");
@@ -54,7 +55,7 @@ class NodeRelayServer extends NodeConfigurableServer_js_1.default {
     }
     startNewRelaySession(conf, srcId, streamPath, args) {
         for (let session of index_js_1.context.sessions.values()) {
-            if (session.getConfig('inPath') === conf.inPath && session.conf.ouPath === conf.ouPath) {
+            if (session.getConfig('inPath') === conf.inPath && session.getConfig('ouPath') === conf.ouPath) {
                 index_js_1.Logger.log('[relay dynamic push] session still running', `srcid=${srcId}`, conf.inPath, 'to', conf.ouPath);
                 return null;
             }
@@ -71,9 +72,13 @@ class NodeRelayServer extends NodeConfigurableServer_js_1.default {
                 dynamicSessionsForSrc.delete(id);
             }
             setTimeout(() => {
-                if (!!srcId && !!index_js_1.context.sessions.get(srcId)) {
-                    index_js_1.Logger.log('[relay dynamic push] restart', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-                    this.onPostPublish(srcId, streamPath, args);
+                if (!!srcId) {
+                    const [_x, broadcast] = [...index_js_1.context.broadcasts.entries()]
+                        .find(([_x, broadcast]) => { var _a; return ((_a = broadcast.publisher) === null || _a === void 0 ? void 0 : _a.id) === srcId; });
+                    if (!!broadcast) {
+                        index_js_1.Logger.log('[relay dynamic push] restart', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+                        this.onPostPublish(broadcast.publisher);
+                    }
                 }
             }, 1000);
         });
@@ -90,22 +95,24 @@ class NodeRelayServer extends NodeConfigurableServer_js_1.default {
         index_js_1.Logger.log('[relay dynamic push] started', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
         return session;
     }
-    onPostPublish(id, streamPath, args) {
-        index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `streamPath=${streamPath}`);
+    onPostPublish(session) {
+        index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`);
         const { tasks } = this.config.relay;
         if (!tasks) {
             return;
         }
-        let regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
-        let [app, stream] = lodash_1.default.slice(regRes, 1);
-        let i = tasks.length;
-        index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
-        while (i--) {
-            let taskConf = lodash_1.default.cloneDeep(tasks[i]);
-            const edge = !!taskConf.edge && (typeof taskConf.edge === typeof {} ? (taskConf.edge[stream] || taskConf.edge['_default'] || '') : taskConf.edge);
-            index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);
-            if (taskConf.mode === index_js_2.RelayMode.PUSH) {
-                this.handlePushTask(taskConf, app, streamPath, edge, stream, args, id);
+        if (session instanceof NodeAvSession_js_1.NodeAvSession) {
+            let regRes = /\/(.*)\/(.*)/gi.exec(session.streamPath);
+            let [app, stream] = lodash_1.default.slice(regRes, 1);
+            let i = tasks.length;
+            index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
+            while (i--) {
+                let taskConf = lodash_1.default.cloneDeep(tasks[i]);
+                const edge = !!taskConf.edge && (typeof taskConf.edge === typeof {} ? (taskConf.edge[stream] || taskConf.edge['_default'] || '') : taskConf.edge);
+                index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);
+                if (taskConf.mode === index_js_2.RelayMode.PUSH) {
+                    this.handlePushTask(taskConf, app, session.streamPath, edge, stream, session.streamQuery, session.id);
+                }
             }
         }
     }
@@ -121,9 +128,9 @@ class NodeRelayServer extends NodeConfigurableServer_js_1.default {
         }
         this.startNewRelaySession(sessionConf, id, streamPath, args);
     }
-    onDonePublish(id, streamPath, args) {
+    onDonePublish(session) {
         for (let [srcId, sessions] of this.dynamicSessions) {
-            if (id === srcId) {
+            if (session.id === srcId) {
                 for (let [_, session] of sessions) {
                     session.end();
                 }
@@ -134,7 +141,7 @@ class NodeRelayServer extends NodeConfigurableServer_js_1.default {
             }
             else {
                 for (let [sessionId, session] of sessions) {
-                    if (id === sessionId) {
+                    if (session.id === sessionId) {
                         session.end();
                     }
                 }
