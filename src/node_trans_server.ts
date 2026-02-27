@@ -1,17 +1,21 @@
 import fs from 'fs';
 import _ from 'lodash';
 import { Logger, context, NodeCoreUtils } from './core/index.js';
+import NodeConfigurableServer from './node_configurable_server.js';
+import { NodeRelaySession } from './node_relay_session.js';
 import { NodeTransSession } from './node_trans_session.js';
 import { Arguments, Config, SessionID, TransSessionConfig } from './types/index.js';
 import * as mkdirp from 'mkdirp';
 import asRegExp from './util/asRegExp.js';
 
-class NodeTransServer {
-    config: Config;
+class NodeTransServer extends NodeConfigurableServer<Config> {
     transSessions: Map<SessionID, NodeTransSession> = new Map();
 
     constructor(config: Config) {
-        this.config = config;
+        super(config);
+
+        this.onDonePublish = this.onDonePublish.bind(this);
+        this.onPostPublish = this.onPostPublish.bind(this);
     }
 
     async run() {
@@ -48,8 +52,8 @@ class NodeTransServer {
             apps += ' ';
         }
 
-        context.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
-        context.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
+        context.nodeEvent.on('postPublish', this.onPostPublish);
+        context.nodeEvent.on('donePublish', this.onDonePublish);
 
         Logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
     }
@@ -92,6 +96,17 @@ class NodeTransServer {
         if (session) {
             session.end();
         }
+    }
+
+    stop() {
+        context.nodeEvent.off('postPublish', this.onPostPublish);
+        context.nodeEvent.off('donePublish', this.onDonePublish);
+
+        for (let [id, session] of this.transSessions) {
+            session.end();
+        }
+
+        Logger.log(`Node Media Trans Server stopped.`);
     }
 }
 

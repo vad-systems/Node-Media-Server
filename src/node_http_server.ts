@@ -10,9 +10,10 @@ import relayRoute from './api/routes/relay.js';
 import serverRoute from './api/routes/server.js';
 import streamsRoute from './api/routes/streams.js';
 import { context, Logger } from './core/index.js';
+import NodeConfigurableServer from './node_configurable_server.js';
 import { NodeHttpSession } from './node_http_session.js';
 import { NodeRtmpSession } from './node_rtmp_session.js';
-import { Config, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from './types/index.js';
+import { Arguments, Config, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse, SessionID } from './types/index.js';
 import H2EBridge from 'http2-express';
 import basicAuth from 'basic-auth-connect';
 
@@ -20,21 +21,27 @@ const HTTP_PORT = 80;
 const HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
 
-class NodeHttpServer {
-    readonly config: Config;
-    readonly mediaroot: PathLike;
-    readonly port: number;
-    readonly httpServer: Http.Server;
+class NodeHttpServer extends NodeConfigurableServer<Config> {
+    mediaroot: PathLike;
+    port: number;
+    httpServer: Http.Server;
     wsServer: WebSocket.Server;
 
-    readonly sport?: number;
-    readonly httpsServer?: Https.Server;
+    sport?: number;
+    httpsServer?: Https.Server;
     wssServer?: WebSocket.Server;
 
     constructor(config: Config) {
-        this.port = config.http.port || HTTP_PORT;
-        this.mediaroot = config.http.mediaroot || HTTP_MEDIAROOT;
-        this.config = config;
+        super(config);
+
+        this.onPostPlay = this.onPostPlay.bind(this);
+        this.onPostPublish = this.onPostPublish.bind(this);
+        this.onDoneConnect = this.onDoneConnect.bind(this);
+    }
+
+    initServer() {
+        this.port = this.config.http.port || HTTP_PORT;
+        this.mediaroot = this.config.http.mediaroot || HTTP_MEDIAROOT;
 
         const app = H2EBridge(Express);
         app.use(bodyParser.json());
@@ -61,7 +68,7 @@ class NodeHttpServer {
             const nmsRes = {
                 res,
             };
-            this.onConnect(nmsReq, nmsRes);
+            this.handleConnect(nmsReq, nmsRes);
         });
 
         const adminEntry = path.join(__dirname + '/../public/admin/index.html');
@@ -85,8 +92,8 @@ class NodeHttpServer {
 
         app.use(Express.static(path.join(__dirname + '/../public')));
         app.use(Express.static(this.mediaroot.toString()));
-        if (config.http.webroot) {
-            app.use(Express.static(config.http.webroot));
+        if (this.config.http.webroot) {
+            app.use(Express.static(this.config.http.webroot));
         }
 
         this.httpServer = Http.createServer(app);
@@ -99,12 +106,14 @@ class NodeHttpServer {
             if (this.config.https.passphrase) {
                 Object.assign(options, { passphrase: this.config.https.passphrase });
             }
-            this.sport = config.https.port || HTTPS_PORT;
+            this.sport = this.config.https.port || HTTPS_PORT;
             this.httpsServer = Https.createServer(options, app);
         }
     }
 
     async run() {
+        this.initServer();
+
         this.httpServer.listen(this.port, () => {
             Logger.log(`Node Media Http Server started on port: ${this.port}`);
         });
@@ -128,7 +137,7 @@ class NodeHttpServer {
             const nmsRes = {
                 res: ws,
             };
-            this.onConnect(nmsReq, nmsRes);
+            this.handleConnect(nmsReq, nmsRes);
         });
 
         this.wsServer.on('listening', () => {
@@ -165,7 +174,7 @@ class NodeHttpServer {
                 const nmsRes = {
                     res: ws,
                 };
-                this.onConnect(nmsReq, nmsRes);
+                this.handleConnect(nmsReq, nmsRes);
             });
 
             this.wssServer.on('listening', () => {
@@ -179,30 +188,38 @@ class NodeHttpServer {
             });
         }
 
-        context.nodeEvent.on('postPlay', (id, streamPath, args) => {
-            context.stat.accepted++;
-        });
+        context.nodeEvent.on('postPlay', this.onPostPlay);
+        context.nodeEvent.on('postPublish', this.onPostPublish);
+        context.nodeEvent.on('doneConnect', this.onDoneConnect);
+    }
 
-        context.nodeEvent.on('postPublish', (id, streamPath, args) => {
-            context.stat.accepted++;
-        });
+    onPostPlay(id: SessionID, streamPath: string, args: Arguments) {
+        context.stat.accepted++;
+    }
 
-        context.nodeEvent.on('doneConnect', (id, connectCmdObj) => {
-            let session = context.sessions.get(id);
+    onPostPublish(id: SessionID, streamPath: string, args: Arguments) {
+        context.stat.accepted++;
+    }
 
-            if (session instanceof NodeHttpSession) {
-                let socket = session.req.socket;
-                context.stat.inbytes += socket.bytesRead;
-                context.stat.outbytes += socket.bytesWritten;
-            } else if (session instanceof NodeRtmpSession) {
-                let socket = session.socket;
-                context.stat.inbytes += socket.bytesRead;
-                context.stat.outbytes += socket.bytesWritten;
-            }
-        });
+    onDoneConnect(id: SessionID, connectCmdObj: any) {
+        let session = context.sessions.get(id);
+
+        if (session instanceof NodeHttpSession) {
+            let socket = session.req.socket;
+            context.stat.inbytes += socket.bytesRead;
+            context.stat.outbytes += socket.bytesWritten;
+        } else if (session instanceof NodeRtmpSession) {
+            let socket = session.socket;
+            context.stat.inbytes += socket.bytesRead;
+            context.stat.outbytes += socket.bytesWritten;
+        }
     }
 
     stop() {
+        context.nodeEvent.off('postPlay', this.onPostPlay);
+        context.nodeEvent.off('postPublish', this.onPostPublish);
+        context.nodeEvent.off('doneConnect', this.onDoneConnect);
+
         this.httpServer.close();
         if (this.httpsServer) {
             this.httpsServer.close();
@@ -219,9 +236,11 @@ class NodeHttpServer {
                 context.sessions.delete(id);
             }
         });
+
+        Logger.log(`Node Media Http Server stopped.`);
     }
 
-    onConnect(req: NodeHttpRequest, res: NodeHttpResponse) {
+    handleConnect(req: NodeHttpRequest, res: NodeHttpResponse) {
         const sessionConf: HttpSessionConfig = {
             auth: _.cloneDeep(this.config.auth),
         };

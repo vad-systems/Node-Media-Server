@@ -2,16 +2,19 @@ import fs from 'fs';
 import _ from 'lodash';
 import querystring from 'querystring';
 import { Logger, context, NodeCoreUtils } from './core/index.js';
+import NodeConfigurableServer from './node_configurable_server.js';
 import { NodeRelaySession } from './node_relay_session.js';
 import { Arguments, Config, RelayMode, RelaySessionConfig, SessionID } from './types/index.js';
 import asRegExp from './util/asRegExp.js';
 
-class NodeRelayServer {
-    config: Config;
+class NodeRelayServer extends NodeConfigurableServer<Config> {
     dynamicSessions: Map<SessionID, Map<SessionID, NodeRelaySession>> = new Map();
 
     constructor(config: Config) {
-        this.config = _.cloneDeep(config);
+        super(config);
+
+        this.onPostPublish = this.onPostPublish.bind(this);
+        this.onDonePublish = this.onDonePublish.bind(this);
     }
 
     async run() {
@@ -29,8 +32,8 @@ class NodeRelayServer {
             return;
         }
 
-        context.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
-        context.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
+        context.nodeEvent.on('postPublish', this.onPostPublish);
+        context.nodeEvent.on('donePublish', this.onDonePublish);
 
         Logger.log(`Node Media Relay Server started, ffmpeg version: ${version}`);
     }
@@ -166,6 +169,9 @@ class NodeRelayServer {
     }
 
     stop() {
+        context.nodeEvent.off('postPublish', this.onPostPublish);
+        context.nodeEvent.off('donePublish', this.onDonePublish);
+
         for (let [srcId, sessions] of this.dynamicSessions) {
             for (let [_, session] of sessions) {
                 session.end();
@@ -177,6 +183,8 @@ class NodeRelayServer {
                 session.end();
             }
         }
+
+        Logger.log(`Node Media Relay Server stopped.`);
     }
 }
 

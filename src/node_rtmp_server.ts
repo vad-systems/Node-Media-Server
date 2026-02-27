@@ -2,37 +2,41 @@ import Fs from 'fs';
 import _ from 'lodash';
 import Net from 'net';
 import Tls from 'tls';
-import { Logger, context } from './core/index.js';
+import { context, Logger } from './core/index.js';
+import NodeConfigurableServer from './node_configurable_server.js';
 import { NodeRtmpSession } from './node_rtmp_session.js';
 import { Config } from './types/index.js';
 
 const RTMP_PORT = 1935;
 const RTMPS_PORT = 443;
 
-class NodeRtmpServer {
+class NodeRtmpServer extends NodeConfigurableServer<Config> {
     port: number;
     tcpServer: Net.Server;
     sslPort: number | null = null;
     tlsServer: Tls.Server | null = null;
 
     constructor(config: Config) {
-        const conf = _.cloneDeep(config);
+        super(config);
+    }
+
+    initServer() {
         const sessionConfig = {
-            rtmp: _.cloneDeep(config.rtmp),
-            auth: _.cloneDeep(config.auth),
+            rtmp: _.cloneDeep(this.config.rtmp),
+            auth: _.cloneDeep(this.config.auth),
         };
-        this.port = conf.rtmp.port || RTMP_PORT;
+        this.port = this.config.rtmp.port || RTMP_PORT;
         this.tcpServer = Net.createServer((socket) => {
             let session = new NodeRtmpSession(sessionConfig, socket);
             session.run();
         });
 
-        if (conf.rtmp.ssl) {
-            this.sslPort = conf.rtmp.ssl.port || RTMPS_PORT;
+        if (this.config.rtmp.ssl) {
+            this.sslPort = this.config.rtmp.ssl.port || RTMPS_PORT;
             try {
                 const options = {
-                    key: Fs.readFileSync(conf.rtmp.ssl.key),
-                    cert: Fs.readFileSync(conf.rtmp.ssl.cert),
+                    key: Fs.readFileSync(this.config.rtmp.ssl.key),
+                    cert: Fs.readFileSync(this.config.rtmp.ssl.cert),
                 };
                 this.tlsServer = Tls.createServer(options, (socket) => {
                     let session = new NodeRtmpSession(sessionConfig, socket);
@@ -45,6 +49,8 @@ class NodeRtmpServer {
     }
 
     async run() {
+        this.initServer();
+
         this.tcpServer.listen(this.port, () => {
             Logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
         });
@@ -84,6 +90,8 @@ class NodeRtmpServer {
                 session.stop();
             }
         });
+
+        Logger.log(`Node Media Rtmp Server stopped.`);
     }
 }
 
