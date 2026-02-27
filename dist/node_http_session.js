@@ -5,12 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeHttpSession = void 0;
 const url_1 = __importDefault(require("url"));
-const node_core_logger_1 = require("./node_core_logger");
-const node_core_ctx_1 = __importDefault(require("./node_core_ctx"));
-const node_core_utils_1 = __importDefault(require("./node_core_utils"));
-const node_session_1 = require("./node_session");
-const node_rtmp_session_1 = require("./node_rtmp_session");
-const types_1 = require("./types");
+const index_js_1 = require("./core/index.js");
+const node_rtmp_session_js_1 = require("./node_rtmp_session.js");
+const node_session_js_1 = require("./node_session.js");
+const types_js_1 = require("./types.js");
 function createFlvPacket(payload = null, type = 0, timestamp = 0) {
     return {
         header: {
@@ -21,9 +19,9 @@ function createFlvPacket(payload = null, type = 0, timestamp = 0) {
         payload,
     };
 }
-class NodeHttpSession extends node_session_1.NodeSession {
+class NodeHttpSession extends node_session_js_1.NodeSession {
     constructor(config, req, res) {
-        super(config, req.remoteAddress, req.nmsConnectionType === types_1.NodeConnectionType.WS ? 'websocket-flv' : 'http-flv');
+        super(config, req.remoteAddress, req.nmsConnectionType === types_js_1.NodeConnectionType.WS ? 'websocket-flv' : 'http-flv');
         this.isStarting = false;
         this.isPlaying = false;
         this.isIdling = false;
@@ -48,7 +46,7 @@ class NodeHttpSession extends node_session_1.NodeSession {
             this.req.socket.on('close', this.onReqClose.bind(this));
             this.req.on('error', this.onReqError.bind(this));
         }
-        node_core_ctx_1.default.sessions.set(this.id, this);
+        index_js_1.context.sessions.set(this.id, this);
     }
     run() {
         let method = this.req.method;
@@ -57,13 +55,13 @@ class NodeHttpSession extends node_session_1.NodeSession {
         this.connectCmdObj = { ip: this.remoteIp, method, streamPath, query: urlInfo.query };
         this.connectTime = new Date();
         this.isStarting = true;
-        node_core_logger_1.Logger.log(`[${this.TAG} connect] id=${this.id} remoteIp=${this.remoteIp} args=${JSON.stringify(urlInfo.query)}`);
-        node_core_ctx_1.default.nodeEvent.emit('preConnect', this.id, this.connectCmdObj);
+        index_js_1.Logger.log(`[${this.TAG} connect] id=${this.id} remoteIp=${this.remoteIp} args=${JSON.stringify(urlInfo.query)}`);
+        index_js_1.context.nodeEvent.emit('preConnect', this.id, this.connectCmdObj);
         if (!this.isStarting) {
             this.stop();
             return;
         }
-        node_core_ctx_1.default.nodeEvent.emit('postConnect', this.id, this.connectCmdObj);
+        index_js_1.context.nodeEvent.emit('postConnect', this.id, this.connectCmdObj);
         if (method === 'GET') {
             this.playStreamPath = streamPath;
             this.playArgs = urlInfo.query;
@@ -76,20 +74,20 @@ class NodeHttpSession extends node_session_1.NodeSession {
     stop() {
         if (this.isStarting) {
             this.isStarting = false;
-            let publisherId = node_core_ctx_1.default.publishers.get(this.playStreamPath);
+            let publisherId = index_js_1.context.publishers.get(this.playStreamPath);
             if (publisherId != null) {
-                const session = node_core_ctx_1.default.sessions.get(publisherId);
-                if (session instanceof node_rtmp_session_1.NodeRtmpSession) {
+                const session = index_js_1.context.sessions.get(publisherId);
+                if (session instanceof node_rtmp_session_js_1.NodeRtmpSession) {
                     session.players.delete(this.id);
                 }
-                node_core_ctx_1.default.nodeEvent.emit('donePlay', this.id, this.playStreamPath, this.playArgs);
+                index_js_1.context.nodeEvent.emit('donePlay', this.id, this.playStreamPath, this.playArgs);
             }
-            node_core_logger_1.Logger.log(`[${this.TAG} play] Close stream. id=${this.id} streamPath=${this.playStreamPath}`);
-            node_core_logger_1.Logger.log(`[${this.TAG} disconnect] id=${this.id}`);
-            node_core_ctx_1.default.nodeEvent.emit('doneConnect', this.id, this.connectCmdObj);
+            index_js_1.Logger.log(`[${this.TAG} play] Close stream. id=${this.id} streamPath=${this.playStreamPath}`);
+            index_js_1.Logger.log(`[${this.TAG} disconnect] id=${this.id}`);
+            index_js_1.context.nodeEvent.emit('doneConnect', this.id, this.connectCmdObj);
             this.res.end();
-            node_core_ctx_1.default.idlePlayers.delete(this.id);
-            node_core_ctx_1.default.sessions.delete(this.id);
+            index_js_1.context.idlePlayers.delete(this.id);
+            index_js_1.context.sessions.delete(this.id);
         }
     }
     onReqClose() {
@@ -99,35 +97,35 @@ class NodeHttpSession extends node_session_1.NodeSession {
         this.stop();
     }
     reject() {
-        node_core_logger_1.Logger.log(`[${this.TAG} reject] id=${this.id}`);
+        index_js_1.Logger.log(`[${this.TAG} reject] id=${this.id}`);
         this.stop();
     }
     onPlay() {
-        node_core_ctx_1.default.nodeEvent.emit('prePlay', this.id, this.playStreamPath, this.playArgs);
+        index_js_1.context.nodeEvent.emit('prePlay', this.id, this.playStreamPath, this.playArgs);
         if (!this.isStarting) {
             return;
         }
         if (this.conf.auth !== undefined && this.conf.auth.play) {
-            let results = node_core_utils_1.default.verifyAuth(this.playArgs.sign, this.playStreamPath, this.conf.auth.secret);
+            let results = index_js_1.NodeCoreUtils.verifyAuth(this.playArgs.sign, this.playStreamPath, this.conf.auth.secret);
             if (!results) {
-                node_core_logger_1.Logger.log(`[${this.TAG} play] Unauthorized. id=${this.id} streamPath=${this.playStreamPath} sign=${this.playArgs.sign}`);
+                index_js_1.Logger.log(`[${this.TAG} play] Unauthorized. id=${this.id} streamPath=${this.playStreamPath} sign=${this.playArgs.sign}`);
                 this.res.statusCode = 403;
                 this.res.end();
                 return;
             }
         }
-        if (!node_core_ctx_1.default.publishers.has(this.playStreamPath)) {
-            node_core_logger_1.Logger.log(`[${this.TAG} play] Stream not found. id=${this.id} streamPath=${this.playStreamPath} `);
-            node_core_ctx_1.default.idlePlayers.add(this.id);
+        if (!index_js_1.context.publishers.has(this.playStreamPath)) {
+            index_js_1.Logger.log(`[${this.TAG} play] Stream not found. id=${this.id} streamPath=${this.playStreamPath} `);
+            index_js_1.context.idlePlayers.add(this.id);
             this.isIdling = true;
             return;
         }
         this.onStartPlay();
     }
     onStartPlay() {
-        let publisherId = node_core_ctx_1.default.publishers.get(this.playStreamPath);
-        let publisher = node_core_ctx_1.default.sessions.get(publisherId);
-        if (!(publisher instanceof node_rtmp_session_1.NodeRtmpSession)) {
+        let publisherId = index_js_1.context.publishers.get(this.playStreamPath);
+        let publisher = index_js_1.context.sessions.get(publisherId);
+        if (!(publisher instanceof node_rtmp_session_js_1.NodeRtmpSession)) {
             return;
         }
         let players = publisher.players;
@@ -167,8 +165,8 @@ class NodeHttpSession extends node_session_1.NodeSession {
         }
         this.isIdling = false;
         this.isPlaying = true;
-        node_core_logger_1.Logger.log(`[${this.TAG} play] Join stream. id=${this.id} streamPath=${this.playStreamPath}`);
-        node_core_ctx_1.default.nodeEvent.emit('postPlay', this.id, this.playStreamPath, this.playArgs);
+        index_js_1.Logger.log(`[${this.TAG} play] Join stream. id=${this.id} streamPath=${this.playStreamPath}`);
+        index_js_1.context.nodeEvent.emit('postPlay', this.id, this.playStreamPath, this.playArgs);
     }
     static createFlvTag(packet) {
         let PreviousTagSize = 11 + packet.header.length;

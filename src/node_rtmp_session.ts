@@ -1,15 +1,10 @@
-import {RtmpSessionConfig, SessionConfig, SessionID} from "./types";
+import { Socket } from 'net';
 import QueryString from 'querystring';
-import AV from './node_core_av';
-import {AUDIO_SOUND_RATE, AUDIO_CODEC_NAME, VIDEO_CODEC_NAME} from './node_core_av';
-import AMF from './node_core_amf';
-import Handshake from './node_rtmp_handshake';
-import NodeCoreUtils from './node_core_utils';
-import {NodeHttpSession} from './node_http_session';
-import context from './node_core_ctx';
-import {Logger} from './node_core_logger';
-import {NodeSession} from './node_session';
-import {Socket} from "net";
+import { context, Logger, av, amf, NodeCoreUtils } from './core/index.js';
+import { NodeHttpSession } from './node_http_session.js';
+import Handshake from './node_rtmp_handshake.js';
+import { NodeSession } from './node_session.js';
+import { RtmpSessionConfig, SessionID } from './types.js';
 
 const N_CHUNK_STREAM = 8;
 const RTMP_VERSION = 3;
@@ -220,8 +215,12 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
         this.res = socket;
 
         this.outChunkSize = config.rtmp.chunk_size || RTMP_CHUNK_SIZE;
-        this.pingTime = (config.rtmp.ping || RTMP_PING_TIME) * 1000;
-        this.pingTimeout = (config.rtmp.ping_timeout || RTMP_PING_TIMEOUT) * 1000;
+        this.pingTime = (
+            config.rtmp.ping || RTMP_PING_TIME
+        ) * 1000;
+        this.pingTimeout = (
+            config.rtmp.ping_timeout || RTMP_PING_TIMEOUT
+        ) * 1000;
 
         this.rtmpGopCacheQueue = config.rtmp.gop_cache ? new Set() : null;
         this.flvGopCacheQueue = config.rtmp.gop_cache ? new Set() : null;
@@ -243,11 +242,11 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
             this.isStarting = false;
 
             if (this.playStreamId > 0) {
-                this.onDeleteStream({streamId: this.playStreamId});
+                this.onDeleteStream({ streamId: this.playStreamId });
             }
 
             if (this.publishStreamId > 0) {
-                this.onDeleteStream({streamId: this.publishStreamId});
+                this.onDeleteStream({ streamId: this.publishStreamId });
             }
 
             if (this.pingInterval != null) {
@@ -344,16 +343,30 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
         let out: Buffer;
         if (cid >= 64 + 255) {
             out = Buffer.alloc(3);
-            out[0] = (fmt << 6) | 1;
-            out[1] = (cid - 64) & 0xff;
-            out[2] = ((cid - 64) >> 8) & 0xff;
+            out[0] = (
+                fmt << 6
+            ) | 1;
+            out[1] = (
+                cid - 64
+            ) & 0xff;
+            out[2] = (
+                (
+                    cid - 64
+                ) >> 8
+            ) & 0xff;
         } else if (cid >= 64) {
             out = Buffer.alloc(2);
-            out[0] = (fmt << 6) | 0;
-            out[1] = (cid - 64) & 0xff;
+            out[0] = (
+                fmt << 6
+            ) | 0;
+            out[1] = (
+                cid - 64
+            ) & 0xff;
         } else {
             out = Buffer.alloc(1);
-            out[0] = (fmt << 6) | cid;
+            out[0] = (
+                fmt << 6
+            ) | cid;
         }
         return out;
     }
@@ -386,13 +399,17 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
         let chunkBasicHeader3 = this.rtmpChunkBasicHeaderCreate(RTMP_CHUNK_TYPE_3, header.cid);
         let chunkMessageHeader = this.rtmpChunkMessageHeaderCreate(header);
         let useExtendedTimestamp = header.timestamp >= 0xffffff;
-        let headerSize = chunkBasicHeader.length + chunkMessageHeader.length + (useExtendedTimestamp ? 4 : 0);
+        let headerSize = chunkBasicHeader.length + chunkMessageHeader.length + (
+            useExtendedTimestamp ? 4 : 0
+        );
         let n = headerSize + payloadSize + Math.floor(payloadSize / chunkSize);
 
         if (useExtendedTimestamp) {
             n += Math.floor(payloadSize / chunkSize) * 4;
         }
-        if (!(payloadSize % chunkSize)) {
+        if (!(
+            payloadSize % chunkSize
+        )) {
             n -= 1;
             if (useExtendedTimestamp) {
                 //TODO CHECK
@@ -442,9 +459,13 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
                 case RTMP_PARSE_INIT:
                     this.parserBytes = 1;
                     this.parserBuffer[0] = data[p + offset++];
-                    if (0 === (this.parserBuffer[0] & 0x3f)) {
+                    if (0 === (
+                        this.parserBuffer[0] & 0x3f
+                    )) {
                         this.parserBasicBytes = 2;
-                    } else if (1 === (this.parserBuffer[0] & 0x3f)) {
+                    } else if (1 === (
+                        this.parserBuffer[0] & 0x3f
+                    )) {
                         this.parserBasicBytes = 3;
                     } else {
                         this.parserBasicBytes = 1;
@@ -471,7 +492,9 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
                     break;
                 case RTMP_PARSE_EXTENDED_TIMESTAMP:
                     size = rtmpHeaderSize[this.parserPacket.header.fmt] + this.parserBasicBytes;
-                    if (this.parserPacket.header.timestamp === 0xffffff) size += 4;
+                    if (this.parserPacket.header.timestamp === 0xffffff) {
+                        size += 4;
+                    }
                     while (this.parserBytes < size && offset < bytes) {
                         this.parserBuffer[this.parserBytes++] = data[p + offset++];
                     }
@@ -494,7 +517,9 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
                     }
                     break;
                 case RTMP_PARSE_PAYLOAD:
-                    size = Math.min(this.inChunkSize - (this.parserPacket.bytes % this.inChunkSize), this.parserPacket.header.length - this.parserPacket.bytes);
+                    size = Math.min(this.inChunkSize - (
+                        this.parserPacket.bytes % this.inChunkSize
+                    ), this.parserPacket.header.length - this.parserPacket.bytes);
                     size = Math.min(size, bytes - offset);
                     if (size > 0) {
                         data.copy(this.parserPacket.payload, this.parserPacket.bytes, p + offset, p + offset + size);
@@ -544,7 +569,9 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
         if (this.parserBasicBytes === 2) {
             cid = 64 + this.parserBuffer[1];
         } else if (this.parserBasicBytes === 3) {
-            cid = (64 + this.parserBuffer[1] + this.parserBuffer[2]) << 8;
+            cid = (
+                64 + this.parserBuffer[1] + this.parserBuffer[2]
+            ) << 8;
         } else {
             cid = this.parserBuffer[0] & 0x3f;
         }
@@ -646,15 +673,21 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
 
     rtmpAudioHandler() {
         let payload = this.parserPacket.payload.slice(0, this.parserPacket.header.length);
-        let sound_format = (payload[0] >> 4) & 0x0f;
+        let sound_format = (
+            payload[0] >> 4
+        ) & 0x0f;
         let sound_type = payload[0] & 0x01;
-        let sound_size = (payload[0] >> 1) & 0x01;
-        let sound_rate = (payload[0] >> 2) & 0x03;
+        let sound_size = (
+            payload[0] >> 1
+        ) & 0x01;
+        let sound_rate = (
+            payload[0] >> 2
+        ) & 0x03;
 
         if (this.audioCodec == 0) {
             this.audioCodec = sound_format;
-            this.audioCodecName = AUDIO_CODEC_NAME[sound_format];
-            this.audioSamplerate = AUDIO_SOUND_RATE[sound_rate];
+            this.audioCodecName = av.AUDIO_CODEC_NAME[sound_format];
+            this.audioSamplerate = av.AUDIO_SOUND_RATE[sound_rate];
             this.audioChannels = ++sound_type;
 
             if (sound_format == 4) {
@@ -673,19 +706,21 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
 
             if (sound_format != 10 && sound_format != 13) {
                 Logger.log(
-                    `[rtmp publish] Handle audio. id=${this.id} streamPath=${this.publishStreamPath} sound_format=${sound_format} sound_type=${sound_type} sound_size=${sound_size} sound_rate=${sound_rate} codec_name=${this.audioCodecName} ${this.audioSamplerate} ${this.audioChannels}ch`
+                    `[rtmp publish] Handle audio. id=${this.id} streamPath=${this.publishStreamPath} sound_format=${sound_format} sound_type=${sound_type} sound_size=${sound_size} sound_rate=${sound_rate} codec_name=${this.audioCodecName} ${this.audioSamplerate} ${this.audioChannels}ch`,
                 );
             }
         }
 
-        if ((sound_format == 10 || sound_format == 13) && payload[1] == 0) {
+        if ((
+            sound_format == 10 || sound_format == 13
+        ) && payload[1] == 0) {
             //cache aac sequence header
             this.isFirstAudioReceived = true;
             this.aacSequenceHeader = Buffer.alloc(payload.length);
             payload.copy(this.aacSequenceHeader);
             if (sound_format == 10) {
-                let info = AV.readAACSpecificConfig(this.aacSequenceHeader);
-                this.audioProfileName = AV.getAACProfileName(info);
+                let info = av.readAACSpecificConfig(this.aacSequenceHeader);
+                this.audioProfileName = av.getAACProfileName(info);
                 this.audioSamplerate = info.sample_rate;
                 this.audioChannels = info.channels;
             } else {
@@ -694,7 +729,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
             }
 
             Logger.log(
-                `[rtmp publish] Handle audio. id=${this.id} streamPath=${this.publishStreamPath} sound_format=${sound_format} sound_type=${sound_type} sound_size=${sound_size} sound_rate=${sound_rate} codec_name=${this.audioCodecName} ${this.audioSamplerate} ${this.audioChannels}ch`
+                `[rtmp publish] Handle audio. id=${this.id} streamPath=${this.publishStreamPath} sound_format=${sound_format} sound_type=${sound_type} sound_size=${sound_size} sound_rate=${sound_rate} codec_name=${this.audioCodecName} ${this.audioSamplerate} ${this.audioChannels}ch`,
             );
         }
 
@@ -757,7 +792,9 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
 
     rtmpVideoHandler() {
         let payload = this.parserPacket.payload.slice(0, this.parserPacket.header.length);
-        let isExHeader = (payload[0] >> 4 & 0b1000) !== 0;
+        let isExHeader = (
+            payload[0] >> 4 & 0b1000
+        ) !== 0;
         let frame_type = payload[0] >> 4 & 0b0111;
         let codec_id = payload[0] & 0x0f;
         let packetType = payload[0] & 0x0f;
@@ -825,10 +862,10 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
             if (frame_type == 1 && payload[1] == 0) {
                 this.avcSequenceHeader = Buffer.alloc(payload.length);
                 payload.copy(this.avcSequenceHeader);
-                let info = AV.readAVCSpecificConfig(this.avcSequenceHeader);
+                let info = av.readAVCSpecificConfig(this.avcSequenceHeader);
                 this.videoWidth = info.width;
                 this.videoHeight = info.height;
-                this.videoProfileName = AV.getAVCProfileName(info);
+                this.videoProfileName = av.getAVCProfileName(info);
                 this.videoLevel = info.level;
                 //Logger.log(`[rtmp publish] avc sequence header`,this.avcSequenceHeader);
             }
@@ -836,10 +873,10 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
 
         if (this.videoCodec == 0) {
             this.videoCodec = codec_id;
-            this.videoCodecName = VIDEO_CODEC_NAME[codec_id];
+            this.videoCodecName = av.VIDEO_CODEC_NAME[codec_id];
             Logger.log(
                 `[rtmp publish] Handle video. id=${this.id} streamPath=${this.publishStreamPath} frame_type=${frame_type} codec_id=${codec_id} codec_name=${this.videoCodecName} ${this.videoWidth
-                }x${this.videoHeight}`
+                }x${this.videoHeight}`,
             );
         }
 
@@ -858,7 +895,9 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
                 this.rtmpGopCacheQueue.clear();
                 this.flvGopCacheQueue.clear();
             }
-            if ((codec_id == 7 || codec_id == 12 || codec_id == 13) && frame_type == 1 && payload[1] == 0) {
+            if ((
+                codec_id == 7 || codec_id == 12 || codec_id == 13
+            ) && frame_type == 1 && payload[1] == 0) {
                 //skip avc sequence header
             } else {
                 this.rtmpGopCacheQueue.add(rtmpChunks);
@@ -908,7 +947,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
     rtmpDataHandler() {
         let offset = this.parserPacket.header.type === RTMP_TYPE_FLEX_STREAM ? 1 : 0;
         let payload = this.parserPacket.payload.slice(offset, this.parserPacket.header.length);
-        let dataMessage = AMF.decodeAmf0Data(payload);
+        let dataMessage = amf.decodeAmf0Data(payload);
         switch (dataMessage.cmd) {
             case '@setDataFrame':
                 let dataObj: {
@@ -931,7 +970,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
                     cmd: 'onMetaData',
                     dataObj,
                 };
-                this.metaData = AMF.encodeAmf0Data(opt);
+                this.metaData = amf.encodeAmf0Data(opt);
 
                 let packet = createRtmpPacket(this.metaData);
                 packet.header.fmt = RTMP_CHUNK_TYPE_0;
@@ -961,7 +1000,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
     rtmpInvokeHandler() {
         let offset = this.parserPacket.header.type === RTMP_TYPE_FLEX_MESSAGE ? 1 : 0;
         let payload = this.parserPacket.payload.slice(offset, this.parserPacket.header.length); // TODO: Deprecation
-        let invokeMessage = AMF.decodeAmf0Cmd(payload);
+        let invokeMessage = amf.decodeAmf0Cmd(payload);
         Logger.debug(this.id, invokeMessage.cmd, invokeMessage);
         switch (invokeMessage.cmd) {
             case 'connect':
@@ -1033,7 +1072,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
     }
 
     sendInvokeMessage<T extends AMF0CommandType>(sid: number, opt: T) {
-        let packet = createRtmpPacket(AMF.encodeAmf0Cmd(opt));
+        let packet = createRtmpPacket(amf.encodeAmf0Cmd(opt));
         packet.header.fmt = RTMP_CHUNK_TYPE_0;
         packet.header.cid = RTMP_CHANNEL_INVOKE;
         packet.header.type = RTMP_TYPE_INVOKE;
@@ -1044,7 +1083,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
     }
 
     sendDataMessage<T extends AMF0CommandType>(sid: number, opt: T) {
-        let packet = createRtmpPacket(AMF.encodeAmf0Data(opt));
+        let packet = createRtmpPacket(amf.encodeAmf0Data(opt));
         packet.header.fmt = RTMP_CHUNK_TYPE_0;
         packet.header.cid = RTMP_CHANNEL_DATA;
         packet.header.type = RTMP_TYPE_DATA;
@@ -1079,7 +1118,20 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
 
     sendPingRequest() {
         let currentTimestamp = Date.now() - this.startTimestamp;
-        const payload = Buffer.from([0, 6, (currentTimestamp >> 24) & 0xff, (currentTimestamp >> 16) & 0xff, (currentTimestamp >> 8) & 0xff, currentTimestamp & 0xff]);
+        const payload = Buffer.from([
+            0,
+            6,
+            (
+                currentTimestamp >> 24
+            ) & 0xff,
+            (
+                currentTimestamp >> 16
+            ) & 0xff,
+            (
+                currentTimestamp >> 8
+            ) & 0xff,
+            currentTimestamp & 0xff,
+        ]);
         let packet = createRtmpPacket(payload);
         packet.header.fmt = RTMP_CHUNK_TYPE_0;
         packet.header.cid = RTMP_CHANNEL_PROTOCOL;
@@ -1103,7 +1155,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
                 code: 'NetConnection.Connect.Success',
                 description: 'Connection succeeded.',
                 objectEncoding: this.objectEncoding,
-            }
+            },
         };
         this.sendInvokeMessage(0, opt);
     }
@@ -1149,7 +1201,8 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
             last_update: this.startTimestamp,
             bytes: 0,
         };
-        Logger.log(`[rtmp connect] id=${this.id} ip=${this.remoteIp} app=${this.appname} args=${JSON.stringify(invokeMessage.cmdObj)}`);
+        Logger.log(`[rtmp connect] id=${this.id} ip=${this.remoteIp} app=${this.appname} args=${JSON.stringify(
+            invokeMessage.cmdObj)}`);
         context.nodeEvent.emit('postConnect', this.id, invokeMessage.cmdObj);
     }
 
@@ -1170,10 +1223,19 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
         }
 
         if (this.conf.auth && this.conf.auth.publish && !this.isLocal) {
-            let results = NodeCoreUtils.verifyAuth(this.publishArgs['sign'], this.publishStreamPath, this.conf.auth.secret);
+            let results = NodeCoreUtils.verifyAuth(
+                this.publishArgs['sign'],
+                this.publishStreamPath,
+                this.conf.auth.secret,
+            );
             if (!results) {
                 Logger.log(`[rtmp publish] Unauthorized. id=${this.id} streamPath=${this.publishStreamPath} streamId=${this.publishStreamId} sign=${this.publishArgs['sign']} `);
-                this.sendStatusMessage(this.publishStreamId, 'error', 'NetStream.publish.Unauthorized', 'Authorization required.');
+                this.sendStatusMessage(
+                    this.publishStreamId,
+                    'error',
+                    'NetStream.publish.Unauthorized',
+                    'Authorization required.',
+                );
                 return;
             }
         }
@@ -1181,19 +1243,36 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
         if (context.publishers.has(this.publishStreamPath)) {
             this.reject();
             Logger.log(`[rtmp publish] Already has a stream. id=${this.id} streamPath=${this.publishStreamPath} streamId=${this.publishStreamId}`);
-            this.sendStatusMessage(this.publishStreamId, 'error', 'NetStream.Publish.BadName', 'Stream already publishing');
+            this.sendStatusMessage(
+                this.publishStreamId,
+                'error',
+                'NetStream.Publish.BadName',
+                'Stream already publishing',
+            );
         } else if (this.isPublishing) {
             Logger.log(`[rtmp publish] NetConnection is publishing. id=${this.id} streamPath=${this.publishStreamPath} streamId=${this.publishStreamId}`);
-            this.sendStatusMessage(this.publishStreamId, 'error', 'NetStream.Publish.BadConnection', 'Connection already publishing');
+            this.sendStatusMessage(
+                this.publishStreamId,
+                'error',
+                'NetStream.Publish.BadConnection',
+                'Connection already publishing',
+            );
         } else {
             Logger.log(`[rtmp publish] New stream. id=${this.id} streamPath=${this.publishStreamPath} streamId=${this.publishStreamId}`);
             context.publishers.set(this.publishStreamPath, this.id);
             this.isPublishing = true;
 
-            this.sendStatusMessage(this.publishStreamId, 'status', 'NetStream.Publish.Start', `${this.publishStreamPath} is now published.`);
+            this.sendStatusMessage(
+                this.publishStreamId,
+                'status',
+                'NetStream.Publish.Start',
+                `${this.publishStreamPath} is now published.`,
+            );
             for (let idlePlayerId of context.idlePlayers) {
                 let idlePlayer = context.sessions.get(idlePlayerId);
-                if (idlePlayer && (idlePlayer instanceof NodeHttpSession || idlePlayer instanceof NodeRtmpSession)) {
+                if (idlePlayer && (
+                    idlePlayer instanceof NodeHttpSession || idlePlayer instanceof NodeRtmpSession
+                )) {
                     if (idlePlayer.playStreamPath === this.publishStreamPath) {
                         idlePlayer.onStartPlay();
                         context.idlePlayers.delete(idlePlayerId);
@@ -1221,14 +1300,24 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
             let results = NodeCoreUtils.verifyAuth(this.playArgs['sign'], this.playStreamPath, this.conf.auth.secret);
             if (!results) {
                 Logger.log(`[rtmp play] Unauthorized. id=${this.id} streamPath=${this.playStreamPath}  streamId=${this.playStreamId} sign=${this.playArgs['sign']}`);
-                this.sendStatusMessage(this.playStreamId, 'error', 'NetStream.play.Unauthorized', 'Authorization required.');
+                this.sendStatusMessage(
+                    this.playStreamId,
+                    'error',
+                    'NetStream.play.Unauthorized',
+                    'Authorization required.',
+                );
                 return;
             }
         }
 
         if (this.isPlaying) {
             Logger.log(`[rtmp play] NetConnection is playing. id=${this.id} streamPath=${this.playStreamPath}  streamId=${this.playStreamId} `);
-            this.sendStatusMessage(this.playStreamId, 'error', 'NetStream.Play.BadConnection', 'Connection already playing');
+            this.sendStatusMessage(
+                this.playStreamId,
+                'error',
+                'NetStream.Play.BadConnection',
+                'Connection already playing',
+            );
         } else {
             this.respondPlay();
         }
@@ -1246,7 +1335,9 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
         let publisherId = context.publishers.get(this.playStreamPath);
         let publisher = context.sessions.get(publisherId);
 
-        if (!(publisher instanceof NodeRtmpSession)) {
+        if (!(
+            publisher instanceof NodeRtmpSession
+        )) {
             return;
         }
 
@@ -1353,7 +1444,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
 
     onCloseStream() {
         //red5-publisher
-        let closeStream = {streamId: this.parserPacket.header.stream_id};
+        let closeStream = { streamId: this.parserPacket.header.stream_id };
         this.onDeleteStream(closeStream);
     }
 
@@ -1386,13 +1477,23 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
                 Logger.log(`[rtmp publish] Close stream. id=${this.id} streamPath=${this.publishStreamPath} streamId=${this.publishStreamId}`);
                 context.nodeEvent.emit('donePublish', this.id, this.publishStreamPath, this.publishArgs);
                 if (this.isStarting) {
-                    this.sendStatusMessage(this.publishStreamId, 'status', 'NetStream.Unpublish.Success', `${this.publishStreamPath} is now unpublished.`);
+                    this.sendStatusMessage(
+                        this.publishStreamId,
+                        'status',
+                        'NetStream.Unpublish.Success',
+                        `${this.publishStreamPath} is now unpublished.`,
+                    );
                 }
 
                 for (let playerId of this.players) {
                     let playerSession = context.sessions.get(playerId);
                     if (playerSession instanceof NodeRtmpSession) {
-                        playerSession.sendStatusMessage(playerSession.playStreamId, 'status', 'NetStream.Play.UnpublishNotify', 'stream is now unpublished.');
+                        playerSession.sendStatusMessage(
+                            playerSession.playStreamId,
+                            'status',
+                            'NetStream.Play.UnpublishNotify',
+                            'stream is now unpublished.',
+                        );
                         playerSession.flush();
                     } else {
                         playerSession.stop();
@@ -1407,8 +1508,7 @@ class NodeRtmpSession extends NodeSession<never, RtmpSessionConfig> {
                         playerSession.isPlaying = false;
                         playerSession.isIdling = true;
                         playerSession.sendStreamStatus(StreamStatus.EOF, playerSession.playStreamId);
-                    }
-                    else if (playerSession instanceof NodeHttpSession) {
+                    } else if (playerSession instanceof NodeHttpSession) {
                         playerSession.isPlaying = false;
                         playerSession.isIdling = true;
                     }

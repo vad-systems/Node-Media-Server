@@ -1,7 +1,7 @@
-import {FfmpegSessionConfig} from './types';
-import {spawn, ChildProcess} from 'child_process';
-import {NodeSession} from './node_session';
-import {Logger} from './node_core_logger';
+import { ChildProcess, spawn } from 'child_process';
+import { Logger } from './core/index.js';
+import { NodeSession } from './node_session.js';
+import { FfmpegSessionConfig } from './types.js';
 
 abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends NodeSession<A, T> {
     ffmpeg_exec: ChildProcess = null;

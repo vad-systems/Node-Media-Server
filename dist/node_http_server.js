@@ -13,24 +13,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeHttpServer = void 0;
-const lodash_1 = __importDefault(require("lodash"));
+const body_parser_1 = __importDefault(require("body-parser"));
+const express_1 = __importDefault(require("express"));
 const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
 const http_1 = __importDefault(require("http"));
 const https_1 = __importDefault(require("https"));
+const lodash_1 = __importDefault(require("lodash"));
+const path_1 = __importDefault(require("path"));
 const ws_1 = __importDefault(require("ws"));
-const express_1 = __importDefault(require("express"));
-const body_parser_1 = __importDefault(require("body-parser"));
-const node_http_session_1 = require("./node_http_session");
-const node_rtmp_session_1 = require("./node_rtmp_session");
-const node_core_logger_1 = require("./node_core_logger");
-const node_core_ctx_1 = __importDefault(require("./node_core_ctx"));
-const streams_1 = __importDefault(require("./api/routes/streams"));
-const server_1 = __importDefault(require("./api/routes/server"));
-const relay_1 = __importDefault(require("./api/routes/relay"));
-const types_1 = require("./types");
-const H2EBridge = require('http2-express');
-const basicAuth = require('basic-auth-connect');
+const relay_js_1 = __importDefault(require("./api/routes/relay.js"));
+const server_js_1 = __importDefault(require("./api/routes/server.js"));
+const streams_js_1 = __importDefault(require("./api/routes/streams.js"));
+const index_js_1 = require("./core/index.js");
+const node_http_session_js_1 = require("./node_http_session.js");
+const node_rtmp_session_js_1 = require("./node_rtmp_session.js");
+const types_js_1 = require("./types.js");
+const http2_express_1 = __importDefault(require("http2-express"));
+const basic_auth_connect_1 = __importDefault(require("basic-auth-connect"));
 const HTTP_PORT = 80;
 const HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
@@ -39,7 +38,7 @@ class NodeHttpServer {
         this.port = config.http.port || HTTP_PORT;
         this.mediaroot = config.http.mediaroot || HTTP_MEDIAROOT;
         this.config = config;
-        const app = H2EBridge(express_1.default);
+        const app = (0, http2_express_1.default)(express_1.default);
         app.use(body_parser_1.default.json());
         app.use(body_parser_1.default.urlencoded({ extended: true }));
         app.all('/{*splat}', (req, res, next) => {
@@ -52,7 +51,7 @@ class NodeHttpServer {
         app.get('/{*splat}.flv', (req, res, next) => {
             const nmsReq = {
                 req,
-                nmsConnectionType: types_1.NodeConnectionType.HTTP,
+                nmsConnectionType: types_js_1.NodeConnectionType.HTTP,
                 remoteAddress: req.ip,
             };
             const nmsRes = {
@@ -68,11 +67,11 @@ class NodeHttpServer {
         }
         if (this.config.http.api !== false) {
             if (this.config.auth && this.config.auth.api) {
-                app.use(['/api/*splat', '/static/*splat', '/admin/*splat'], basicAuth(this.config.auth.api_user, this.config.auth.api_pass));
+                app.use(['/api/*splat', '/static/*splat', '/admin/*splat'], (0, basic_auth_connect_1.default)(this.config.auth.api_user, this.config.auth.api_pass));
             }
-            app.use('/api/streams', (0, streams_1.default)(node_core_ctx_1.default));
-            app.use('/api/server', (0, server_1.default)(node_core_ctx_1.default));
-            app.use('/api/relay', (0, relay_1.default)(node_core_ctx_1.default));
+            app.use('/api/streams', (0, streams_js_1.default)(index_js_1.context));
+            app.use('/api/server', (0, server_js_1.default)(index_js_1.context));
+            app.use('/api/relay', (0, relay_js_1.default)(index_js_1.context));
         }
         app.use(express_1.default.static(path_1.default.join(__dirname + '/../public')));
         app.use(express_1.default.static(this.mediaroot.toString()));
@@ -83,7 +82,7 @@ class NodeHttpServer {
         if (this.config.https) {
             let options = {
                 key: fs_1.default.readFileSync(this.config.https.key),
-                cert: fs_1.default.readFileSync(this.config.https.cert)
+                cert: fs_1.default.readFileSync(this.config.https.cert),
             };
             if (this.config.https.passphrase) {
                 Object.assign(options, { passphrase: this.config.https.passphrase });
@@ -95,19 +94,19 @@ class NodeHttpServer {
     run() {
         return __awaiter(this, void 0, void 0, function* () {
             this.httpServer.listen(this.port, () => {
-                node_core_logger_1.Logger.log(`Node Media Http Server started on port: ${this.port}`);
+                index_js_1.Logger.log(`Node Media Http Server started on port: ${this.port}`);
             });
             this.httpServer.on('error', (e) => {
-                node_core_logger_1.Logger.error(`Node Media Http Server ${e}`);
+                index_js_1.Logger.error(`Node Media Http Server ${e}`);
             });
             this.httpServer.on('close', () => {
-                node_core_logger_1.Logger.log('Node Media Http Server closed');
+                index_js_1.Logger.log('Node Media Http Server closed');
             });
             this.wsServer = new ws_1.default.Server({ server: this.httpServer });
             this.wsServer.on('connection', (ws, req) => {
                 const nmsReq = {
                     req,
-                    nmsConnectionType: types_1.NodeConnectionType.WS,
+                    nmsConnectionType: types_js_1.NodeConnectionType.WS,
                     remoteAddress: req.socket.remoteAddress,
                 };
                 const nmsRes = {
@@ -116,29 +115,29 @@ class NodeHttpServer {
                 this.onConnect(nmsReq, nmsRes);
             });
             this.wsServer.on('listening', () => {
-                node_core_logger_1.Logger.log(`Node Media WebSocket Server started on port: ${this.port}`);
+                index_js_1.Logger.log(`Node Media WebSocket Server started on port: ${this.port}`);
             });
             this.wsServer.on('error', (e) => {
-                node_core_logger_1.Logger.error(`Node Media WebSocket Server ${e}`);
+                index_js_1.Logger.error(`Node Media WebSocket Server ${e}`);
             });
             this.wsServer.on('close', () => {
-                node_core_logger_1.Logger.error(`Node Media WebSocket Server closed`);
+                index_js_1.Logger.error(`Node Media WebSocket Server closed`);
             });
             if (this.httpsServer) {
                 this.httpsServer.listen(this.sport, () => {
-                    node_core_logger_1.Logger.log(`Node Media Https Server started on port: ${this.sport}`);
+                    index_js_1.Logger.log(`Node Media Https Server started on port: ${this.sport}`);
                 });
                 this.httpsServer.on('error', (e) => {
-                    node_core_logger_1.Logger.error(`Node Media Https Server ${e}`);
+                    index_js_1.Logger.error(`Node Media Https Server ${e}`);
                 });
                 this.httpsServer.on('close', () => {
-                    node_core_logger_1.Logger.log('Node Media Https Server Close.');
+                    index_js_1.Logger.log('Node Media Https Server Close.');
                 });
                 this.wssServer = new ws_1.default.Server({ server: this.httpsServer });
                 this.wssServer.on('connection', (ws, req) => {
                     const nmsReq = {
                         req,
-                        nmsConnectionType: types_1.NodeConnectionType.WS,
+                        nmsConnectionType: types_js_1.NodeConnectionType.WS,
                         remoteAddress: req.socket.remoteAddress,
                     };
                     const nmsRes = {
@@ -147,32 +146,32 @@ class NodeHttpServer {
                     this.onConnect(nmsReq, nmsRes);
                 });
                 this.wssServer.on('listening', () => {
-                    node_core_logger_1.Logger.log(`Node Media WebSocketSecure Server started on port: ${this.sport}`);
+                    index_js_1.Logger.log(`Node Media WebSocketSecure Server started on port: ${this.sport}`);
                 });
                 this.wssServer.on('error', (e) => {
-                    node_core_logger_1.Logger.error(`Node Media WebSocketSecure Server ${e}`);
+                    index_js_1.Logger.error(`Node Media WebSocketSecure Server ${e}`);
                 });
                 this.wssServer.on('close', () => {
-                    node_core_logger_1.Logger.error(`Node Media WebSocketSecure Server closed`);
+                    index_js_1.Logger.error(`Node Media WebSocketSecure Server closed`);
                 });
             }
-            node_core_ctx_1.default.nodeEvent.on('postPlay', (id, streamPath, args) => {
-                node_core_ctx_1.default.stat.accepted++;
+            index_js_1.context.nodeEvent.on('postPlay', (id, streamPath, args) => {
+                index_js_1.context.stat.accepted++;
             });
-            node_core_ctx_1.default.nodeEvent.on('postPublish', (id, streamPath, args) => {
-                node_core_ctx_1.default.stat.accepted++;
+            index_js_1.context.nodeEvent.on('postPublish', (id, streamPath, args) => {
+                index_js_1.context.stat.accepted++;
             });
-            node_core_ctx_1.default.nodeEvent.on('doneConnect', (id, connectCmdObj) => {
-                let session = node_core_ctx_1.default.sessions.get(id);
-                if (session instanceof node_http_session_1.NodeHttpSession) {
+            index_js_1.context.nodeEvent.on('doneConnect', (id, connectCmdObj) => {
+                let session = index_js_1.context.sessions.get(id);
+                if (session instanceof node_http_session_js_1.NodeHttpSession) {
                     let socket = session.req.socket;
-                    node_core_ctx_1.default.stat.inbytes += socket.bytesRead;
-                    node_core_ctx_1.default.stat.outbytes += socket.bytesWritten;
+                    index_js_1.context.stat.inbytes += socket.bytesRead;
+                    index_js_1.context.stat.outbytes += socket.bytesWritten;
                 }
-                else if (session instanceof node_rtmp_session_1.NodeRtmpSession) {
+                else if (session instanceof node_rtmp_session_js_1.NodeRtmpSession) {
                     let socket = session.socket;
-                    node_core_ctx_1.default.stat.inbytes += socket.bytesRead;
-                    node_core_ctx_1.default.stat.outbytes += socket.bytesWritten;
+                    index_js_1.context.stat.inbytes += socket.bytesRead;
+                    index_js_1.context.stat.outbytes += socket.bytesWritten;
                 }
             });
         });
@@ -186,10 +185,10 @@ class NodeHttpServer {
         if (this.wssServer) {
             this.wssServer.close();
         }
-        node_core_ctx_1.default.sessions.forEach((session, id) => {
-            if (session instanceof node_http_session_1.NodeHttpSession) {
+        index_js_1.context.sessions.forEach((session, id) => {
+            if (session instanceof node_http_session_js_1.NodeHttpSession) {
                 session.req.destroy();
-                node_core_ctx_1.default.sessions.delete(id);
+                index_js_1.context.sessions.delete(id);
             }
         });
     }
@@ -197,7 +196,7 @@ class NodeHttpServer {
         const sessionConf = {
             auth: lodash_1.default.cloneDeep(this.config.auth),
         };
-        let session = new node_http_session_1.NodeHttpSession(sessionConf, req, res);
+        let session = new node_http_session_js_1.NodeHttpSession(sessionConf, req, res);
         session.run();
     }
 }

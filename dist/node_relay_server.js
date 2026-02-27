@@ -13,14 +13,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeRelayServer = void 0;
-const types_1 = require("./types");
-const lodash_1 = __importDefault(require("lodash"));
 const fs_1 = __importDefault(require("fs"));
+const lodash_1 = __importDefault(require("lodash"));
 const querystring_1 = __importDefault(require("querystring"));
-const node_core_logger_1 = require("./node_core_logger");
-const node_relay_session_1 = require("./node_relay_session");
-const node_core_ctx_1 = __importDefault(require("./node_core_ctx"));
-const node_core_utils_1 = require("./node_core_utils");
+const index_js_1 = require("./core/index.js");
+const node_relay_session_js_1 = require("./node_relay_session.js");
+const types_js_1 = require("./types.js");
 class NodeRelayServer {
     constructor(config) {
         this.dynamicSessions = new Map();
@@ -32,41 +30,41 @@ class NodeRelayServer {
                 fs_1.default.accessSync(this.config.relay.ffmpeg, fs_1.default.constants.X_OK);
             }
             catch (error) {
-                node_core_logger_1.Logger.error(`Node Media Relay Server startup failed. ffmpeg:${this.config.relay.ffmpeg} cannot be executed.`);
+                index_js_1.Logger.error(`Node Media Relay Server startup failed. ffmpeg:${this.config.relay.ffmpeg} cannot be executed.`);
                 return;
             }
-            let version = yield (0, node_core_utils_1.getFFmpegVersion)(this.config.relay.ffmpeg);
+            let version = yield index_js_1.NodeCoreUtils.getFFmpegVersion(this.config.relay.ffmpeg);
             if (version === '' || parseInt(version.split('.')[0]) < 4) {
-                node_core_logger_1.Logger.error('Node Media Relay Server startup failed. ffmpeg requires version 4.0.0 above');
-                node_core_logger_1.Logger.error('Download the latest ffmpeg static program:', (0, node_core_utils_1.getFFmpegUrl)());
+                index_js_1.Logger.error('Node Media Relay Server startup failed. ffmpeg requires version 4.0.0 above');
+                index_js_1.Logger.error('Download the latest ffmpeg static program:', index_js_1.NodeCoreUtils.getFFmpegUrl());
                 return;
             }
-            node_core_ctx_1.default.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
-            node_core_ctx_1.default.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
-            node_core_logger_1.Logger.log(`Node Media Relay Server started, ffmpeg version: ${version}`);
+            index_js_1.context.nodeEvent.on('postPublish', this.onPostPublish.bind(this));
+            index_js_1.context.nodeEvent.on('donePublish', this.onDonePublish.bind(this));
+            index_js_1.Logger.log(`Node Media Relay Server started, ffmpeg version: ${version}`);
         });
     }
     startNewRelaySession(conf, srcId, streamPath, args) {
-        for (let session of node_core_ctx_1.default.sessions.values()) {
+        for (let session of index_js_1.context.sessions.values()) {
             if (session.getConfig('inPath') === conf.inPath && session.conf.ouPath === conf.ouPath) {
-                node_core_logger_1.Logger.log('[relay dynamic push] session still running', `srcid=${srcId}`, conf.inPath, 'to', conf.ouPath);
+                index_js_1.Logger.log('[relay dynamic push] session still running', `srcid=${srcId}`, conf.inPath, 'to', conf.ouPath);
                 return null;
             }
         }
-        let session = new node_relay_session_1.NodeRelaySession(conf);
+        let session = new node_relay_session_js_1.NodeRelaySession(conf);
         const id = session.id;
-        node_core_logger_1.Logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-        node_core_ctx_1.default.sessions.set(id, session);
+        index_js_1.Logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+        index_js_1.context.sessions.set(id, session);
         session.on('end', (id) => {
-            node_core_logger_1.Logger.log('[relay dynamic push] ended', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-            node_core_ctx_1.default.sessions.delete(id);
+            index_js_1.Logger.log('[relay dynamic push] ended', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+            index_js_1.context.sessions.delete(id);
             const dynamicSessionsForSrc = this.dynamicSessions.get(srcId);
             if (dynamicSessionsForSrc) {
                 dynamicSessionsForSrc.delete(id);
             }
             setTimeout(() => {
-                if (!!srcId && !!node_core_ctx_1.default.sessions.get(srcId)) {
-                    node_core_logger_1.Logger.log('[relay dynamic push] restart', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+                if (!!srcId && !!index_js_1.context.sessions.get(srcId)) {
+                    index_js_1.Logger.log('[relay dynamic push] restart', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
                     this.onPostPublish(srcId, streamPath, args);
                 }
             }, 1000);
@@ -81,11 +79,11 @@ class NodeRelayServer {
             this.dynamicSessions.set(srcId, newMap);
         }
         session.run();
-        node_core_logger_1.Logger.log('[relay dynamic push] started', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+        index_js_1.Logger.log('[relay dynamic push] started', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
         return session;
     }
     onPostPublish(id, streamPath, args) {
-        node_core_logger_1.Logger.log("[rtmp postPublish] Check for relays", `id=${id}`, `streamPath=${streamPath}`);
+        index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `streamPath=${streamPath}`);
         const { tasks, ffmpeg } = this.config.relay;
         if (!tasks) {
             return;
@@ -93,12 +91,12 @@ class NodeRelayServer {
         let regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
         let [app, stream] = lodash_1.default.slice(regRes, 1);
         let i = tasks.length;
-        node_core_logger_1.Logger.log("[rtmp postPublish] Check for relays", `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
+        index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
         while (i--) {
             let taskConf = lodash_1.default.cloneDeep(tasks[i]);
-            let isPush = taskConf.mode === types_1.Mode.PUSH;
-            const edge = !!taskConf.edge && (typeof taskConf.edge === typeof {} ? (taskConf.edge[stream] || taskConf.edge["_default"] || "") : taskConf.edge);
-            node_core_logger_1.Logger.log("[rtmp postPublish] Check for relays", `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);
+            let isPush = taskConf.mode === types_js_1.Mode.PUSH;
+            const edge = !!taskConf.edge && (typeof taskConf.edge === typeof {} ? (taskConf.edge[stream] || taskConf.edge['_default'] || '') : taskConf.edge);
+            index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);
             if (isPush && app === taskConf.app) {
                 let hasApp = edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
                 let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg, inPath: `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`, ouPath: taskConf.appendName === false ? edge : (hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`) });
@@ -106,7 +104,7 @@ class NodeRelayServer {
                     sessionConf.ouPath += '?';
                     sessionConf.ouPath += querystring_1.default.encode(args);
                 }
-                node_core_logger_1.Logger.log("[rtmp postPublish] patterncheck", `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`, `pattern=${taskConf.pattern}`);
+                index_js_1.Logger.log('[rtmp postPublish] patterncheck', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`, `pattern=${taskConf.pattern}`);
                 if (!!taskConf.pattern && !(new RegExp(taskConf.pattern).test(streamPath))) {
                     continue;
                 }
@@ -120,8 +118,8 @@ class NodeRelayServer {
                 for (let [_, session] of sessions) {
                     session.end();
                 }
-                let session = node_core_ctx_1.default.sessions.get(srcId);
-                if (session && session instanceof node_relay_session_1.NodeRelaySession) {
+                let session = index_js_1.context.sessions.get(srcId);
+                if (session && session instanceof node_relay_session_js_1.NodeRelaySession) {
                     session.end();
                 }
             }
@@ -139,8 +137,8 @@ class NodeRelayServer {
             for (let [_, session] of sessions) {
                 session.end();
             }
-            let session = node_core_ctx_1.default.sessions.get(srcId);
-            if (session && session instanceof node_relay_session_1.NodeRelaySession) {
+            let session = index_js_1.context.sessions.get(srcId);
+            if (session && session instanceof node_relay_session_js_1.NodeRelaySession) {
                 session.end();
             }
         }

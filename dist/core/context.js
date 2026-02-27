@@ -2,6 +2,7 @@
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = __importDefault(require("events"));
 let sessions = new Map();
 let publishers = new Map();
@@ -19,4 +20,4 @@ const context = {
     nodeEvent,
     stat,
 };
-module.exports = context;
+exports.default = context;

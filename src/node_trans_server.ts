@@ -1,12 +1,9 @@
-import _ from "lodash";
-import fs from "fs";
-import {Logger} from './node_core_logger';
-import {NodeTransSession} from './node_trans_session';
-import context from "./node_core_ctx";
-import {getFFmpegUrl, getFFmpegVersion} from "./node_core_utils";
-import {Arguments, Config, SessionID, TransSessionConfig} from "./types";
-
-const mkdirp = require('mkdirp');
+import fs from 'fs';
+import _ from 'lodash';
+import { Logger, context, NodeCoreUtils } from './core/index.js';
+import { NodeTransSession } from './node_trans_session.js';
+import { Arguments, Config, SessionID, TransSessionConfig } from './types.js';
+import * as mkdirp from 'mkdirp';
 
 class NodeTransServer {
     config: Config;
@@ -21,7 +18,7 @@ class NodeTransServer {
         const ffmpeg = this.config.trans.ffmpeg;
 
         try {
-            mkdirp.sync(mediaroot);
+            mkdirp.sync(mediaroot.toString());
             fs.accessSync(mediaroot, fs.constants.W_OK);
         } catch (error) {
             Logger.error(`Node Media Trans Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
@@ -35,10 +32,10 @@ class NodeTransServer {
             return;
         }
 
-        const version = await getFFmpegVersion(ffmpeg);
+        const version = await NodeCoreUtils.getFFmpegVersion(ffmpeg);
         if (version === '' || parseInt(version.split('.')[0]) < 4) {
             Logger.error('Node Media Trans Server startup failed. ffmpeg requires version 4.0.0 above');
-            Logger.error('Download the latest ffmpeg static program:', getFFmpegUrl());
+            Logger.error('Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
             return;
         }
 
@@ -60,7 +57,7 @@ class NodeTransServer {
         const regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
         const [app, name] = _.slice(regRes, 1);
 
-        const {tasks, ffmpeg} = this.config.trans;
+        const { tasks, ffmpeg } = this.config.trans;
         let i = tasks.length;
         const mediaroot = this.config.http.mediaroot;
 

@@ -13,13 +13,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeRtmpServer = void 0;
-const lodash_1 = __importDefault(require("lodash"));
-const tls_1 = __importDefault(require("tls"));
 const fs_1 = __importDefault(require("fs"));
+const lodash_1 = __importDefault(require("lodash"));
 const net_1 = __importDefault(require("net"));
-const node_rtmp_session_1 = require("./node_rtmp_session");
-const node_core_logger_1 = require("./node_core_logger");
-const node_core_ctx_1 = __importDefault(require("./node_core_ctx"));
+const tls_1 = __importDefault(require("tls"));
+const index_js_1 = require("./core/index.js");
+const node_rtmp_session_js_1 = require("./node_rtmp_session.js");
 const RTMP_PORT = 1935;
 const RTMPS_PORT = 443;
 class NodeRtmpServer {
@@ -33,7 +32,7 @@ class NodeRtmpServer {
         };
         this.port = conf.rtmp.port || RTMP_PORT;
         this.tcpServer = net_1.default.createServer((socket) => {
-            let session = new node_rtmp_session_1.NodeRtmpSession(sessionConfig, socket);
+            let session = new node_rtmp_session_js_1.NodeRtmpSession(sessionConfig, socket);
             session.run();
         });
         if (conf.rtmp.ssl) {
@@ -44,35 +43,35 @@ class NodeRtmpServer {
                     cert: fs_1.default.readFileSync(conf.rtmp.ssl.cert),
                 };
                 this.tlsServer = tls_1.default.createServer(options, (socket) => {
-                    let session = new node_rtmp_session_1.NodeRtmpSession(sessionConfig, socket);
+                    let session = new node_rtmp_session_js_1.NodeRtmpSession(sessionConfig, socket);
                     session.run();
                 });
             }
             catch (e) {
-                node_core_logger_1.Logger.error(`Node Media Rtmps Server error while reading ssl certs: <${e}>`);
+                index_js_1.Logger.error(`Node Media Rtmps Server error while reading ssl certs: <${e}>`);
             }
         }
     }
     run() {
         return __awaiter(this, void 0, void 0, function* () {
             this.tcpServer.listen(this.port, () => {
-                node_core_logger_1.Logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
+                index_js_1.Logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
             });
             this.tcpServer.on('error', (e) => {
-                node_core_logger_1.Logger.error(`Node Media Rtmp Server ${e}`);
+                index_js_1.Logger.error(`Node Media Rtmp Server ${e}`);
             });
             this.tcpServer.on('close', () => {
-                node_core_logger_1.Logger.log('Node Media Rtmp Server Close.');
+                index_js_1.Logger.log('Node Media Rtmp Server Close.');
             });
             if (this.tlsServer) {
                 this.tlsServer.listen(this.sslPort, () => {
-                    node_core_logger_1.Logger.log(`Node Media Rtmps Server started on port: ${this.sslPort}`);
+                    index_js_1.Logger.log(`Node Media Rtmps Server started on port: ${this.sslPort}`);
                 });
                 this.tlsServer.on('error', (e) => {
-                    node_core_logger_1.Logger.error(`Node Media Rtmps Server ${e}`);
+                    index_js_1.Logger.error(`Node Media Rtmps Server ${e}`);
                 });
                 this.tlsServer.on('close', () => {
-                    node_core_logger_1.Logger.log('Node Media Rtmps Server Close.');
+                    index_js_1.Logger.log('Node Media Rtmps Server Close.');
                 });
             }
         });
@@ -82,8 +81,8 @@ class NodeRtmpServer {
         if (this.tlsServer) {
             this.tlsServer.close();
         }
-        node_core_ctx_1.default.sessions.forEach((session, id) => {
-            if (session instanceof node_rtmp_session_1.NodeRtmpSession) {
+        index_js_1.context.sessions.forEach((session, id) => {
+            if (session instanceof node_rtmp_session_js_1.NodeRtmpSession) {
                 session.stop();
             }
         });

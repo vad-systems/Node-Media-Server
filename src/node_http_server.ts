@@ -1,22 +1,20 @@
-import _ from "lodash";
-import fs, {PathLike} from 'fs';
-import path from 'path';
+import bodyParser from 'body-parser';
+import Express from 'express';
+import fs, { PathLike } from 'fs';
 import Http from 'http';
 import Https from 'https';
+import _ from 'lodash';
+import path from 'path';
 import WebSocket from 'ws';
-import Express from 'express';
-import bodyParser from 'body-parser';
-import {NodeHttpSession} from './node_http_session';
-import {NodeRtmpSession} from './node_rtmp_session';
-import {Logger} from './node_core_logger';
-import context from './node_core_ctx';
-import streamsRoute from './api/routes/streams';
-import serverRoute from './api/routes/server';
-import relayRoute from './api/routes/relay';
-import {Config, NodeConnectionType, NodeHttpRequest, NodeHttpResponse, HttpSessionConfig} from "./types";
-
-const H2EBridge = require('http2-express');
-const basicAuth = require('basic-auth-connect');
+import relayRoute from './api/routes/relay.js';
+import serverRoute from './api/routes/server.js';
+import streamsRoute from './api/routes/streams.js';
+import { context, Logger } from './core/index.js';
+import { NodeHttpSession } from './node_http_session.js';
+import { NodeRtmpSession } from './node_rtmp_session.js';
+import { Config, HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from './types.js';
+import H2EBridge from 'http2-express';
+import basicAuth from 'basic-auth-connect';
 
 const HTTP_PORT = 80;
 const HTTPS_PORT = 443;
@@ -41,11 +39,14 @@ class NodeHttpServer {
         const app = H2EBridge(Express);
         app.use(bodyParser.json());
 
-        app.use(bodyParser.urlencoded({extended: true}));
+        app.use(bodyParser.urlencoded({ extended: true }));
 
         app.all('/{*splat}', (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
             res.header('Access-Control-Allow-Origin', this.config.http.allow_origin);
-            res.header('Access-Control-Allow-Headers', 'Content-Type,Content-Length, Authorization, Accept,X-Requested-With');
+            res.header(
+                'Access-Control-Allow-Headers',
+                'Content-Type,Content-Length, Authorization, Accept,X-Requested-With',
+            );
             res.header('Access-Control-Allow-Methods', 'PUT,POST,GET,DELETE,OPTIONS');
             res.header('Access-Control-Allow-Credentials', 'true');
             req.method === 'OPTIONS' ? res.sendStatus(200) : next();
@@ -56,10 +57,10 @@ class NodeHttpServer {
                 req,
                 nmsConnectionType: NodeConnectionType.HTTP,
                 remoteAddress: req.ip,
-            }
+            };
             const nmsRes = {
                 res,
-            }
+            };
             this.onConnect(nmsReq, nmsRes);
         });
 
@@ -72,7 +73,10 @@ class NodeHttpServer {
 
         if (this.config.http.api !== false) {
             if (this.config.auth && this.config.auth.api) {
-                app.use(['/api/*splat', '/static/*splat', '/admin/*splat'], basicAuth(this.config.auth.api_user, this.config.auth.api_pass));
+                app.use(
+                    ['/api/*splat', '/static/*splat', '/admin/*splat'],
+                    basicAuth(this.config.auth.api_user, this.config.auth.api_pass),
+                );
             }
             app.use('/api/streams', streamsRoute(context));
             app.use('/api/server', serverRoute(context));
@@ -90,10 +94,10 @@ class NodeHttpServer {
         if (this.config.https) {
             let options = {
                 key: fs.readFileSync(this.config.https.key),
-                cert: fs.readFileSync(this.config.https.cert)
+                cert: fs.readFileSync(this.config.https.cert),
             };
             if (this.config.https.passphrase) {
-                Object.assign(options, {passphrase: this.config.https.passphrase});
+                Object.assign(options, { passphrase: this.config.https.passphrase });
             }
             this.sport = config.https.port || HTTPS_PORT;
             this.httpsServer = Https.createServer(options, app);
@@ -113,17 +117,17 @@ class NodeHttpServer {
             Logger.log('Node Media Http Server closed');
         });
 
-        this.wsServer = new WebSocket.Server({server: this.httpServer});
+        this.wsServer = new WebSocket.Server({ server: this.httpServer });
 
         this.wsServer.on('connection', (ws: WebSocket.WebSocket, req: Http.IncomingMessage) => {
             const nmsReq = {
                 req,
                 nmsConnectionType: NodeConnectionType.WS,
                 remoteAddress: req.socket.remoteAddress,
-            }
+            };
             const nmsRes = {
                 res: ws,
-            }
+            };
             this.onConnect(nmsReq, nmsRes);
         });
 
@@ -150,17 +154,17 @@ class NodeHttpServer {
                 Logger.log('Node Media Https Server Close.');
             });
 
-            this.wssServer = new WebSocket.Server({server: this.httpsServer});
+            this.wssServer = new WebSocket.Server({ server: this.httpsServer });
 
             this.wssServer.on('connection', (ws, req) => {
                 const nmsReq = {
                     req,
                     nmsConnectionType: NodeConnectionType.WS,
                     remoteAddress: req.socket.remoteAddress,
-                }
+                };
                 const nmsRes = {
                     res: ws,
-                }
+                };
                 this.onConnect(nmsReq, nmsRes);
             });
 
@@ -220,7 +224,7 @@ class NodeHttpServer {
     onConnect(req: NodeHttpRequest, res: NodeHttpResponse) {
         const sessionConf: HttpSessionConfig = {
             auth: _.cloneDeep(this.config.auth),
-        }
+        };
         let session = new NodeHttpSession(sessionConf, req, res);
         session.run();
     }

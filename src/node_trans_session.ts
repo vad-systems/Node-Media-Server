@@ -1,10 +1,9 @@
-import fs, {PathLike} from "fs";
-import {TransSessionConfig} from "./types";
-import {Logger} from './node_core_logger';
-import {NodeFfmpegSession} from './node_ffmpeg_session';
 import dateFormat from 'dateformat';
-
-const mkdirp = require('mkdirp');
+import fs, { PathLike } from 'fs';
+import { Logger } from './core/index.js';
+import { NodeFfmpegSession } from './node_ffmpeg_session.js';
+import { TransSessionConfig } from './types.js';
+import * as mkdirp from 'mkdirp';
 
 const isHlsFile = (filename: string) => filename.endsWith('.ts') || filename.endsWith('.m3u8');
 const isTemFiles = (filename: string) => filename.endsWith('.tmp');
@@ -80,16 +79,21 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
             '-y',
             '-i', inPath,
             '-c:v', vc,
-            ...(vcParam || []),
+            ...(
+                vcParam || []
+            ),
             '-c:a', ac,
-            ...(acParam || []),
+            ...(
+                acParam || []
+            ),
             '-f', 'tee',
             '-map', '0:a?', '-map', '0:v?',
-            mapStr
+            mapStr,
         ];
 
         let self = this;
         this.on('end', (id) => {
+            Logger.log('[trans]', `id=${id}`, 'end');
             self.cleanTempFiles(ouPath);
             self.deleteHlsFiles(ouPath);
         });
@@ -103,10 +107,16 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
     }
 
     deleteHlsFiles(ouPath: PathLike) {
-        if ((!ouPath && !this.getConfig('hls')) || this.getConfig('hlsKeep')) return;
+        if ((
+            !ouPath && !this.getConfig('hls')
+        ) || this.getConfig('hlsKeep')) {
+            return;
+        }
 
         fs.readdir(ouPath, function (err, files) {
-            if (err) return;
+            if (err) {
+                return;
+            }
             files.filter((filename) => isHlsFile(filename)).forEach((filename) => {
                 fs.unlinkSync(`${ouPath}/${filename}`);
             });
@@ -114,10 +124,14 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
     }
 
     cleanTempFiles(ouPath: PathLike) {
-        if (!ouPath) return;
+        if (!ouPath) {
+            return;
+        }
         let self = this;
         fs.readdir(ouPath, function (err, files) {
-            if (err) return;
+            if (err) {
+                return;
+            }
             if (self.getConfig('dashKeep')) {
                 files.filter((filename) => isTemFiles(filename)).forEach((filename) => {
                     fs.unlinkSync(`${ouPath}/${filename}`);
