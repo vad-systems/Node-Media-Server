@@ -4,7 +4,7 @@ import * as mkdirp from 'mkdirp';
 import { context, LoggerFactory, NodeCoreUtils } from '@vad-systems/nms-core';
 import { TransSessionConfig, checkSelectiveTask } from '@vad-systems/nms-shared';
 import { BaseAvSession, NodeTaskServer } from '@vad-systems/nms-server';
-import { NodeTransSession } from './NodeTransSession.js';
+import { NodeTransSession } from '@vad-systems/nms-plugin-trans';
 
 class NodeTransServer extends NodeTaskServer {
     private logger = LoggerFactory.getLogger('Trans Server');

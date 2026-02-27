@@ -38,11 +38,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = __importDefault(require("lodash"));
 const nms_core_1 = require("./core");
-const nms_plugins_1 = require("./plugins");
+const nms_plugin_fission_1 = require("./plugins/fission");
 const nms_server_1 = require("./server");
 const nms_plugin_av_1 = require("./plugins/av");
-const nms_plugins_2 = require("./plugins");
-const nms_plugins_3 = require("./plugins");
+const nms_plugin_relay_1 = require("./plugins/relay");
+const nms_plugin_trans_1 = require("./plugins/trans");
 const types = __importStar(require("./shared"));
 const nms_shared_1 = require("./shared");
 const Package = require('../package.json');
@@ -103,7 +103,7 @@ class NodeMediaServer {
                 this.logger.warn('NodeTransServer does not work in cluster mode');
             }
             else {
-                this.transServer = new nms_plugins_3.NodeTransServer();
+                this.transServer = new nms_plugin_trans_1.NodeTransServer();
                 processorsRunning.push(this.transServer.run());
             }
         }
@@ -112,7 +112,7 @@ class NodeMediaServer {
                 this.logger.warn('NodeRelayServer does not work in cluster mode');
             }
             else {
-                this.relayServer = new nms_plugins_2.NodeRelayServer();
+                this.relayServer = new nms_plugin_relay_1.NodeRelayServer();
                 processorsRunning.push(this.relayServer.run());
             }
         }
@@ -121,7 +121,7 @@ class NodeMediaServer {
                 this.logger.warn('NodeFissionServer does not work in cluster mode');
             }
             else {
-                this.fissionServer = new nms_plugins_1.NodeFissionServer();
+                this.fissionServer = new nms_plugin_fission_1.NodeFissionServer();
                 processorsRunning.push(this.fissionServer.run());
             }
         }

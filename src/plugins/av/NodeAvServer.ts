@@ -3,7 +3,7 @@ import url from 'url';
 import { context } from '@vad-systems/nms-core';
 import { AvSessionConfig } from '@vad-systems/nms-shared';
 import { NodeConfigurableServer, Protocol } from '@vad-systems/nms-server';
-import { NodeAvSession } from './NodeAvSession.js';
+import { NodeAvSession } from '@vad-systems/nms-plugin-av';
 
 class NodeAvServer extends NodeConfigurableServer {
     constructor() {

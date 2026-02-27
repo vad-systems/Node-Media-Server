@@ -43,7 +43,7 @@ const mkdirp = __importStar(require("mkdirp"));
 const nms_core_1 = require("../../core");
 const nms_shared_1 = require("../../shared");
 const nms_server_1 = require("../../server");
-const NodeTransSession_js_1 = require("./NodeTransSession.js");
+const nms_plugin_trans_1 = require("./");
 class NodeTransServer extends nms_server_1.NodeTaskServer {
     logger = nms_core_1.LoggerFactory.getLogger('Trans Server');
     constructor() {
@@ -113,7 +113,7 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
                 this.logger.debug('[trans] session still running', `srcid=${session.id}`, `streamPath=${session.streamPath}`, taskConfig);
                 continue;
             }
-            let sess = new NodeTransSession_js_1.NodeTransSession(sessionConfig);
+            let sess = new nms_plugin_trans_1.NodeTransSession(sessionConfig);
             if (session.broadcast) {
                 sess.broadcast = session.broadcast;
                 session.broadcast.subscribers.set(sess.id, sess);

@@ -8,7 +8,7 @@ const lodash_1 = __importDefault(require("lodash"));
 const url_1 = __importDefault(require("url"));
 const nms_core_1 = require("../../core");
 const nms_server_1 = require("../../server");
-const NodeAvSession_js_1 = require("./NodeAvSession.js");
+const nms_plugin_av_1 = require("./");
 class NodeAvServer extends nms_server_1.NodeConfigurableServer {
     constructor() {
         super();
@@ -68,7 +68,7 @@ class NodeAvServer extends nms_server_1.NodeConfigurableServer {
             auth: lodash_1.default.cloneDeep(this.config.auth),
         };
         const remoteIp = (req.ip || req.socket.remoteAddress) + ':' + req.socket.remotePort;
-        let session = new NodeAvSession_js_1.NodeAvSession(sessionConf, remoteIp, protocol, info);
+        let session = new nms_plugin_av_1.NodeAvSession(sessionConf, remoteIp, protocol, info);
         session.setTransport(req, res);
         session.run();
     }

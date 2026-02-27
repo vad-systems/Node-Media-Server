@@ -1,10 +1,10 @@
 import _ from 'lodash';
 import { context, Logger, LoggerFactory } from '@vad-systems/nms-core';
-import { NodeFissionServer } from '@vad-systems/nms-plugins';
+import { NodeFissionServer } from '@vad-systems/nms-plugin-fission';
 import { NodeHttpServer, NodeRtmpServer, NodeRtmpSession } from '@vad-systems/nms-server';
 import { NodeAvServer, NodeAvSession } from '@vad-systems/nms-plugin-av';
-import { NodeRelayServer } from '@vad-systems/nms-plugins';
-import { NodeTransServer } from '@vad-systems/nms-plugins';
+import { NodeRelayServer } from '@vad-systems/nms-plugin-relay';
+import { NodeTransServer } from '@vad-systems/nms-plugin-trans';
 import * as types from '@vad-systems/nms-shared';
 import { Config, ConfigType, NodeEventMap } from '@vad-systems/nms-shared';
 

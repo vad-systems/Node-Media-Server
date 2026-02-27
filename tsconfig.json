@@ -24,6 +24,9 @@
       "@vad-systems/nms-protocol": ["src/protocol"],
       "@vad-systems/nms-server": ["src/server"],
       "@vad-systems/nms-plugin-av": ["src/plugins/av"],
+      "@vad-systems/nms-plugin-fission": ["src/plugins/fission"],
+      "@vad-systems/nms-plugin-relay": ["src/plugins/relay"],
+      "@vad-systems/nms-plugin-trans": ["src/plugins/trans"],
       "@vad-systems/nms-plugins": ["src/plugins"],
       "@vad-systems/nms-shared": ["src/shared"],
       "@vad-systems/nms-api": ["src/api"]

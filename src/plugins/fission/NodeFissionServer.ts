@@ -4,7 +4,7 @@ import * as mkdirp from 'mkdirp';
 import { context, LoggerFactory, NodeCoreUtils } from '@vad-systems/nms-core';
 import { FissionSessionConfig, checkSelectiveTask } from '@vad-systems/nms-shared';
 import { BaseAvSession, NodeTaskServer } from '@vad-systems/nms-server';
-import { NodeFissionSession } from './NodeFissionSession.js';
+import { NodeFissionSession } from '@vad-systems/nms-plugin-fission';
 
 class NodeFissionServer extends NodeTaskServer {
     private logger = LoggerFactory.getLogger('Fission Server');

@@ -10,7 +10,7 @@ const querystring_1 = __importDefault(require("querystring"));
 const nms_core_1 = require("../../core");
 const nms_shared_1 = require("../../shared");
 const nms_server_1 = require("../../server");
-const NodeRelaySession_js_1 = require("./NodeRelaySession.js");
+const nms_plugin_relay_1 = require("./");
 class NodeRelayServer extends nms_server_1.NodeTaskServer {
     logger = nms_core_1.LoggerFactory.getLogger('Relay Server');
     constructor() {
@@ -42,7 +42,7 @@ class NodeRelayServer extends nms_server_1.NodeTaskServer {
                 return null;
             }
         }
-        let session = new NodeRelaySession_js_1.NodeRelaySession(conf);
+        let session = new nms_plugin_relay_1.NodeRelaySession(conf);
         const id = session.id;
         const broadcast = nms_core_1.context.broadcasts.get(streamPath);
         if (broadcast) {

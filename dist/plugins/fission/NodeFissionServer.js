@@ -43,7 +43,7 @@ const mkdirp = __importStar(require("mkdirp"));
 const nms_core_1 = require("../../core");
 const nms_shared_1 = require("../../shared");
 const nms_server_1 = require("../../server");
-const NodeFissionSession_js_1 = require("./NodeFissionSession.js");
+const nms_plugin_fission_1 = require("./");
 class NodeFissionServer extends nms_server_1.NodeTaskServer {
     logger = nms_core_1.LoggerFactory.getLogger('Fission Server');
     constructor() {
@@ -114,7 +114,7 @@ class NodeFissionServer extends nms_server_1.NodeTaskServer {
                 streamName: name,
             };
             sessionConf.args = session.streamQuery;
-            let sess = new NodeFissionSession_js_1.NodeFissionSession(sessionConf);
+            let sess = new nms_plugin_fission_1.NodeFissionSession(sessionConf);
             const id = sess.id;
             if (session.broadcast) {
                 sess.broadcast = session.broadcast;

@@ -4,7 +4,7 @@ import querystring from 'querystring';
 import { context, LoggerFactory, NodeCoreUtils } from '@vad-systems/nms-core';
 import { Arguments, RelayMode, RelayPushTaskConfig, RelaySessionConfig, SessionID, checkSelectiveTask } from '@vad-systems/nms-shared';
 import { BaseAvSession, NodeTaskServer } from '@vad-systems/nms-server';
-import { NodeRelaySession } from './NodeRelaySession.js';
+import { NodeRelaySession } from '@vad-systems/nms-plugin-relay';
 
 class NodeRelayServer extends NodeTaskServer {
     private logger = LoggerFactory.getLogger('Relay Server');
