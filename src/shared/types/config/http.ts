@@ -1,10 +1,4 @@
 import { PathLike } from 'fs';
-import { SessionConfig } from '../session.js';
-import { AuthConfig } from '.';
-
-export type AvSessionConfig = SessionConfig<never> & {
-    readonly auth?: AuthConfig;
-}
 
 export type HttpConfig = {
     readonly mediaroot?: PathLike;

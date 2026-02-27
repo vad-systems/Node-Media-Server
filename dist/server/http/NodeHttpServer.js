@@ -15,8 +15,8 @@ const path_1 = __importDefault(require("path"));
 const ws_1 = __importDefault(require("ws"));
 const nms_api_1 = require("../../api");
 const nms_core_1 = require("../../core");
-const NodeAvServer_js_1 = require("../av/NodeAvServer.js");
-const NodeAvSession_js_1 = require("../av/NodeAvSession.js");
+const Protocol_js_1 = require("../base/Protocol.js");
+const BaseAvSession_js_1 = require("../base/BaseAvSession.js");
 const DEFAULTHTTP_PORT = 80;
 const DEFAULT_HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
@@ -28,9 +28,9 @@ class NodeHttpServer {
     sport;
     httpsServer;
     wssServer;
-    avServer;
     logger = nms_core_1.LoggerFactory.getLogger('HTTP Server');
     config;
+    app;
     constructor() {
         this.config = nms_core_1.context.configProvider.getConfig();
         nms_core_1.context.nodeEvent.on('configChanged', () => {
@@ -41,40 +41,36 @@ class NodeHttpServer {
         return !!this.httpServer;
     }
     initServer() {
-        this.avServer = new NodeAvServer_js_1.NodeAvServer();
         this.port = this.config.http.port || DEFAULTHTTP_PORT;
         this.mediaroot = this.config.http.mediaroot || HTTP_MEDIAROOT;
-        const app = (0, http2_express_1.default)(express_1.default);
-        app.use(body_parser_1.default.json());
-        app.use(body_parser_1.default.urlencoded({ extended: true }));
-        app.all('/{*splat}', (req, res, next) => {
+        this.app = (0, http2_express_1.default)(express_1.default);
+        this.app.use(body_parser_1.default.json());
+        this.app.use(body_parser_1.default.urlencoded({ extended: true }));
+        this.app.all('/{*splat}', (req, res, next) => {
             res.header('Access-Control-Allow-Origin', this.config.http.allow_origin);
             res.header('Access-Control-Allow-Headers', 'Content-Type,Content-Length, Authorization, Accept,X-Requested-With');
             res.header('Access-Control-Allow-Methods', 'PUT,POST,GET,DELETE,OPTIONS');
             res.header('Access-Control-Allow-Credentials', 'true');
             req.method === 'OPTIONS' ? res.sendStatus(200) : next();
         });
-        app.all('/{*splat}.flv', (req, res) => {
-            this.avServer.handleHttpRequest(req, res);
-        });
         const adminEntry = path_1.default.join(__dirname + '/../../../public/admin/index.html');
         if (fs_1.default.existsSync(adminEntry)) {
-            app.get('/admin/*splat', (req, res) => {
+            this.app.get('/admin/*splat', (req, res) => {
                 res.sendFile(adminEntry);
             });
         }
         if (this.config.http.api !== false) {
             if (this.config.auth && this.config.auth.api) {
-                app.use(['/api/*splat', '/static/*splat', '/admin/*splat'], (0, basic_auth_connect_1.default)(this.config.auth.api_user, this.config.auth.api_pass));
+                this.app.use(['/api/*splat', '/static/*splat', '/admin/*splat'], (0, basic_auth_connect_1.default)(this.config.auth.api_user, this.config.auth.api_pass));
             }
-            (0, nms_api_1.setupRoutes)(app, nms_core_1.context);
+            (0, nms_api_1.setupRoutes)(this.app, nms_core_1.context);
         }
-        app.use(express_1.default.static(path_1.default.join(__dirname + '/../../../public')));
-        app.use(express_1.default.static(this.mediaroot.toString()));
+        this.app.use(express_1.default.static(path_1.default.join(__dirname + '/../../../public')));
+        this.app.use(express_1.default.static(this.mediaroot.toString()));
         if (this.config.http.webroot) {
-            app.use(express_1.default.static(this.config.http.webroot));
+            this.app.use(express_1.default.static(this.config.http.webroot));
         }
-        this.httpServer = http_1.default.createServer(app);
+        this.httpServer = http_1.default.createServer(this.app);
         if (this.config.https) {
             let options = {
                 key: fs_1.default.readFileSync(this.config.https.key),
@@ -84,12 +80,11 @@ class NodeHttpServer {
                 Object.assign(options, { passphrase: this.config.https.passphrase });
             }
             this.sport = this.config.https.port || DEFAULT_HTTPS_PORT;
-            this.httpsServer = https_1.default.createServer(options, app);
+            this.httpsServer = https_1.default.createServer(options, this.app);
         }
     }
     async run() {
         this.initServer();
-        await this.avServer.run();
         this.httpServer.listen(this.port, () => {
             this.logger.log(`Node Media Http Server started on port: ${this.port}`);
         });
@@ -101,7 +96,7 @@ class NodeHttpServer {
         });
         this.wsServer = new ws_1.default.Server({ server: this.httpServer });
         this.wsServer.on('connection', (ws, req) => {
-            this.avServer.handleWsRequest(req, ws);
+            nms_core_1.context.nodeEvent.emit('wsConnection', ws, req);
         });
         this.wsServer.on('listening', () => {
             this.logger.log(`Node Media WebSocket Server started on port: ${this.port}`);
@@ -124,7 +119,7 @@ class NodeHttpServer {
             });
             this.wssServer = new ws_1.default.Server({ server: this.httpsServer });
             this.wssServer.on('connection', (ws, req) => {
-                this.avServer.handleWsRequest(req, ws);
+                nms_core_1.context.nodeEvent.emit('wsConnection', ws, req);
             });
             this.wssServer.on('listening', () => {
                 this.logger.log(`Node Media WebSocketSecure Server started on port: ${this.sport}`);
@@ -138,7 +133,6 @@ class NodeHttpServer {
         }
     }
     stop() {
-        this.avServer.stop();
         this.httpServer.close();
         if (this.httpsServer) {
             this.httpsServer.close();
@@ -148,8 +142,10 @@ class NodeHttpServer {
             this.wssServer.close();
         }
         nms_core_1.context.sessions.forEach((session, id) => {
-            if (session instanceof NodeAvSession_js_1.NodeAvSession) {
-                session.stop();
+            if (session instanceof BaseAvSession_js_1.BaseAvSession) {
+                if (session.protocol === Protocol_js_1.Protocol.HTTP_FLV || session.protocol === Protocol_js_1.Protocol.WS_FLV) {
+                    session.stop();
+                }
             }
         });
         this.logger.log(`Node Media Http Server stopped.`);

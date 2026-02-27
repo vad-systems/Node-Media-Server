@@ -9,6 +9,4 @@ export * from './base/Protocol.js';
 
 export * from './rtmp/NodeRtmpServer.js';
 export * from './rtmp/NodeRtmpSession.js';
-export * from './av/NodeAvServer.js';
-export * from './av/NodeAvSession.js';
 export * from './http/NodeHttpServer.js';

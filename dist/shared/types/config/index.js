@@ -21,6 +21,7 @@ __exportStar(require("./trans.js"), exports);
 __exportStar(require("./http.js"), exports);
 __exportStar(require("./rtmp.js"), exports);
 __exportStar(require("./task.js"), exports);
+__exportStar(require("./av.js"), exports);
 class Config {
     http;
     https;
@@ -28,6 +29,7 @@ class Config {
     trans;
     relay;
     fission;
+    av;
     cluster;
     auth;
     logType;
@@ -39,6 +41,7 @@ class Config {
         this.trans = config.trans;
         this.relay = config.relay;
         this.fission = config.fission;
+        this.av = config.av;
         this.cluster = config.cluster;
         this.auth = config.auth;
         this.logType = config.logType;

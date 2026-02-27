@@ -131,6 +131,7 @@ const config = {
         allow_origin: "*",
         api: true,
     },
+    av: {},
     https: {
         port: parseInt(argv.https_port, 10),
         key: __dirname + "/key.pem",

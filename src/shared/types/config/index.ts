@@ -4,13 +4,16 @@ export * from './trans.js';
 export * from './http.js';
 export * from './rtmp.js';
 export * from './task.js';
+export * from './av.js';
 
+import { PathLike } from 'fs';
 import { LogType } from '../core.js';
 import { FissionConfig } from './fission.js';
 import { HttpConfig, HttpsConfig } from './http.js';
 import { RelayConfig } from './relay.js';
 import { RtmpConfig } from './rtmp.js';
 import { TransConfig } from './trans.js';
+import { AvConfig } from './av.js';
 
 export type ClusterConfig = {}
 
@@ -30,6 +33,7 @@ export type ConfigType = {
     readonly trans?: TransConfig;
     readonly relay?: RelayConfig;
     readonly fission?: FissionConfig;
+    readonly av?: AvConfig;
 
     readonly cluster?: ClusterConfig;
     readonly auth?: AuthConfig;
@@ -45,6 +49,7 @@ export class Config {
     readonly trans?: TransConfig;
     readonly relay?: RelayConfig;
     readonly fission?: FissionConfig;
+    readonly av?: AvConfig;
 
     readonly cluster?: ClusterConfig;
     readonly auth?: AuthConfig;
@@ -59,6 +64,7 @@ export class Config {
         this.trans = config.trans;
         this.relay = config.relay;
         this.fission = config.fission;
+        this.av = config.av;
         this.cluster = config.cluster;
         this.auth = config.auth;
         this.logType = config.logType;

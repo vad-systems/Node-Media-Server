@@ -4,3 +4,5 @@ export * from './trans/NodeTransServer.js';
 export * from './trans/NodeTransSession.js';
 export * from './fission/NodeFissionServer.js';
 export * from './fission/NodeFissionSession.js';
+export * from './av/NodeAvServer.js';
+export * from './av/NodeAvSession.js';

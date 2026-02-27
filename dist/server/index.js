@@ -24,6 +24,4 @@ __exportStar(require("./base/AvBroadcastServer.js"), exports);
 __exportStar(require("./base/Protocol.js"), exports);
 __exportStar(require("./rtmp/NodeRtmpServer.js"), exports);
 __exportStar(require("./rtmp/NodeRtmpSession.js"), exports);
-__exportStar(require("./av/NodeAvServer.js"), exports);
-__exportStar(require("./av/NodeAvSession.js"), exports);
 __exportStar(require("./http/NodeHttpServer.js"), exports);

@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import { context, Logger, LoggerFactory } from '@vad-systems/nms-core';
 import { NodeFissionServer } from '@vad-systems/nms-plugins';
-import { NodeAvServer, NodeAvSession, NodeHttpServer, NodeRtmpServer, NodeRtmpSession } from '@vad-systems/nms-server';
+import { NodeHttpServer, NodeRtmpServer, NodeRtmpSession } from '@vad-systems/nms-server';
+import { NodeAvServer, NodeAvSession } from '@vad-systems/nms-plugin-av';
 import { NodeRelayServer } from '@vad-systems/nms-plugins';
 import { NodeTransServer } from '@vad-systems/nms-plugins';
 import * as types from '@vad-systems/nms-shared';
@@ -62,7 +63,12 @@ class NodeMediaServer {
         if (config.http) {
             this.httpServer = new NodeHttpServer();
             await this.httpServer.run();
-            this.avServer = this.httpServer.avServer;
+
+            if (config.av) {
+                this.avServer = new NodeAvServer();
+                this.avServer.attachHttpServer(this.httpServer);
+                await this.avServer.run();
+            }
         }
 
         const processorsRunning: Promise<void>[] = [];

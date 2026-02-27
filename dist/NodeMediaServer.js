@@ -40,6 +40,7 @@ const lodash_1 = __importDefault(require("lodash"));
 const nms_core_1 = require("./core");
 const nms_plugins_1 = require("./plugins");
 const nms_server_1 = require("./server");
+const nms_plugin_av_1 = require("./plugins/av");
 const nms_plugins_2 = require("./plugins");
 const nms_plugins_3 = require("./plugins");
 const types = __importStar(require("./shared"));
@@ -64,7 +65,7 @@ class NodeMediaServer {
             nms_core_1.context.stat.accepted++;
         });
         nms_core_1.context.nodeEvent.on('doneConnect', (session) => {
-            if (session instanceof nms_server_1.NodeAvSession) {
+            if (session instanceof nms_plugin_av_1.NodeAvSession) {
                 let socket = session.req.socket;
                 nms_core_1.context.stat.inbytes += socket.bytesRead;
                 nms_core_1.context.stat.outbytes += socket.bytesWritten;
@@ -90,7 +91,11 @@ class NodeMediaServer {
         if (config.http) {
             this.httpServer = new nms_server_1.NodeHttpServer();
             await this.httpServer.run();
-            this.avServer = this.httpServer.avServer;
+            if (config.av) {
+                this.avServer = new nms_plugin_av_1.NodeAvServer();
+                this.avServer.attachHttpServer(this.httpServer);
+                await this.avServer.run();
+            }
         }
         const processorsRunning = [];
         if (config.trans) {

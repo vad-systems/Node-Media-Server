@@ -23,6 +23,7 @@
       "@vad-systems/nms-core": ["src/core"],
       "@vad-systems/nms-protocol": ["src/protocol"],
       "@vad-systems/nms-server": ["src/server"],
+      "@vad-systems/nms-plugin-av": ["src/plugins/av"],
       "@vad-systems/nms-plugins": ["src/plugins"],
       "@vad-systems/nms-shared": ["src/shared"],
       "@vad-systems/nms-api": ["src/api"]

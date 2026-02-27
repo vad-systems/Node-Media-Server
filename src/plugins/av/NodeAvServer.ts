@@ -1,5 +1,6 @@
 import _ from 'lodash';
 import url from 'url';
+import { context } from '@vad-systems/nms-core';
 import { AvSessionConfig } from '@vad-systems/nms-shared';
 import { NodeConfigurableServer, Protocol } from '@vad-systems/nms-server';
 import { NodeAvSession } from './NodeAvSession.js';
@@ -7,6 +8,14 @@ import { NodeAvSession } from './NodeAvSession.js';
 class NodeAvServer extends NodeConfigurableServer {
     constructor() {
         super();
+        this.handleWsRequest = this.handleWsRequest.bind(this);
+    }
+
+    public attachHttpServer(httpServer: any) {
+        httpServer.app.all('/{*splat}.flv', (req: any, res: any) => {
+            this.handleHttpRequest(req, res);
+        });
+        context.nodeEvent.on('wsConnection', this.handleWsRequest);
     }
 
     public handleHttpRequest(req: any, res: any) {

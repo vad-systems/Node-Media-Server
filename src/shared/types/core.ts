@@ -20,6 +20,7 @@ export type NodeEventMap = {
     postPublish: [NodeSession<any, any, any>];
     donePublish: [NodeSession<any, any, any>];
     configChanged: [];
+    wsConnection: [any, any];
     logMessage: any[];
     errorMessage: any[];
     warnMessage: any[];

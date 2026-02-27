@@ -10,8 +10,9 @@ import WebSocket from 'ws';
 import { setupRoutes } from '@vad-systems/nms-api';
 import { context, LoggerFactory } from '@vad-systems/nms-core';
 import { Config } from '@vad-systems/nms-shared';
-import { NodeAvServer } from '../av/NodeAvServer.js';
-import { NodeAvSession } from '../av/NodeAvSession.js';
+import { Protocol } from '../base/Protocol.js';
+import { NodeSession } from '../base/NodeSession.js';
+import { BaseAvSession } from '../base/BaseAvSession.js';
 
 const DEFAULTHTTP_PORT = 80;
 const DEFAULT_HTTPS_PORT = 443;
@@ -26,9 +27,9 @@ class NodeHttpServer {
     private sport?: number;
     private httpsServer?: Https.Server;
     private wssServer?: WebSocket.Server;
-    public avServer: NodeAvServer;
     private logger = LoggerFactory.getLogger('HTTP Server');
     private config: Config;
+    public app: Express.Application;
 
     constructor() {
         this.config = context.configProvider.getConfig();
@@ -42,16 +43,15 @@ class NodeHttpServer {
     }
 
     initServer() {
-        this.avServer = new NodeAvServer();
         this.port = this.config.http.port || DEFAULTHTTP_PORT;
         this.mediaroot = this.config.http.mediaroot || HTTP_MEDIAROOT;
 
-        const app = H2EBridge(Express);
-        app.use(bodyParser.json());
+        this.app = H2EBridge(Express);
+        this.app.use(bodyParser.json());
 
-        app.use(bodyParser.urlencoded({ extended: true }));
+        this.app.use(bodyParser.urlencoded({ extended: true }));
 
-        app.all('/{*splat}', (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+        this.app.all('/{*splat}', (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
             res.header('Access-Control-Allow-Origin', this.config.http.allow_origin);
             res.header(
                 'Access-Control-Allow-Headers',
@@ -62,34 +62,30 @@ class NodeHttpServer {
             req.method === 'OPTIONS' ? res.sendStatus(200) : next();
         });
 
-        app.all('/{*splat}.flv', (req: Express.Request, res: Express.Response) => {
-            this.avServer.handleHttpRequest(req, res);
-        });
-
         const adminEntry = path.join(__dirname + '/../../../public/admin/index.html');
         if (fs.existsSync(adminEntry)) {
-            app.get('/admin/*splat', (req: Express.Request, res: Express.Response) => {
+            this.app.get('/admin/*splat', (req: Express.Request, res: Express.Response) => {
                 res.sendFile(adminEntry);
             });
         }
 
         if (this.config.http.api !== false) {
             if (this.config.auth && this.config.auth.api) {
-                app.use(
+                this.app.use(
                     ['/api/*splat', '/static/*splat', '/admin/*splat'],
                     basicAuth(this.config.auth.api_user, this.config.auth.api_pass),
                 );
             }
-            setupRoutes(app, context);
+            setupRoutes(this.app, context);
         }
 
-        app.use(Express.static(path.join(__dirname + '/../../../public')));
-        app.use(Express.static(this.mediaroot.toString()));
+        this.app.use(Express.static(path.join(__dirname + '/../../../public')));
+        this.app.use(Express.static(this.mediaroot.toString()));
         if (this.config.http.webroot) {
-            app.use(Express.static(this.config.http.webroot));
+            this.app.use(Express.static(this.config.http.webroot));
         }
 
-        this.httpServer = Http.createServer(app);
+        this.httpServer = Http.createServer(this.app);
 
         if (this.config.https) {
             let options = {
@@ -100,13 +96,12 @@ class NodeHttpServer {
                 Object.assign(options, { passphrase: this.config.https.passphrase });
             }
             this.sport = this.config.https.port || DEFAULT_HTTPS_PORT;
-            this.httpsServer = Https.createServer(options, app);
+            this.httpsServer = Https.createServer(options, this.app);
         }
     }
 
     async run() {
         this.initServer();
-        await this.avServer.run();
 
         this.httpServer.listen(this.port, () => {
             this.logger.log(`Node Media Http Server started on port: ${this.port}`);
@@ -123,7 +118,7 @@ class NodeHttpServer {
         this.wsServer = new WebSocket.Server({ server: this.httpServer });
 
         this.wsServer.on('connection', (ws: WebSocket.WebSocket, req: Http.IncomingMessage) => {
-            this.avServer.handleWsRequest(req, ws);
+            context.nodeEvent.emit('wsConnection', ws, req);
         });
 
         this.wsServer.on('listening', () => {
@@ -152,7 +147,7 @@ class NodeHttpServer {
             this.wssServer = new WebSocket.Server({ server: this.httpsServer });
 
             this.wssServer.on('connection', (ws, req) => {
-                this.avServer.handleWsRequest(req, ws);
+                context.nodeEvent.emit('wsConnection', ws, req);
             });
 
             this.wssServer.on('listening', () => {
@@ -168,7 +163,6 @@ class NodeHttpServer {
     }
 
     stop() {
-        this.avServer.stop();
         this.httpServer.close();
         if (this.httpsServer) {
             this.httpsServer.close();
@@ -180,8 +174,10 @@ class NodeHttpServer {
         }
 
         context.sessions.forEach((session, id) => {
-            if (session instanceof NodeAvSession) {
-                session.stop();
+            if (session instanceof BaseAvSession) {
+                if (session.protocol === Protocol.HTTP_FLV || session.protocol === Protocol.WS_FLV) {
+                    session.stop();
+                }
             }
         });
 
