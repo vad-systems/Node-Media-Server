@@ -67,7 +67,7 @@ class NodeTransSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
             const rtmpApp = this.getConfig('rtmpApp');
             if (rtmpApp) {
                 if (rtmpApp === streamApp) {
-                    this.logger.error('[Transmuxing RTMP] Cannot output to the same app.');
+                    this.logger.warn('[Transmuxing RTMP] Cannot output to the same app.');
                 }
                 else {
                     let rtmpOutput = `rtmp://127.0.0.1:${rtmpPort}/${rtmpApp}/${streamName}`;
@@ -117,7 +117,7 @@ class NodeTransSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
             self.cleanTempFiles(ouPath);
             self.deleteHlsFiles(ouPath);
         });
-        this.logger.log('cmd=ffmpeg', argv.join(' '));
+        this.logger.debug('cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
     deleteHlsFiles(ouPath) {

@@ -39,7 +39,7 @@ class NodeRtmpSession extends BaseAvSession_js_1.BaseAvSession {
                 this.rtmp.parserData(data);
             }
             catch (err) {
-                this.logger.error(`${this.remoteIp} parserData error, ${err}`);
+                this.logger.warn(`${this.remoteIp} parserData error, ${err}`);
                 this.socket.end();
             }
         };

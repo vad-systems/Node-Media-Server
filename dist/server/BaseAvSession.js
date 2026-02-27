@@ -37,7 +37,7 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
             this.broadcast.postPlay(this);
         }
         catch (err) {
-            this.logger.error(`${this.remoteIp} play ${this.streamPath} error, ${err}`);
+            this.logger.warn(`${this.remoteIp} play ${this.streamPath} error, ${err}`);
             this.stop();
             return;
         }
@@ -50,7 +50,7 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
             this.broadcast.postPublish(this);
         }
         catch (err) {
-            this.logger.error(`${this.remoteIp} push ${this.streamPath} error, ${err}`);
+            this.logger.warn(`${this.remoteIp} push ${this.streamPath} error, ${err}`);
             this.stop();
             return;
         }

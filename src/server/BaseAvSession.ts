@@ -41,7 +41,7 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
             this.initBroadcast();
             this.broadcast.postPlay(this);
         } catch (err: any) {
-            this.logger.error(`${this.remoteIp} play ${this.streamPath} error, ${err}`);
+            this.logger.warn(`${this.remoteIp} play ${this.streamPath} error, ${err}`);
             this.stop();
             return;
         }
@@ -54,7 +54,7 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
             this.initBroadcast();
             this.broadcast.postPublish(this);
         } catch (err: any) {
-            this.logger.error(`${this.remoteIp} push ${this.streamPath} error, ${err}`);
+            this.logger.warn(`${this.remoteIp} push ${this.streamPath} error, ${err}`);
             this.stop();
             return;
         }

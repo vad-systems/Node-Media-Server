@@ -28,7 +28,7 @@ class NodeRelaySession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
                 argv.unshift('-rtsp_transport');
             }
         }
-        this.logger.log('cmd=ffmpeg', argv.join(' '));
+        this.logger.debug('cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
 }

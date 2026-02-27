@@ -73,7 +73,7 @@ class NodeMediaServer {
 
         if (config.trans) {
             if (config.cluster) {
-                this.logger.log('NodeTransServer does not work in cluster mode');
+                this.logger.warn('NodeTransServer does not work in cluster mode');
             } else {
                 this.transServer = new NodeTransServer();
                 processorsRunning.push(this.transServer.run());
@@ -82,7 +82,7 @@ class NodeMediaServer {
 
         if (config.relay) {
             if (config.cluster) {
-                this.logger.log('NodeRelayServer does not work in cluster mode');
+                this.logger.warn('NodeRelayServer does not work in cluster mode');
             } else {
                 this.relayServer = new NodeRelayServer();
                 processorsRunning.push(this.relayServer.run());
@@ -91,7 +91,7 @@ class NodeMediaServer {
 
         if (config.fission) {
             if (config.cluster) {
-                this.logger.log('NodeFissionServer does not work in cluster mode');
+                this.logger.warn('NodeFissionServer does not work in cluster mode');
             } else {
                 this.fissionServer = new NodeFissionServer();
                 processorsRunning.push(this.fissionServer.run());

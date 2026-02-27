@@ -53,7 +53,7 @@ class NodeRelayServer extends NodeTaskServer_js_1.default {
     startNewRelaySession(conf, srcId, streamPath, args) {
         for (let session of index_js_1.context.sessions.values()) {
             if (session.getConfig('inPath') === conf.inPath && session.getConfig('ouPath') === conf.ouPath) {
-                this.logger.log('[relay dynamic push] session still running', `srcid=${srcId}`, conf.inPath, 'to', conf.ouPath);
+                this.logger.debug('[relay dynamic push] session still running', `srcid=${srcId}`, conf.inPath, 'to', conf.ouPath);
                 return null;
             }
         }
@@ -84,17 +84,17 @@ class NodeRelayServer extends NodeTaskServer_js_1.default {
         return session;
     }
     handleTaskMatching(session, app, stream) {
-        this.logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`);
+        this.logger.debug('[rtmp postPublish] Check for relays', `id=${session.id}`);
         const { tasks } = this.config.relay;
         if (!tasks) {
             return;
         }
         let i = tasks.length;
-        this.logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
+        this.logger.debug('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
         while (i--) {
             let taskConf = lodash_1.default.cloneDeep(tasks[i]);
             const edge = !!taskConf.edge && (typeof taskConf.edge === typeof {} ? (taskConf.edge[stream] || taskConf.edge['_default'] || '') : taskConf.edge);
-            this.logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);
+            this.logger.debug('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);
             if (taskConf.mode === index_js_2.RelayMode.PUSH) {
                 this.handlePushTask(taskConf, app, session.streamPath, edge, stream, session.streamQuery, session.id);
             }

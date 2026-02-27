@@ -41,7 +41,7 @@ class NodeRelayServer extends NodeTaskServer {
     startNewRelaySession(conf: RelaySessionConfig, srcId: SessionID, streamPath: string, args: Arguments) {
         for (let session of context.sessions.values()) {
             if (session.getConfig('inPath') === conf.inPath && session.getConfig('ouPath') === conf.ouPath) {
-                this.logger.log(
+                this.logger.debug(
                     '[relay dynamic push] session still running',
                     `srcid=${srcId}`,
                     conf.inPath,
@@ -89,14 +89,14 @@ class NodeRelayServer extends NodeTaskServer {
     }
 
     handleTaskMatching(session: BaseAvSession<any, any>, app: string, stream: string) {
-        this.logger.log('[rtmp postPublish] Check for relays', `id=${session.id}`);
+        this.logger.debug('[rtmp postPublish] Check for relays', `id=${session.id}`);
         const { tasks } = this.config.relay;
         if (!tasks) {
             return;
         }
 
         let i = tasks.length;
-        this.logger.log(
+        this.logger.debug(
             '[rtmp postPublish] Check for relays',
             `id=${session.id}`,
             `app=${app}`,
@@ -110,7 +110,7 @@ class NodeRelayServer extends NodeTaskServer {
                     taskConf.edge[stream] || taskConf.edge['_default'] || ''
                 ) : taskConf.edge
             );
-            this.logger.log(
+            this.logger.debug(
                 '[rtmp postPublish] Check for relays',
                 `id=${session.id}`,
                 `app=${app}`,

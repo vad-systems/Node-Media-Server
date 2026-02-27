@@ -70,7 +70,7 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
         try {
             this.flv.parserData(data);
         } catch (err: any) {
-            this.logger.error(`${this.remoteIp} parserData error, ${err}`);
+            this.logger.warn(`${this.remoteIp} parserData error, ${err}`);
             this.stop();
         }
     };

@@ -90,7 +90,7 @@ class NodeFissionServer extends NodeTaskServer_js_1.default {
     }
     handleTaskMatching(session, app, name) {
         const srcId = session.id;
-        this.logger.log('[fission postPublish] Check for fission tasks', `id=${srcId}`, `streamPath=${session.streamPath}`);
+        this.logger.debug('[fission postPublish] Check for fission tasks', `id=${srcId}`, `streamPath=${session.streamPath}`);
         for (let task of this.config.fission.tasks) {
             if (!(0, checkSelectiveTask_js_1.default)(task, app, session.streamPath)) {
                 this.logger.debug('[fission] pattern check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${session.streamPath}`, task);

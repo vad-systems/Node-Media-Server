@@ -44,7 +44,7 @@ class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig>
             ];
         }
 
-        this.logger.log('cmd=ffmpeg', argv.join(' '));
+        this.logger.debug('cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
 }

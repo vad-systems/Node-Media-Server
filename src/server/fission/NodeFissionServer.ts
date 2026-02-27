@@ -45,7 +45,7 @@ class NodeFissionServer extends NodeTaskServer {
 
     handleTaskMatching(session: BaseAvSession<any, any>, app: string, name: string) {
         const srcId = session.id;
-        this.logger.log(
+        this.logger.debug(
             '[fission postPublish] Check for fission tasks',
             `id=${srcId}`,
             `streamPath=${session.streamPath}`,

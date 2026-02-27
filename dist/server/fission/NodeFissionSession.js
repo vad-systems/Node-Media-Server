@@ -41,7 +41,7 @@ class NodeFissionSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
                 ...outPath,
             ];
         }
-        this.logger.log('cmd=ffmpeg', argv.join(' '));
+        this.logger.debug('cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
 }

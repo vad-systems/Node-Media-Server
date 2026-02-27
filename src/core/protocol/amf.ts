@@ -873,7 +873,7 @@ function amfXDecodeOne<T>(
     ctx: T,
 ): AMFDecodeResponse {
     if (!rules[buffer.readUInt8(0)]) {
-        logger.error('Unknown field', buffer.readUInt8(0));
+        logger.warn('Unknown field', buffer.readUInt8(0));
         return null;
     }
     return rules[buffer.readUInt8(0)](buffer, ctx);
@@ -998,7 +998,7 @@ function decodeAmf0Data(dbuf: Buffer): any {
                 }
             });
         } else {
-            logger.error('Unknown command', resp);
+            logger.warn('Unknown command', resp);
         }
     }
 
@@ -1023,7 +1023,7 @@ function decodeAMF0Cmd(dbuf: Buffer): any {
             }
         });
     } else {
-        logger.error('Unknown command', resp);
+        logger.warn('Unknown command', resp);
     }
     return resp;
 }
@@ -1039,7 +1039,7 @@ function encodeAMF0Cmd(opt: any): Buffer {
             }
         });
     } else {
-        logger.error('Unknown command', opt);
+        logger.warn('Unknown command', opt);
     }
     return data;
 }
@@ -1055,7 +1055,7 @@ function encodeAMF0Data(opt: any): Buffer {
             }
         });
     } else {
-        logger.error('Unknown data', opt);
+        logger.warn('Unknown data', opt);
     }
     return data;
 }
@@ -1078,7 +1078,7 @@ function decodeAMF3Cmd(dbuf: Buffer): any {
             }
         });
     } else {
-        logger.error('Unknown command', resp);
+        logger.warn('Unknown command', resp);
     }
     return resp;
 }
@@ -1094,7 +1094,7 @@ function encodeAMF3Cmd(opt: any): Buffer {
             }
         });
     } else {
-        logger.error('Unknown command', opt);
+        logger.warn('Unknown command', opt);
     }
     return data;
 }
