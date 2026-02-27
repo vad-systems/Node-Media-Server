@@ -23,8 +23,8 @@ const node_rtmp_session_js_1 = require("./node_rtmp_session.js");
 const RTMP_PORT = 1935;
 const RTMPS_PORT = 443;
 class NodeRtmpServer extends node_configurable_server_js_1.default {
-    constructor(config) {
-        super(config);
+    constructor() {
+        super();
         this.sslPort = null;
         this.tlsServer = null;
     }
@@ -56,7 +56,11 @@ class NodeRtmpServer extends node_configurable_server_js_1.default {
         }
     }
     run() {
+        const _super = Object.create(null, {
+            run: { get: () => super.run }
+        });
         return __awaiter(this, void 0, void 0, function* () {
+            yield _super.run.call(this);
             this.initServer();
             this.tcpServer.listen(this.port, () => {
                 index_js_1.Logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
@@ -81,6 +85,7 @@ class NodeRtmpServer extends node_configurable_server_js_1.default {
         });
     }
     stop() {
+        super.stop();
         this.tcpServer.close();
         if (this.tlsServer) {
             this.tlsServer.close();

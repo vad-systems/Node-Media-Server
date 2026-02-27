@@ -1,10 +1,9 @@
 import dateFormat from 'dateformat';
 import fs, { PathLike } from 'fs';
+import * as mkdirp from 'mkdirp';
 import { Logger } from './core/index.js';
 import { NodeFfmpegSession } from './node_ffmpeg_session.js';
 import { TransSessionConfig } from './types/index.js';
-import * as mkdirp from 'mkdirp';
-import asRegExp from './util/asRegExp.js';
 
 const isHlsFile = (filename: string) => filename.endsWith('.ts') || filename.endsWith('.m3u8');
 const isTemFiles = (filename: string) => filename.endsWith('.tmp');

@@ -1031,7 +1031,7 @@ class NodeRtmpSession extends node_session_js_1.NodeSession {
         if (!this.isStarting) {
             return;
         }
-        if (this.conf.auth && this.conf.auth.publish && !this.isLocal) {
+        if (this.conf.auth && this.conf.auth.publish && !this.isLocal()) {
             let results = index_js_1.NodeCoreUtils.verifyAuth(this.publishArgs['sign'], this.publishStreamPath, this.conf.auth.secret);
             if (!results) {
                 index_js_1.Logger.log(`[rtmp publish] Unauthorized. id=${this.id} streamPath=${this.publishStreamPath} streamId=${this.publishStreamId} sign=${this.publishArgs['sign']} `);
@@ -1076,7 +1076,7 @@ class NodeRtmpSession extends node_session_js_1.NodeSession {
         if (!this.isStarting) {
             return;
         }
-        if (this.conf.auth && this.conf.auth.play && !this.isLocal) {
+        if (this.conf.auth && this.conf.auth.play && !this.isLocal()) {
             let results = index_js_1.NodeCoreUtils.verifyAuth(this.playArgs['sign'], this.playStreamPath, this.conf.auth.secret);
             if (!results) {
                 index_js_1.Logger.log(`[rtmp play] Unauthorized. id=${this.id} streamPath=${this.playStreamPath}  streamId=${this.playStreamId} sign=${this.playArgs['sign']}`);

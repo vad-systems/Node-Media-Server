@@ -1,7 +1,8 @@
-const express = require('express');
-const relayController = require('../controllers/relay');
+import express from 'express';
+import { Context } from '../../types/index.js';
+import relayController from '../controllers/relay.js';
 
-module.exports = (context) => {
+export default (context: Context) => {
     let router = express.Router();
     router.get('/', relayController.getStreams.bind(context));
     router.get('/:id', relayController.getStreamByID.bind(context));

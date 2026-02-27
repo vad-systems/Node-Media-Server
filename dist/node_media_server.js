@@ -53,48 +53,53 @@ const node_relay_server_js_1 = require("./node_relay_server.js");
 const node_rtmp_server_js_1 = require("./node_rtmp_server.js");
 const node_trans_server_js_1 = require("./node_trans_server.js");
 const types = __importStar(require("./types/index.js"));
+const index_js_2 = require("./types/index.js");
 const Package = require('../package.json');
 class NodeMediaServer {
     constructor(config) {
-        this.config = lodash_1.default.cloneDeep(config);
+        this.updateConfig(config);
+    }
+    updateConfig(config) {
+        index_js_1.context.configProvider.setConfig(new index_js_2.Config(lodash_1.default.cloneDeep(config)));
     }
     run() {
         return __awaiter(this, void 0, void 0, function* () {
-            index_js_1.Logger.setLogType(this.config.logType);
+            const config = index_js_1.context.configProvider.getConfig();
+            index_js_1.Logger.setLogType(config.logType);
             index_js_1.Logger.log(`Node Media Server v${Package.version}`);
-            if (this.config.rtmp) {
-                this.rtmpServer = new node_rtmp_server_js_1.NodeRtmpServer(this.config);
+            if (config.rtmp) {
+                this.rtmpServer = new node_rtmp_server_js_1.NodeRtmpServer();
                 yield this.rtmpServer.run();
             }
-            if (this.config.http) {
-                this.httpServer = new node_http_server_js_1.NodeHttpServer(this.config);
+            if (config.http) {
+                this.httpServer = new node_http_server_js_1.NodeHttpServer();
                 yield this.httpServer.run();
             }
             const processorsRunning = [];
-            if (this.config.trans) {
-                if (this.config.cluster) {
+            if (config.trans) {
+                if (config.cluster) {
                     index_js_1.Logger.log('NodeTransServer does not work in cluster mode');
                 }
                 else {
-                    this.transServer = new node_trans_server_js_1.NodeTransServer(this.config);
+                    this.transServer = new node_trans_server_js_1.NodeTransServer();
                     processorsRunning.push(this.transServer.run());
                 }
             }
-            if (this.config.relay) {
-                if (this.config.cluster) {
+            if (config.relay) {
+                if (config.cluster) {
                     index_js_1.Logger.log('NodeRelayServer does not work in cluster mode');
                 }
                 else {
-                    this.relayServer = new node_relay_server_js_1.NodeRelayServer(this.config);
+                    this.relayServer = new node_relay_server_js_1.NodeRelayServer();
                     processorsRunning.push(this.relayServer.run());
                 }
             }
-            if (this.config.fission) {
-                if (this.config.cluster) {
+            if (config.fission) {
+                if (config.cluster) {
                     index_js_1.Logger.log('NodeFissionServer does not work in cluster mode');
                 }
                 else {
-                    this.fissionServer = new node_fission_server_js_1.NodeFissionServer(this.config);
+                    this.fissionServer = new node_fission_server_js_1.NodeFissionServer();
                     processorsRunning.push(this.fissionServer.run());
                 }
             }
@@ -126,4 +131,4 @@ class NodeMediaServer {
     }
 }
 NodeMediaServer.types = types;
-module.exports = NodeMediaServer;
+exports.default = NodeMediaServer;

@@ -8,21 +8,30 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const lodash_1 = __importDefault(require("lodash"));
+const index_js_1 = require("./core/index.js");
 class NodeConfigurableServer {
-    constructor(config) {
-        this.config = lodash_1.default.cloneDeep(config);
+    constructor() {
+        this.config = index_js_1.context.configProvider.getConfig();
+        this.onConfigChanged = this.onConfigChanged.bind(this);
+        index_js_1.context.nodeEvent.on('configChanged', this.onConfigChanged);
     }
-    updateConfig(config) {
+    onConfigChanged() {
         return __awaiter(this, void 0, void 0, function* () {
-            this.stop();
-            this.config = lodash_1.default.cloneDeep(config);
-            yield this.run();
+            this.config = index_js_1.context.configProvider.getConfig();
+            if (this.running) {
+                this.stop();
+                yield this.run();
+            }
         });
+    }
+    run() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.running = true;
+        });
+    }
+    stop() {
+        this.running = false;
     }
 }
 exports.default = NodeConfigurableServer;

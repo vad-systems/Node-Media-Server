@@ -1,23 +1,24 @@
 import fs from 'fs';
 import _ from 'lodash';
 import querystring from 'querystring';
-import { Logger, context, NodeCoreUtils } from './core/index.js';
+import { context, Logger, NodeCoreUtils } from './core/index.js';
 import NodeConfigurableServer from './node_configurable_server.js';
 import { NodeRelaySession } from './node_relay_session.js';
-import { Arguments, Config, RelayMode, RelaySessionConfig, SessionID } from './types/index.js';
-import asRegExp from './util/asRegExp.js';
+import { Arguments, RelayMode, RelayPushTaskConfig, RelaySessionConfig, SessionID } from './types/index.js';
+import checkSelectiveTask from './util/checkSelectiveTask.js';
 
-class NodeRelayServer extends NodeConfigurableServer<Config> {
-    dynamicSessions: Map<SessionID, Map<SessionID, NodeRelaySession>> = new Map();
+class NodeRelayServer extends NodeConfigurableServer {
+    private dynamicSessions: Map<SessionID, Map<SessionID, NodeRelaySession>> = new Map();
 
-    constructor(config: Config) {
-        super(config);
-
+    constructor() {
+        super();
         this.onPostPublish = this.onPostPublish.bind(this);
         this.onDonePublish = this.onDonePublish.bind(this);
     }
 
     async run() {
+        await super.run();
+
         try {
             fs.accessSync(this.config.relay.ffmpeg, fs.constants.X_OK);
         } catch (error) {
@@ -92,7 +93,7 @@ class NodeRelayServer extends NodeConfigurableServer<Config> {
 
     onPostPublish(id: SessionID, streamPath: string, args: Arguments) {
         Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `streamPath=${streamPath}`);
-        const { tasks, ffmpeg } = this.config.relay;
+        const { tasks } = this.config.relay;
         if (!tasks) {
             return;
         }
@@ -102,7 +103,6 @@ class NodeRelayServer extends NodeConfigurableServer<Config> {
         Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
         while (i--) {
             let taskConf = _.cloneDeep(tasks[i]);
-            let isPush = taskConf.mode === RelayMode.PUSH;
             const edge = !!taskConf.edge && (
                 typeof taskConf.edge === typeof {} ? (
                     taskConf.edge[stream] || taskConf.edge['_default'] || ''
@@ -116,35 +116,43 @@ class NodeRelayServer extends NodeConfigurableServer<Config> {
                 `i=${i}`,
                 `edge=${edge}`,
             );
-            const pattern = asRegExp(taskConf.pattern);
-            if (isPush && (app === taskConf.app && (!pattern || pattern.test(streamPath)))) {
-                let hasApp = edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
-                let sessionConf: RelaySessionConfig = {
-                    ..._.cloneDeep(taskConf),
-                    ffmpeg,
-                    inPath: `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`,
-                    ouPath: taskConf.appendName === false ? edge : (
-                        hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`
-                    ),
-                };
-                if (Object.keys(args).length > 0) {
-                    sessionConf.ouPath += '?';
-                    sessionConf.ouPath += querystring.encode(args);
-                }
-                Logger.log(
-                    '[rtmp postPublish] patterncheck',
-                    `id=${id}`,
-                    `app=${app}`,
-                    `stream=${stream}`,
-                    `i=${i}`,
-                    `edge=${edge}`,
-                    `pattern=${taskConf.pattern}`,
-                );
 
-                this.startNewRelaySession(sessionConf, id, streamPath, args);
+            if (taskConf.mode === RelayMode.PUSH) {
+                this.handlePushTask(taskConf, app, streamPath, edge, stream, args, id);
             }
         }
 
+    }
+
+    private handlePushTask(
+        taskConf: RelayPushTaskConfig,
+        app: string,
+        streamPath: string,
+        edge: string,
+        stream: string,
+        args: Arguments,
+        id: string,
+    ) {
+        if (!checkSelectiveTask(taskConf, app, streamPath)) {
+            return;
+        }
+
+        let hasApp = edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
+        let sessionConf: RelaySessionConfig = {
+            ..._.cloneDeep(taskConf),
+            ffmpeg: this.config.relay.ffmpeg,
+            inPath: `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`,
+            ouPath: taskConf.appendName === false ? edge : (
+                hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`
+            ),
+        };
+
+        if (Object.keys(args).length > 0) {
+            sessionConf.ouPath += '?';
+            sessionConf.ouPath += querystring.encode(args);
+        }
+
+        this.startNewRelaySession(sessionConf, id, streamPath, args);
     }
 
     onDonePublish(id: SessionID, streamPath: string, args: Arguments) {
@@ -169,6 +177,8 @@ class NodeRelayServer extends NodeConfigurableServer<Config> {
     }
 
     stop() {
+        super.stop();
+
         context.nodeEvent.off('postPublish', this.onPostPublish);
         context.nodeEvent.off('donePublish', this.onDonePublish);
 

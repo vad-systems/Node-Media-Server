@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import { NodeSession } from '../node_session.js';
-import { NodeEventMap, SessionID } from '../types/index.js';
+import { Context, NodeEventMap, SessionID } from '../types/index.js';
+import ConfigProvider from './config.js';
 
 let sessions: Map<SessionID, NodeSession<any, any>> = new Map();
 let publishers: Map<string, SessionID> = new Map();
@@ -14,12 +15,15 @@ let stat = {
     accepted: 0,
 };
 
-const context = {
+const configProvider = new ConfigProvider();
+
+const context: Context = {
     sessions,
     publishers,
     idlePlayers,
     nodeEvent,
     stat,
+    configProvider,
 };
 
 export default context;

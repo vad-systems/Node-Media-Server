@@ -1,7 +1,8 @@
-const express = require('express');
-const streamController = require('../controllers/streams');
+import express from 'express';
+import { Context } from 'node:vm';
+import streamController from '../controllers/streams.js';
 
-module.exports = (context) => {
+export default (context: Context) => {
     let router = express.Router();
     router.get('/', streamController.getStreams.bind(context));
     router.get('/:app/:stream', streamController.getStream.bind(context));

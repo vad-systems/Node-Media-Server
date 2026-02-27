@@ -6,12 +6,11 @@ import { NodeRelayServer } from './node_relay_server.js';
 import { NodeRtmpServer } from './node_rtmp_server.js';
 import { NodeTransServer } from './node_trans_server.js';
 import * as types from './types/index.js';
-import { Config, NodeEventMap } from './types/index.js';
+import { Config, ConfigType, NodeEventMap } from './types/index.js';
 
 const Package = require('../package.json');
 
 class NodeMediaServer {
-    config: Config;
     rtmpServer?: NodeRtmpServer;
     httpServer?: NodeHttpServer;
     transServer?: NodeTransServer;
@@ -20,49 +19,54 @@ class NodeMediaServer {
 
     static types = types;
 
-    constructor(config: Config) {
-        this.config = _.cloneDeep(config);
+    constructor(config: ConfigType) {
+        this.updateConfig(config);
     }
 
-    async run() {
-        Logger.setLogType(this.config.logType);
+    public updateConfig(config: ConfigType) {
+        context.configProvider.setConfig(new Config(_.cloneDeep(config)));
+    }
+
+    public async run() {
+        const config = context.configProvider.getConfig();
+        Logger.setLogType(config.logType);
         Logger.log(`Node Media Server v${Package.version}`);
 
-        if (this.config.rtmp) {
-            this.rtmpServer = new NodeRtmpServer(this.config);
+        if (config.rtmp) {
+            this.rtmpServer = new NodeRtmpServer();
             await this.rtmpServer.run();
         }
 
-        if (this.config.http) {
-            this.httpServer = new NodeHttpServer(this.config);
+        if (config.http) {
+            this.httpServer = new NodeHttpServer();
             await this.httpServer.run();
         }
 
         const processorsRunning: Promise<void>[] = [];
 
-        if (this.config.trans) {
-            if (this.config.cluster) {
+        if (config.trans) {
+            if (config.cluster) {
                 Logger.log('NodeTransServer does not work in cluster mode');
             } else {
-                this.transServer = new NodeTransServer(this.config);
+                this.transServer = new NodeTransServer();
                 processorsRunning.push(this.transServer.run());
             }
         }
 
-        if (this.config.relay) {
-            if (this.config.cluster) {
+        if (config.relay) {
+            if (config.cluster) {
                 Logger.log('NodeRelayServer does not work in cluster mode');
             } else {
-                this.relayServer = new NodeRelayServer(this.config);
+                this.relayServer = new NodeRelayServer();
                 processorsRunning.push(this.relayServer.run());
             }
         }
 
-        if (this.config.fission) {
-            if (this.config.cluster) {
+        if (config.fission) {
+            if (config.cluster) {
                 Logger.log('NodeFissionServer does not work in cluster mode');
             } else {
-                this.fissionServer = new NodeFissionServer(this.config);
+                this.fissionServer = new NodeFissionServer();
                 processorsRunning.push(this.fissionServer.run());
             }
         }
@@ -78,11 +82,11 @@ class NodeMediaServer {
         await Promise.allSettled(processorsRunning);
     }
 
-    on(eventName: keyof NodeEventMap, listener: (...args: any[]) => void) {
+    public on(eventName: keyof NodeEventMap, listener: (...args: any[]) => void) {
         context.nodeEvent.on(eventName, listener);
     }
 
-    stop() {
+    public stop() {
         if (this.rtmpServer) {
             this.rtmpServer.stop();
         }
@@ -101,4 +105,4 @@ class NodeMediaServer {
     }
 }
 
-module.exports = NodeMediaServer;
+export default NodeMediaServer;

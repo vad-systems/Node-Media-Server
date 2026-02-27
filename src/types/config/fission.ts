@@ -1,6 +1,6 @@
 import { PathLike } from 'fs';
 import { FfmpegSessionConfig } from '../session.js';
-import { TaskConfig } from './task.js';
+import { SelectiveTaskConfig } from './task.js';
 
 export type FissionModelConfig = {
     readonly vb: string;
@@ -9,7 +9,7 @@ export type FissionModelConfig = {
     readonly ab: string;
 }
 
-export type FissionTaskConfig = TaskConfig & {
+export type FissionTaskConfig = SelectiveTaskConfig & {
     readonly model: FissionModelConfig[];
 }
 

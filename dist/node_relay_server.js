@@ -20,16 +20,20 @@ const index_js_1 = require("./core/index.js");
 const node_configurable_server_js_1 = __importDefault(require("./node_configurable_server.js"));
 const node_relay_session_js_1 = require("./node_relay_session.js");
 const index_js_2 = require("./types/index.js");
-const asRegExp_js_1 = __importDefault(require("./util/asRegExp.js"));
+const checkSelectiveTask_js_1 = __importDefault(require("./util/checkSelectiveTask.js"));
 class NodeRelayServer extends node_configurable_server_js_1.default {
-    constructor(config) {
-        super(config);
+    constructor() {
+        super();
         this.dynamicSessions = new Map();
         this.onPostPublish = this.onPostPublish.bind(this);
         this.onDonePublish = this.onDonePublish.bind(this);
     }
     run() {
+        const _super = Object.create(null, {
+            run: { get: () => super.run }
+        });
         return __awaiter(this, void 0, void 0, function* () {
+            yield _super.run.call(this);
             try {
                 fs_1.default.accessSync(this.config.relay.ffmpeg, fs_1.default.constants.X_OK);
             }
@@ -88,7 +92,7 @@ class NodeRelayServer extends node_configurable_server_js_1.default {
     }
     onPostPublish(id, streamPath, args) {
         index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `streamPath=${streamPath}`);
-        const { tasks, ffmpeg } = this.config.relay;
+        const { tasks } = this.config.relay;
         if (!tasks) {
             return;
         }
@@ -98,21 +102,24 @@ class NodeRelayServer extends node_configurable_server_js_1.default {
         index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
         while (i--) {
             let taskConf = lodash_1.default.cloneDeep(tasks[i]);
-            let isPush = taskConf.mode === index_js_2.RelayMode.PUSH;
             const edge = !!taskConf.edge && (typeof taskConf.edge === typeof {} ? (taskConf.edge[stream] || taskConf.edge['_default'] || '') : taskConf.edge);
             index_js_1.Logger.log('[rtmp postPublish] Check for relays', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);
-            const pattern = (0, asRegExp_js_1.default)(taskConf.pattern);
-            if (isPush && (app === taskConf.app && (!pattern || pattern.test(streamPath)))) {
-                let hasApp = edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
-                let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg, inPath: `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`, ouPath: taskConf.appendName === false ? edge : (hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`) });
-                if (Object.keys(args).length > 0) {
-                    sessionConf.ouPath += '?';
-                    sessionConf.ouPath += querystring_1.default.encode(args);
-                }
-                index_js_1.Logger.log('[rtmp postPublish] patterncheck', `id=${id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`, `pattern=${taskConf.pattern}`);
-                this.startNewRelaySession(sessionConf, id, streamPath, args);
+            if (taskConf.mode === index_js_2.RelayMode.PUSH) {
+                this.handlePushTask(taskConf, app, streamPath, edge, stream, args, id);
             }
         }
+    }
+    handlePushTask(taskConf, app, streamPath, edge, stream, args, id) {
+        if (!(0, checkSelectiveTask_js_1.default)(taskConf, app, streamPath)) {
+            return;
+        }
+        let hasApp = edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
+        let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg: this.config.relay.ffmpeg, inPath: `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`, ouPath: taskConf.appendName === false ? edge : (hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`) });
+        if (Object.keys(args).length > 0) {
+            sessionConf.ouPath += '?';
+            sessionConf.ouPath += querystring_1.default.encode(args);
+        }
+        this.startNewRelaySession(sessionConf, id, streamPath, args);
     }
     onDonePublish(id, streamPath, args) {
         for (let [srcId, sessions] of this.dynamicSessions) {
@@ -135,6 +142,7 @@ class NodeRelayServer extends node_configurable_server_js_1.default {
         }
     }
     stop() {
+        super.stop();
         index_js_1.context.nodeEvent.off('postPublish', this.onPostPublish);
         index_js_1.context.nodeEvent.off('donePublish', this.onDonePublish);
         for (let [srcId, sessions] of this.dynamicSessions) {

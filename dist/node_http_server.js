@@ -13,10 +13,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeHttpServer = void 0;
+const basic_auth_connect_1 = __importDefault(require("basic-auth-connect"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const express_1 = __importDefault(require("express"));
 const fs_1 = __importDefault(require("fs"));
 const http_1 = __importDefault(require("http"));
+const http2_express_1 = __importDefault(require("http2-express"));
 const https_1 = __importDefault(require("https"));
 const lodash_1 = __importDefault(require("lodash"));
 const path_1 = __importDefault(require("path"));
@@ -29,14 +31,12 @@ const node_configurable_server_js_1 = __importDefault(require("./node_configurab
 const node_http_session_js_1 = require("./node_http_session.js");
 const node_rtmp_session_js_1 = require("./node_rtmp_session.js");
 const index_js_2 = require("./types/index.js");
-const http2_express_1 = __importDefault(require("http2-express"));
-const basic_auth_connect_1 = __importDefault(require("basic-auth-connect"));
 const HTTP_PORT = 80;
 const HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
 class NodeHttpServer extends node_configurable_server_js_1.default {
-    constructor(config) {
-        super(config);
+    constructor() {
+        super();
         this.onPostPlay = this.onPostPlay.bind(this);
         this.onPostPublish = this.onPostPublish.bind(this);
         this.onDoneConnect = this.onDoneConnect.bind(this);
@@ -98,7 +98,11 @@ class NodeHttpServer extends node_configurable_server_js_1.default {
         }
     }
     run() {
+        const _super = Object.create(null, {
+            run: { get: () => super.run }
+        });
         return __awaiter(this, void 0, void 0, function* () {
+            yield _super.run.call(this);
             this.initServer();
             this.httpServer.listen(this.port, () => {
                 index_js_1.Logger.log(`Node Media Http Server started on port: ${this.port}`);
@@ -128,7 +132,7 @@ class NodeHttpServer extends node_configurable_server_js_1.default {
                 index_js_1.Logger.error(`Node Media WebSocket Server ${e}`);
             });
             this.wsServer.on('close', () => {
-                index_js_1.Logger.error(`Node Media WebSocket Server closed`);
+                index_js_1.Logger.log(`Node Media WebSocket Server closed`);
             });
             if (this.httpsServer) {
                 this.httpsServer.listen(this.sport, () => {
@@ -159,7 +163,7 @@ class NodeHttpServer extends node_configurable_server_js_1.default {
                     index_js_1.Logger.error(`Node Media WebSocketSecure Server ${e}`);
                 });
                 this.wssServer.on('close', () => {
-                    index_js_1.Logger.error(`Node Media WebSocketSecure Server closed`);
+                    index_js_1.Logger.log(`Node Media WebSocketSecure Server closed`);
                 });
             }
             index_js_1.context.nodeEvent.on('postPlay', this.onPostPlay);
@@ -187,6 +191,7 @@ class NodeHttpServer extends node_configurable_server_js_1.default {
         }
     }
     stop() {
+        super.stop();
         index_js_1.context.nodeEvent.off('postPlay', this.onPostPlay);
         index_js_1.context.nodeEvent.off('postPublish', this.onPostPublish);
         index_js_1.context.nodeEvent.off('doneConnect', this.onDoneConnect);

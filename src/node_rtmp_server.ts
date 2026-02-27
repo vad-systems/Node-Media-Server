@@ -5,19 +5,18 @@ import Tls from 'tls';
 import { context, Logger } from './core/index.js';
 import NodeConfigurableServer from './node_configurable_server.js';
 import { NodeRtmpSession } from './node_rtmp_session.js';
-import { Config } from './types/index.js';
 
 const RTMP_PORT = 1935;
 const RTMPS_PORT = 443;
 
-class NodeRtmpServer extends NodeConfigurableServer<Config> {
-    port: number;
-    tcpServer: Net.Server;
-    sslPort: number | null = null;
-    tlsServer: Tls.Server | null = null;
+class NodeRtmpServer extends NodeConfigurableServer {
+    private port: number;
+    private tcpServer: Net.Server;
+    private sslPort: number | null = null;
+    private tlsServer: Tls.Server | null = null;
 
-    constructor(config: Config) {
-        super(config);
+    constructor() {
+        super();
     }
 
     initServer() {
@@ -49,6 +48,8 @@ class NodeRtmpServer extends NodeConfigurableServer<Config> {
     }
 
     async run() {
+        await super.run();
+
         this.initServer();
 
         this.tcpServer.listen(this.port, () => {
@@ -79,6 +80,8 @@ class NodeRtmpServer extends NodeConfigurableServer<Config> {
     }
 
     stop() {
+        super.stop();
+
         this.tcpServer.close();
 
         if (this.tlsServer) {

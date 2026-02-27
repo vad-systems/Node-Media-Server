@@ -1,5 +1,16 @@
-const OS = require('os');
-const Package = require('../../../package.json');
+const OS = require("os");
+const Package = require("../../../package.json");
+const {
+    HttpConfig,
+    HttpsConfig,
+    RtmpConfig,
+    TransConfig,
+    RelayConfig,
+    FissionConfig,
+    LogType,
+    ClusterConfig,
+    AuthConfig
+} = require("../../types/index.js");
 
 function cpuAverage() {
 
@@ -23,7 +34,7 @@ function cpuAverage() {
     }
 
     //Return the average Idle and Tick times
-    return {idle: totalIdle / cpus.length, total: totalTick / cpus.length};
+    return { idle: totalIdle / cpus.length, total: totalTick / cpus.length };
 }
 
 function percentageCPU() {
@@ -52,19 +63,59 @@ function getSessionsInfo(sessions) {
     };
 
     for (let session of sessions.values()) {
-        if (session.TAG === 'relay') continue;
-        if (session.TAG === 'fission') continue;
-        let socket = session.TAG === 'rtmp' ? session.socket : session.req.socket;
+        if (session.TAG === "relay") {
+            continue;
+        }
+        if (session.TAG === "fission") {
+            continue;
+        }
+        let socket = session.TAG === "rtmp" ? session.socket : session.req.socket;
         info.inbytes += socket.bytesRead;
         info.outbytes += socket.bytesWritten;
-        info.rtmp += session.TAG === 'rtmp' ? 1 : 0;
-        info.http += session.TAG === 'http-flv' ? 1 : 0;
-        info.ws += session.TAG === 'websocket-flv' ? 1 : 0;
+        info.rtmp += session.TAG === "rtmp" ? 1 : 0;
+        info.http += session.TAG === "http-flv" ? 1 : 0;
+        info.ws += session.TAG === "websocket-flv" ? 1 : 0;
     }
 
     return info;
 }
 
+function getConfig(req, res, next) {
+    const {
+        http, https,
+        rtmp,
+        trans,
+        relay,
+        fission
+    } = this.configProvider.getConfig();
+
+    const response = {
+        http: {
+            mediaroot: http.mediaroot,
+            port: http.port,
+            allow_origin: http.allow_origin,
+        },
+        https: {
+            port: https.port,
+        },
+        rtmp: {
+            port: rtmp.port,
+            chunk_size: rtmp.chunk_size,
+            ping: rtmp.ping,
+            ping_timeout: rtmp.ping_timeout,
+            gop_cache: rtmp.gop_cache,
+        },
+        trans,
+        relay,
+        fission,
+    };
+
+    res.json(response);
+}
+
+function updateConfig(req, res, next) {
+    throw new Error("Not implemented");
+}
 
 function getInfo(req, res, next) {
     let s = this.sessions;
@@ -111,4 +162,6 @@ function getInfo(req, res, next) {
 
 module.exports = {
     getInfo,
+    getConfig,
+    updateConfig,
 };
