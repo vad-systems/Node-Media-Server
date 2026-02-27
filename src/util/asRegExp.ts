@@ -8,6 +8,6 @@ const asRegExp = (pattern: string | RegExp | undefined) => {
     }
 
     return new RegExp(pattern, 'g');
-}
+};
 
 export default asRegExp;

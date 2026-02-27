@@ -1,8 +1,8 @@
 import { ChildProcess, spawn } from 'child_process';
 import { Buffer } from 'node:buffer';
-import { Logger } from '../core/index.js';
-import { NodeSession } from './NodeSession.js';
+import { context } from '../core/index.js';
 import { FfmpegSessionConfig } from '../types/index.js';
+import { NodeSession } from './NodeSession.js';
 
 abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends NodeSession<A, T> {
     private ffmpeg_exec: ChildProcess = null;
@@ -11,25 +11,36 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
         super(conf, remoteIp, tag);
     }
 
+    public isFfmpegTask() {
+        return true;
+    }
+
+    protected getRtmpInputPath(port: number | string, streamPath: string): string {
+        return `rtmp://127.0.0.1:${port}${streamPath}`;
+    }
+
     run(argv: string[]) {
         let argumentList = argv.filter(Boolean);
         this.ffmpeg_exec = spawn(this.conf.ffmpeg, argumentList);
+        this.startTime = Date.now();
         this.ffmpeg_exec.on('error', (e: any) => {
-            Logger.ffdebug(`[ffmpeg error] ${this.id}: ${e}`);
+            this.logger.ffdebug(`[ffmpeg error] ${e}`);
         });
 
         this.ffmpeg_exec.stdout.on('data', (data: any) => {
-            Logger.ffdebug(`[ffmpeg stdout] ${this.id}: ${data}`);
+            this.logger.ffdebug(`[ffmpeg stdout] ${data}`);
         });
 
         this.ffmpeg_exec.stderr.on('data', (data: any) => {
-            Logger.ffdebug(`[ffmpeg stderr] ${this.id}: ${data}`);
+            this.logger.ffdebug(`[ffmpeg stderr] ${data}`);
         });
 
         this.ffmpeg_exec.on('close', (code: any) => {
-            Logger.log(`[ffmpeg end] ${this.id}`);
+            this.logger.log(`[ffmpeg end]`);
             this.emit('end', this.id);
+            context.nodeEvent.emit('doneConnect', this);
         });
+        context.nodeEvent.emit('postConnect', this);
     }
 
     end() {
@@ -41,6 +52,7 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
     }
 
     public sendBuffer(buffer: Buffer) {
+        this.outBytes += buffer.length;
     }
 }
 

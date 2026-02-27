@@ -1,8 +1,9 @@
 import EventEmitter from 'events';
 import _ from 'lodash';
 import { ParsedUrlQuery } from 'querystring';
-import { NodeCoreUtils } from '../core/index.js';
+import { context, LoggerFactory, LoggerInstance, NodeCoreUtils } from '../core/index.js';
 import { SessionConfig, SessionID } from '../types/index.js';
+import type BroadcastServer from './BroadcastServer.js';
 
 type SessionEventMap = {
     end: [SessionID],
@@ -14,12 +15,23 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
     public readonly id: SessionID = null;
     public readonly remoteIp: string;
     public readonly TAG: string;
+    public readonly logger: LoggerInstance;
 
     private _streamPath: string | null = null;
     private _streamQuery: ParsedUrlQuery | null = null;
 
+    private _streamApp: string | null = null;
+    private _streamName: string | null = null;
+    private _streamHost: string | null = null;
+    private _isPublisher: boolean = false;
+
+    private _broadcast: BroadcastServer<any, any> | null = null;
+
     private _startTime: number | null = null;
     private _endTime: number | null = null;
+
+    private _inBytes: number = 0;
+    private _outBytes: number = 0;
 
     protected constructor(conf: T, remoteIp: string, tag: string) {
         super();
@@ -27,6 +39,8 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
         this.id = NodeCoreUtils.generateNewSessionID();
         this.remoteIp = remoteIp;
         this.TAG = tag;
+        this.logger = LoggerFactory.getLogger(`${this.TAG} ${this.id}`);
+        context.nodeEvent.emit('preConnect', this);
     }
 
     public getConfig<C extends T[keyof T] | A[keyof A]>(key: keyof T | keyof A = null): C | undefined {
@@ -48,7 +62,11 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
             || this.remoteIp.startsWith('::ffff:127.0.0.1');
     }
 
-    public set streamPath(path: string) {
+    public isFfmpegTask() {
+        return false;
+    }
+
+    protected set streamPath(path: string) {
         this._streamPath = path;
     }
 
@@ -56,12 +74,52 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
         return this._streamPath;
     }
 
-    public set streamQuery(query: ParsedUrlQuery) {
+    protected set streamQuery(query: ParsedUrlQuery) {
         this._streamQuery = query;
     }
 
     public get streamQuery() {
         return this._streamQuery;
+    }
+
+    protected set streamApp(value: string | null) {
+        this._streamApp = value;
+    }
+
+    public get streamApp(): string | null {
+        return this._streamApp;
+    }
+
+    protected set streamName(value: string | null) {
+        this._streamName = value;
+    }
+
+    public get streamName(): string | null {
+        return this._streamName;
+    }
+
+    protected set streamHost(value: string | null) {
+        this._streamHost = value;
+    }
+
+    public get streamHost(): string | null {
+        return this._streamHost;
+    }
+
+    protected set isPublisher(value: boolean) {
+        this._isPublisher = value;
+    }
+
+    public get isPublisher(): boolean {
+        return this._isPublisher;
+    }
+
+    public set broadcast(value: BroadcastServer<any, any> | null) {
+        this._broadcast = value;
+    }
+
+    public get broadcast(): BroadcastServer<any, any> | null {
+        return this._broadcast;
     }
 
     public set startTime(time: number) {
@@ -78,6 +136,22 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
 
     public get endTime() {
         return this._endTime;
+    }
+
+    public set inBytes(value: number) {
+        this._inBytes = value;
+    }
+
+    public get inBytes() {
+        return this._inBytes;
+    }
+
+    public set outBytes(value: number) {
+        this._outBytes = value;
+    }
+
+    public get outBytes() {
+        return this._outBytes;
     }
 
     abstract stop(): void;

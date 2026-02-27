@@ -2,7 +2,7 @@ import Fs from 'fs';
 import _ from 'lodash';
 import Net from 'net';
 import Tls from 'tls';
-import { context, Logger } from '../../core/index.js';
+import { context, LoggerFactory } from '../../core/index.js';
 import NodeConfigurableServer from '../NodeConfigurableServer.js';
 import { NodeRtmpSession } from './NodeRtmpSession.js';
 
@@ -14,6 +14,7 @@ class NodeRtmpServer extends NodeConfigurableServer {
     private tcpServer: Net.Server;
     private sslPort: number | null = null;
     private tlsServer: Tls.Server | null = null;
+    private logger = LoggerFactory.getLogger('RTMP Server');
 
     constructor() {
         super();
@@ -42,7 +43,7 @@ class NodeRtmpServer extends NodeConfigurableServer {
                     session.run();
                 });
             } catch (e) {
-                Logger.error(`Node Media Rtmps Server error while reading ssl certs: <${e}>`);
+                this.logger.error(`Node Media Rtmps Server error while reading ssl certs: <${e}>`);
             }
         }
     }
@@ -53,28 +54,28 @@ class NodeRtmpServer extends NodeConfigurableServer {
         this.initServer();
 
         this.tcpServer.listen(this.port, () => {
-            Logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
+            this.logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
         });
 
         this.tcpServer.on('error', (e) => {
-            Logger.error(`Node Media Rtmp Server ${e}`);
+            this.logger.error(`Node Media Rtmp Server ${e}`);
         });
 
         this.tcpServer.on('close', () => {
-            Logger.log('Node Media Rtmp Server Close.');
+            this.logger.log('Node Media Rtmp Server Close.');
         });
 
         if (this.tlsServer) {
             this.tlsServer.listen(this.sslPort, () => {
-                Logger.log(`Node Media Rtmps Server started on port: ${this.sslPort}`);
+                this.logger.log(`Node Media Rtmps Server started on port: ${this.sslPort}`);
             });
 
             this.tlsServer.on('error', (e: Error) => {
-                Logger.error(`Node Media Rtmps Server ${e}`);
+                this.logger.error(`Node Media Rtmps Server ${e}`);
             });
 
             this.tlsServer.on('close', () => {
-                Logger.log('Node Media Rtmps Server Close.');
+                this.logger.log('Node Media Rtmps Server Close.');
             });
         }
     }
@@ -94,7 +95,7 @@ class NodeRtmpServer extends NodeConfigurableServer {
             }
         });
 
-        Logger.log(`Node Media Rtmp Server stopped.`);
+        this.logger.log(`Node Media Rtmp Server stopped.`);
     }
 }
 

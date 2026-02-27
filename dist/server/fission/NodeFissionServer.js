@@ -50,16 +50,13 @@ const fs_1 = __importDefault(require("fs"));
 const lodash_1 = __importDefault(require("lodash"));
 const mkdirp = __importStar(require("mkdirp"));
 const index_js_1 = require("../../core/index.js");
-const NodeAvSession_js_1 = require("../NodeAvSession.js");
-const NodeConfigurableServer_js_1 = __importDefault(require("../NodeConfigurableServer.js"));
-const NodeFissionSession_js_1 = require("./NodeFissionSession.js");
-const NodeRelaySession_js_1 = require("../relay/NodeRelaySession.js");
 const checkSelectiveTask_js_1 = __importDefault(require("../../util/checkSelectiveTask.js"));
-class NodeFissionServer extends NodeConfigurableServer_js_1.default {
+const NodeTaskServer_js_1 = __importDefault(require("../NodeTaskServer.js"));
+const NodeFissionSession_js_1 = require("./NodeFissionSession.js");
+class NodeFissionServer extends NodeTaskServer_js_1.default {
     constructor() {
         super();
-        this.onPostPublish = this.onPostPublish.bind(this);
-        this.onDonePublish = this.onDonePublish.bind(this);
+        this.logger = index_js_1.LoggerFactory.getLogger('Fission Server');
     }
     run() {
         const _super = Object.create(null, {
@@ -67,129 +64,79 @@ class NodeFissionServer extends NodeConfigurableServer_js_1.default {
         });
         return __awaiter(this, void 0, void 0, function* () {
             yield _super.run.call(this);
-            this.fissionSessions = new Map();
             try {
                 mkdirp.sync(this.config.http.mediaroot.toString());
                 fs_1.default.accessSync(this.config.http.mediaroot, fs_1.default.constants.W_OK);
             }
             catch (error) {
-                index_js_1.Logger.error(`Node Media Fission Server startup failed. MediaRoot:${this.config.http.mediaroot} cannot be written.`);
+                this.logger.error(`Node Media Fission Server startup failed. MediaRoot:${this.config.http.mediaroot} cannot be written.`);
                 return;
             }
             try {
                 fs_1.default.accessSync(this.config.fission.ffmpeg, fs_1.default.constants.X_OK);
             }
             catch (error) {
-                index_js_1.Logger.error(`Node Media Fission Server startup failed. ffmpeg:${this.config.fission.ffmpeg} cannot be executed.`);
+                this.logger.error(`Node Media Fission Server startup failed. ffmpeg:${this.config.fission.ffmpeg} cannot be executed.`);
                 return;
             }
             let version = yield index_js_1.NodeCoreUtils.getFFmpegVersion(this.config.fission.ffmpeg);
             if (version === '' || parseInt(version.split('.')[0]) < 4) {
-                index_js_1.Logger.error('Node Media Fission Server startup failed. ffmpeg requires version 4.0.0 above');
-                index_js_1.Logger.error('Download the latest ffmpeg static program:', index_js_1.NodeCoreUtils.getFFmpegUrl());
+                this.logger.error('Node Media Fission Server startup failed. ffmpeg requires version 4.0.0 above');
+                this.logger.error('Download the latest ffmpeg static program:', index_js_1.NodeCoreUtils.getFFmpegUrl());
                 return;
             }
-            index_js_1.context.nodeEvent.on('postPublish', this.onPostPublish);
-            index_js_1.context.nodeEvent.on('donePublish', this.onDonePublish);
-            index_js_1.Logger.log(`Node Media Fission Server started, MediaRoot: ${this.config.http.mediaroot}, ffmpeg version: ${version}`);
+            this.logger.log(`Node Media Fission Server started, MediaRoot: ${this.config.http.mediaroot}, ffmpeg version: ${version}`);
         });
     }
-    onPostPublish(session) {
+    handleTaskMatching(session, app, name) {
         const srcId = session.id;
-        if (session instanceof NodeAvSession_js_1.NodeAvSession) {
-            index_js_1.Logger.log('[fission postPublish] Check for fission tasks', `id=${srcId}`, `streamPath=${session.streamPath}`);
-            let regRes = /\/(.*)\/(.*)/gi.exec(session.streamPath);
-            let [app, name] = lodash_1.default.slice(regRes, 1);
-            for (let task of this.config.fission.tasks) {
-                if (!(0, checkSelectiveTask_js_1.default)(task, app, session.streamPath)) {
-                    index_js_1.Logger.debug('[fission] pattern check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${session.streamPath}`, task);
-                    continue;
+        this.logger.log('[fission postPublish] Check for fission tasks', `id=${srcId}`, `streamPath=${session.streamPath}`);
+        for (let task of this.config.fission.tasks) {
+            if (!(0, checkSelectiveTask_js_1.default)(task, app, session.streamPath)) {
+                this.logger.debug('[fission] pattern check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${session.streamPath}`, task);
+                continue;
+            }
+            const broadcast = session.broadcast;
+            const nameSegments = name.split('_');
+            if (!broadcast) {
+                this.logger.warn('No broadcast found', srcId);
+                continue;
+            }
+            if (broadcast.publisher.isLocal() && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
+                this.logger.debug('[fission] duplication check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${session.streamPath}`, task);
+                continue;
+            }
+            let taskConf = lodash_1.default.cloneDeep(task);
+            let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg: this.config.fission.ffmpeg, mediaroot: this.config.http.mediaroot, rtmpPort: this.config.rtmp.port, streamPath: session.streamPath, streamApp: app, streamName: name });
+            sessionConf.args = session.streamQuery;
+            let sess = new NodeFissionSession_js_1.NodeFissionSession(sessionConf);
+            const id = sess.id;
+            if (session.broadcast) {
+                sess.broadcast = session.broadcast;
+                session.broadcast.subscribers.set(sess.id, sess);
+            }
+            this.logger.log('[fission] start', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+            index_js_1.context.sessions.set(id, sess);
+            sess.on('end', (id) => {
+                this.logger.log('[fission] ended', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                index_js_1.context.sessions.delete(id);
+                if (sess.broadcast) {
+                    sess.broadcast.subscribers.delete(id);
                 }
-                const broadcast = [...index_js_1.context.broadcasts.values()]
-                    .find((broadcast) => { var _a; return ((_a = broadcast.publisher) === null || _a === void 0 ? void 0 : _a.id) === srcId; });
-                const nameSegments = name.split('_');
-                if (!broadcast) {
-                    index_js_1.Logger.warn("No broadcast found", srcId, [...index_js_1.context.broadcasts.values()].map((b) => b.publisher));
-                    continue;
-                }
-                if (broadcast.publisher.isLocal() && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
-                    index_js_1.Logger.debug('[fission] duplication check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${session.streamPath}`, task);
-                    continue;
-                }
-                let taskConf = lodash_1.default.cloneDeep(task);
-                let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg: this.config.fission.ffmpeg, mediaroot: this.config.http.mediaroot, rtmpPort: this.config.rtmp.port, streamPath: session.streamPath, streamApp: app, streamName: name });
-                sessionConf.args = session.streamQuery;
-                let sess = new NodeFissionSession_js_1.NodeFissionSession(sessionConf);
-                const id = sess.id;
-                index_js_1.Logger.log('[fission] start', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-                index_js_1.context.sessions.set(id, sess);
-                sess.on('end', (id) => {
-                    index_js_1.Logger.log('[fission] ended', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-                    index_js_1.context.sessions.delete(id);
-                    const fissionSessionsForSrc = this.fissionSessions.get(srcId);
-                    if (fissionSessionsForSrc) {
-                        fissionSessionsForSrc.delete(id);
+                setTimeout(() => {
+                    if (sess.broadcast && sess.broadcast.publisher) {
+                        this.logger.log('[fission] restart', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                        this.handleTaskMatching(sess.broadcast.publisher, app, name);
                     }
-                    setTimeout(() => {
-                        if (!!srcId) {
-                            const [_x, broadcast] = [...index_js_1.context.broadcasts.entries()]
-                                .find(([_x, broadcast]) => { var _a; return ((_a = broadcast.publisher) === null || _a === void 0 ? void 0 : _a.id) === srcId; });
-                            if (!!broadcast) {
-                                index_js_1.Logger.log('[fission] restart', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-                                this.onPostPublish(broadcast.publisher);
-                            }
-                        }
-                    }, 1000);
-                });
-                const fissionSessionsForSrc = this.fissionSessions.get(srcId);
-                if (fissionSessionsForSrc) {
-                    fissionSessionsForSrc.set(id, sess);
-                }
-                else {
-                    const newMap = new Map();
-                    newMap.set(id, session);
-                    this.fissionSessions.set(srcId, newMap);
-                }
-                sess.run();
-                index_js_1.Logger.log('[fission] started', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-            }
-        }
-    }
-    onDonePublish(session) {
-        const id = session.id;
-        for (let [srcId, sessions] of this.fissionSessions) {
-            if (id === srcId) {
-                for (let [_, session] of sessions) {
-                    session.end();
-                }
-                let session = index_js_1.context.sessions.get(srcId);
-                if (session && session instanceof NodeRelaySession_js_1.NodeRelaySession) {
-                    session.end();
-                }
-            }
-            else {
-                for (let [sessionId, session] of sessions) {
-                    if (id === sessionId) {
-                        session.end();
-                    }
-                }
-            }
+                }, 1000);
+            });
+            sess.run();
+            this.logger.log('[fission] started', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
         }
     }
     stop() {
         super.stop();
-        index_js_1.context.nodeEvent.off('postPublish', this.onPostPublish);
-        index_js_1.context.nodeEvent.off('donePublish', this.onDonePublish);
-        for (let [srcId, sessions] of this.fissionSessions) {
-            for (let [_, session] of sessions) {
-                session.end();
-            }
-            let session = index_js_1.context.sessions.get(srcId);
-            if (session && session instanceof NodeFissionSession_js_1.NodeFissionSession) {
-                session.end();
-            }
-        }
-        index_js_1.Logger.log(`Node Media Fission Server stopped.`);
+        this.logger.log(`Node Media Fission Server stopped.`);
     }
 }
 exports.NodeFissionServer = NodeFissionServer;

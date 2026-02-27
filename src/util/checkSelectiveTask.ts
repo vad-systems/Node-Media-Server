@@ -6,8 +6,10 @@ const checkSelectiveTask = (config: SelectiveTaskConfig, app: string, streamPath
 
     return (
         app === config.app
-        && (!pattern || pattern.test(streamPath))
+        && (
+            !pattern || pattern.test(streamPath)
+        )
     );
-}
+};
 
 export default checkSelectiveTask;

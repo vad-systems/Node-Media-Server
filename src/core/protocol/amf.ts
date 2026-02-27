@@ -1,4 +1,6 @@
-import { Logger } from '../logger.js';
+import { LoggerFactory } from '../logger.js';
+
+const logger = LoggerFactory.getLogger('AMF Protocol');
 
 interface AMFDecodeResponse {
     len: number;
@@ -15,7 +17,7 @@ export function createAMF3Context(): AMF3Context {
     return {
         strings: [],
         objects: [],
-        traits: []
+        traits: [],
     };
 }
 
@@ -25,7 +27,7 @@ interface AMF0Context {
 
 export function createAMF0Context(): AMF0Context {
     return {
-        objects: []
+        objects: [],
     };
 }
 
@@ -45,7 +47,7 @@ const amf3dRules: Record<number, AMF3DecodeRule> = {
     0x09: amf3decArray,
     0x0A: amf3decObject,
     0x0B: amf3decXml,
-    0x0C: amf3decByteArray
+    0x0C: amf3decByteArray,
 };
 
 const amf3eRules: Record<string, AMF3EncodeRule> = {
@@ -61,7 +63,7 @@ const amf3eRules: Record<string, AMF3EncodeRule> = {
     'true': amf3encTrue,
     'false': amf3encFalse,
     'undefined': amf3encUndefined,
-    'null': amf3encNull
+    'null': amf3encNull,
 };
 
 const amf0dRules: Record<number, (buf: Buffer, ctx: AMF0Context) => AMFDecodeResponse> = {
@@ -78,7 +80,7 @@ const amf0dRules: Record<number, (buf: Buffer, ctx: AMF0Context) => AMFDecodeRes
     0x0C: amf0decLongString,
     0x0F: amf0decXmlDoc,
     0x10: amf0decTypedObj,
-    0x11: amf0decSwitchAmf3
+    0x11: amf0decSwitchAmf3,
 };
 
 const amf0eRules: Record<string, (o: any, ctx: AMF0Context) => Buffer> = {
@@ -94,26 +96,42 @@ const amf0eRules: Record<string, (o: any, ctx: AMF0Context) => Buffer> = {
     'true': amf0encBool,
     'false': amf0encBool,
     'undefined': amf0encUndefined,
-    'null': amf0encNull
+    'null': amf0encNull,
 };
 
 function amfType(o: any): string {
     let jsType = typeof o;
 
-    if (o === null) return 'null';
-    if (jsType == 'undefined') return 'undefined';
+    if (o === null) {
+        return 'null';
+    }
+    if (jsType == 'undefined') {
+        return 'undefined';
+    }
     if (jsType == 'number') {
-        if (parseInt(o) == o) return 'integer';
+        if (parseInt(o) == o) {
+            return 'integer';
+        }
         return 'double';
     }
-    if (jsType == 'boolean') return o ? 'true' : 'false';
-    if (jsType == 'string') return 'string';
+    if (jsType == 'boolean') {
+        return o ? 'true' : 'false';
+    }
+    if (jsType == 'string') {
+        return 'string';
+    }
     if (jsType == 'object') {
         if (o instanceof Array) {
-            if ((o as any).sarray) return 'sarray';
+            if ((
+                o as any
+            ).sarray) {
+                return 'sarray';
+            }
             return 'array';
         }
-        if (o.__className__) return 'typed_object';
+        if (o.__className__) {
+            return 'typed_object';
+        }
         return 'object';
     }
     throw new Error('Unsupported type!');
@@ -167,31 +185,66 @@ function amf3decUI29(buf: Buffer): AMFDecodeResponse {
     if (b < 0x80) {
         return { len: 1, value: b };
     }
-    val = (b & 0x7f) << 7;
+    val = (
+        b & 0x7f
+    ) << 7;
     b = buf.readUInt8(1);
     if (b < 0x80) {
         return { len: 2, value: val | b };
     }
-    val = (val | (b & 0x7f)) << 7;
+    val = (
+        val | (
+            b & 0x7f
+        )
+    ) << 7;
     b = buf.readUInt8(2);
     if (b < 0x80) {
         return { len: 3, value: val | b };
     }
-    val = (val | (b & 0x7f)) << 8;
+    val = (
+        val | (
+            b & 0x7f
+        )
+    ) << 8;
     b = buf.readUInt8(3);
     return { len: 4, value: val | b };
 }
 
 function amf3encUI29(num: number): Buffer {
-    if (num < 0) num = 0;
+    if (num < 0) {
+        num = 0;
+    }
     if (num < 0x80) {
         return Buffer.from([num]);
     } else if (num < 0x4000) {
-        return Buffer.from([(num >> 7) | 0x80, num & 0x7F]);
+        return Buffer.from([
+            (
+                num >> 7
+            ) | 0x80, num & 0x7F,
+        ]);
     } else if (num < 0x200000) {
-        return Buffer.from([(num >> 14) | 0x80, (num >> 7) | 0x80, num & 0x7F]);
+        return Buffer.from([
+            (
+                num >> 14
+            ) | 0x80,
+            (
+                num >> 7
+            ) | 0x80,
+            num & 0x7F,
+        ]);
     } else if (num < 0x40000000) {
-        return Buffer.from([(num >> 22) | 0x80, (num >> 15) | 0x80, (num >> 8) | 0x80, num & 0xFF]);
+        return Buffer.from([
+            (
+                num >> 22
+            ) | 0x80,
+            (
+                num >> 15
+            ) | 0x80,
+            (
+                num >> 8
+            ) | 0x80,
+            num & 0xFF,
+        ]);
     } else {
         throw new Error('UI29 out of range');
     }
@@ -200,7 +253,11 @@ function amf3encUI29(num: number): Buffer {
 function amf3decInteger(buf: Buffer): AMFDecodeResponse {
     let ret = amf3decUI29(buf.slice(1));
     let resp = { len: ret.len + 1, value: ret.value };
-    if (resp.value > 0x0FFFFFFF) resp.value = (resp.value & 0x0FFFFFFF) - 0x10000000;
+    if (resp.value > 0x0FFFFFFF) {
+        resp.value = (
+            resp.value & 0x0FFFFFFF
+        ) - 0x10000000;
+    }
     return resp;
 }
 
@@ -217,13 +274,15 @@ function amf3decString(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMF
 
 function amf3decUString(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFDecodeResponse {
     let sLen = amf3decUI29(buf);
-    let isRef = (sLen.value & 1) === 0;
+    let isRef = (
+        sLen.value & 1
+    ) === 0;
     let val = sLen.value >> 1;
     if (isRef) {
         return { len: sLen.len, value: ctx.strings[val] };
     } else {
         if (val === 0) {
-            return { len: sLen.len, value: "" };
+            return { len: sLen.len, value: '' };
         }
         let str = buf.slice(sLen.len, sLen.len + val).toString('utf8');
         ctx.strings.push(str);
@@ -238,7 +297,7 @@ function amf3encString(str: string, ctx: AMF3Context = createAMF3Context()): Buf
 }
 
 function amf3encUString(str: string, ctx: AMF3Context = createAMF3Context()): Buffer {
-    if (str === "") {
+    if (str === '') {
         return amf3encUI29(1);
     }
     let idx = ctx.strings.indexOf(str);
@@ -247,13 +306,17 @@ function amf3encUString(str: string, ctx: AMF3Context = createAMF3Context()): Bu
     }
     ctx.strings.push(str);
     let strBuf = Buffer.from(str, 'utf8');
-    let sLen = amf3encUI29((strBuf.length << 1) | 1);
+    let sLen = amf3encUI29((
+        strBuf.length << 1
+    ) | 1);
     return Buffer.concat([sLen, strBuf]);
 }
 
 function amf3decXmlDoc(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFDecodeResponse {
     let sLen = amf3decUI29(buf.slice(1));
-    let isRef = (sLen.value & 1) === 0;
+    let isRef = (
+        sLen.value & 1
+    ) === 0;
     let val = sLen.value >> 1;
     if (isRef) {
         return { len: sLen.len + 1, value: ctx.objects[val] };
@@ -266,7 +329,9 @@ function amf3decXmlDoc(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMF
 
 function amf3encXmlDoc(str: string, ctx: AMF3Context = createAMF3Context()): Buffer {
     let strBuf = Buffer.from(str, 'utf8');
-    let sLen = amf3encUI29((strBuf.length << 1) | 1);
+    let sLen = amf3encUI29((
+        strBuf.length << 1
+    ) | 1);
     let buf = Buffer.alloc(1);
     buf.writeUInt8(0x07, 0);
     return Buffer.concat([buf, sLen, strBuf]);
@@ -274,7 +339,9 @@ function amf3encXmlDoc(str: string, ctx: AMF3Context = createAMF3Context()): Buf
 
 function amf3decXml(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFDecodeResponse {
     let sLen = amf3decUI29(buf.slice(1));
-    let isRef = (sLen.value & 1) === 0;
+    let isRef = (
+        sLen.value & 1
+    ) === 0;
     let val = sLen.value >> 1;
     if (isRef) {
         return { len: sLen.len + 1, value: ctx.objects[val] };
@@ -287,7 +354,9 @@ function amf3decXml(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFDec
 
 function amf3encXml(str: string, ctx: AMF3Context = createAMF3Context()): Buffer {
     let strBuf = Buffer.from(str, 'utf8');
-    let sLen = amf3encUI29((strBuf.length << 1) | 1);
+    let sLen = amf3encUI29((
+        strBuf.length << 1
+    ) | 1);
     let buf = Buffer.alloc(1);
     buf.writeUInt8(0x0B, 0);
     return Buffer.concat([buf, sLen, strBuf]);
@@ -295,7 +364,9 @@ function amf3encXml(str: string, ctx: AMF3Context = createAMF3Context()): Buffer
 
 function amf3decByteArray(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFDecodeResponse {
     let sLen = amf3decUI29(buf.slice(1));
-    let isRef = (sLen.value & 1) === 0;
+    let isRef = (
+        sLen.value & 1
+    ) === 0;
     let val = sLen.value >> 1;
     if (isRef) {
         return { len: sLen.len + 1, value: ctx.objects[val] };
@@ -307,8 +378,12 @@ function amf3decByteArray(buf: Buffer, ctx: AMF3Context = createAMF3Context()): 
 }
 
 function amf3encByteArray(str: any, ctx: AMF3Context = createAMF3Context()): Buffer {
-    let data = (typeof str == 'string') ? Buffer.from(str, 'binary') : str;
-    let sLen = amf3encUI29((data.length << 1) | 1);
+    let data = (
+        typeof str == 'string'
+    ) ? Buffer.from(str, 'binary') : str;
+    let sLen = amf3encUI29((
+        data.length << 1
+    ) | 1);
     let buf = Buffer.alloc(1);
     buf.writeUInt8(0x0C, 0);
     return Buffer.concat([buf, sLen, data]);
@@ -327,7 +402,9 @@ function amf3encDouble(num: number): Buffer {
 
 function amf3decDate(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFDecodeResponse {
     let sLen = amf3decUI29(buf.slice(1));
-    let isRef = (sLen.value & 1) === 0;
+    let isRef = (
+        sLen.value & 1
+    ) === 0;
     if (isRef) {
         return { len: sLen.len + 1, value: ctx.objects[sLen.value >> 1] };
     }
@@ -347,7 +424,9 @@ function amf3encDate(ts: number, ctx: AMF3Context = createAMF3Context()): Buffer
 
 function amf3decArray(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFDecodeResponse {
     let sLen = amf3decUI29(buf.slice(1));
-    let isRef = (sLen.value & 1) === 0;
+    let isRef = (
+        sLen.value & 1
+    ) === 0;
     let count = sLen.value >> 1;
     if (isRef) {
         return { len: sLen.len + 1, value: ctx.objects[count] };
@@ -361,10 +440,14 @@ function amf3decArray(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFD
     while (true) {
         let key = amf3decUString(buf.slice(len), ctx);
         len += key.len;
-        if (key.value === "") break;
+        if (key.value === '') {
+            break;
+        }
         let val = amf3DecodeOne(buf.slice(len), ctx);
         len += val.len;
-        (arr as any)[key.value] = val.value;
+        (
+            arr as any
+        )[key.value] = val.value;
     }
 
     // Dense part
@@ -385,7 +468,9 @@ function amf3encArray(a: any[], ctx: AMF3Context = createAMF3Context()): Buffer 
     ctx.objects.push(a);
 
     let buf = Buffer.from([0x09]);
-    let sLen = amf3encUI29((a.length << 1) | 1);
+    let sLen = amf3encUI29((
+        a.length << 1
+    ) | 1);
     buf = Buffer.concat([buf, sLen]);
 
     // Associative part
@@ -394,7 +479,7 @@ function amf3encArray(a: any[], ctx: AMF3Context = createAMF3Context()): Buffer 
             buf = Buffer.concat([buf, amf3encUString(key, ctx), amf3EncodeOne(a[key], ctx)]);
         }
     }
-    buf = Buffer.concat([buf, amf3encUString("", ctx)]);
+    buf = Buffer.concat([buf, amf3encUString('', ctx)]);
 
     // Dense part
     for (let i = 0; i < a.length; i++) {
@@ -406,12 +491,16 @@ function amf3encArray(a: any[], ctx: AMF3Context = createAMF3Context()): Buffer 
 
 function amf3decObject(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMFDecodeResponse {
     let sLen = amf3decUI29(buf.slice(1));
-    let isRef = (sLen.value & 1) === 0;
+    let isRef = (
+        sLen.value & 1
+    ) === 0;
     if (isRef) {
         return { len: sLen.len + 1, value: ctx.objects[sLen.value >> 1] };
     }
 
-    let isTraitsRef = (sLen.value & 2) === 0;
+    let isTraitsRef = (
+        sLen.value & 2
+    ) === 0;
     let traits: any;
     let len = sLen.len + 1;
 
@@ -419,11 +508,15 @@ function amf3decObject(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMF
         traits = ctx.traits[sLen.value >> 2];
     } else {
         traits = {
-            externalizable: (sLen.value & 4) !== 0,
-            dynamic: (sLen.value & 8) !== 0,
+            externalizable: (
+                sLen.value & 4
+            ) !== 0,
+            dynamic: (
+                sLen.value & 8
+            ) !== 0,
             count: sLen.value >> 4,
             className: null,
-            properties: []
+            properties: [],
         };
         let clsName = amf3decUString(buf.slice(len), ctx);
         traits.className = clsName.value;
@@ -438,10 +531,12 @@ function amf3decObject(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMF
 
     let obj: any = {};
     ctx.objects.push(obj);
-    if (traits.className) obj.__className__ = traits.className;
+    if (traits.className) {
+        obj.__className__ = traits.className;
+    }
 
     if (traits.externalizable) {
-        throw new Error("Externalizable traits not supported yet");
+        throw new Error('Externalizable traits not supported yet');
     }
 
     for (let i = 0; i < traits.count; i++) {
@@ -454,7 +549,9 @@ function amf3decObject(buf: Buffer, ctx: AMF3Context = createAMF3Context()): AMF
         while (true) {
             let key = amf3decUString(buf.slice(len), ctx);
             len += key.len;
-            if (key.value === "") break;
+            if (key.value === '') {
+                break;
+            }
             let val = amf3DecodeOne(buf.slice(len), ctx);
             obj[key.value] = val.value;
             len += val.len;
@@ -471,15 +568,17 @@ function amf3encObject(o: any, ctx: AMF3Context = createAMF3Context()): Buffer {
     }
     ctx.objects.push(o);
 
-    let className = o.__className__ || "";
+    let className = o.__className__ || '';
     // Simplified: always dynamic with no static properties
     let buf = Buffer.from([0x0A, 0x0B]); // 0x0B = new traits, not externalizable, dynamic, 0 static props.
     buf = Buffer.concat([buf, amf3encUString(className, ctx)]);
     for (let key in o) {
-        if (key === '__className__') continue;
+        if (key === '__className__') {
+            continue;
+        }
         buf = Buffer.concat([buf, amf3encUString(key, ctx), amf3EncodeOne(o[key], ctx)]);
     }
-    buf = Buffer.concat([buf, amf3encUString("", ctx)]);
+    buf = Buffer.concat([buf, amf3encUString('', ctx)]);
     return buf;
 }
 
@@ -497,13 +596,20 @@ function amf0encNumber(num: number): Buffer {
 }
 
 function amf0decBool(buf: Buffer): AMFDecodeResponse {
-    return { len: 2, value: (buf.readUInt8(1) != 0) };
+    return {
+        len: 2,
+        value: (
+            buf.readUInt8(1) != 0
+        ),
+    };
 }
 
 function amf0encBool(num: boolean): Buffer {
     let buf = Buffer.alloc(2);
     buf.writeUInt8(0x01, 0);
-    buf.writeUInt8((num ? 1 : 0), 1);
+    buf.writeUInt8((
+        num ? 1 : 0
+    ), 1);
     return buf;
 }
 
@@ -555,7 +661,9 @@ function amf0decObject(buf: Buffer, ctx: AMF0Context = createAMF0Context()): AMF
             len++;
             break;
         }
-        if (prop.value == '') break;
+        if (prop.value == '') {
+            break;
+        }
         let val = amf0DecodeOne(iBuf.slice(prop.len), ctx);
         obj[prop.value] = val.value;
         len += val.len;
@@ -565,7 +673,9 @@ function amf0decObject(buf: Buffer, ctx: AMF0Context = createAMF0Context()): AMF
 }
 
 function amf0encObject(o: any, ctx: AMF0Context = createAMF0Context()): Buffer {
-    if (typeof o !== 'object') return Buffer.alloc(0);
+    if (typeof o !== 'object') {
+        return Buffer.alloc(0);
+    }
 
     let idx = ctx.objects.indexOf(o);
     if (idx !== -1) {
@@ -582,7 +692,9 @@ function amf0encUObject(o: any, ctx: AMF0Context): Buffer {
     let data = Buffer.alloc(0);
     let k;
     for (k in o) {
-        if (k === '__className__') continue;
+        if (k === '__className__') {
+            continue;
+        }
         data = Buffer.concat([data, amf0encUString(k), amf0EncodeOne(o[k], ctx)]);
     }
     let termCode = Buffer.alloc(1);
@@ -666,8 +778,12 @@ function amf0encArray(a: any, ctx: AMF0Context = createAMF0Context()): Buffer {
     ctx.objects.push(a);
 
     let l = 0;
-    if (a instanceof Array) l = a.length; else l = Object.keys(a).length;
-    Logger.debug('Array encode', l, a);
+    if (a instanceof Array) {
+        l = a.length;
+    } else {
+        l = Object.keys(a).length;
+    }
+    logger.debug('Array encode', l, a);
     let buf = Buffer.alloc(5);
     buf.writeUInt8(8, 0);
     buf.writeUInt32BE(l, 1);
@@ -722,7 +838,7 @@ function amf0encSArray(a: any[], ctx: AMF0Context = createAMF0Context()): Buffer
     }
     ctx.objects.push(a);
 
-    Logger.debug('Do strict array!');
+    logger.debug('Do strict array!');
     let buf = Buffer.alloc(5);
     buf.writeUInt8(0x0A, 0);
     buf.writeUInt32BE(a.length, 1);
@@ -751,9 +867,13 @@ function amf0decSwitchAmf3(buf: Buffer): AMFDecodeResponse {
 }
 
 
-function amfXDecodeOne<T>(rules: Record<number, (buf: Buffer, ctx: T) => AMFDecodeResponse>, buffer: Buffer, ctx: T): AMFDecodeResponse {
+function amfXDecodeOne<T>(
+    rules: Record<number, (buf: Buffer, ctx: T) => AMFDecodeResponse>,
+    buffer: Buffer,
+    ctx: T,
+): AMFDecodeResponse {
     if (!rules[buffer.readUInt8(0)]) {
-        Logger.error('Unknown field', buffer.readUInt8(0));
+        logger.error('Unknown field', buffer.readUInt8(0));
         return null;
     }
     return rules[buffer.readUInt8(0)](buffer, ctx);
@@ -767,7 +887,11 @@ function amf3DecodeOne(buffer: Buffer, ctx: AMF3Context = createAMF3Context()): 
     return amfXDecodeOne(amf3dRules, buffer, ctx);
 }
 
-function amfXDecode<T>(rules: Record<number, (buf: Buffer, ctx: T) => AMFDecodeResponse>, buffer: Buffer, ctx: T): any[] {
+function amfXDecode<T>(
+    rules: Record<number, (buf: Buffer, ctx: T) => AMFDecodeResponse>,
+    buffer: Buffer,
+    ctx: T,
+): any[] {
     let resp = [];
     let res;
     for (let i = 0; i < buffer.length;) {
@@ -788,7 +912,9 @@ function amf0Decode(buffer: Buffer): any[] {
 
 function amfXEncodeOne<T>(rules: Record<string, (o: any, ctx: T) => Buffer>, o: any, ctx: T): Buffer {
     let f = rules[amfType(o)];
-    if (f) return f(o, ctx);
+    if (f) {
+        return f(o, ctx);
+    }
     throw new Error('Unsupported type for encoding!');
 }
 
@@ -841,7 +967,7 @@ const rtmpCmdCode: Record<string, string[]> = {
     'receiveVideo': ['transId', 'cmdObj', 'bool'],
     'publish': ['transId', 'cmdObj', 'streamName', 'type'],
     'seek': ['transId', 'cmdObj', 'ms'],
-    'pause': ['transId', 'cmdObj', 'pause', 'ms']
+    'pause': ['transId', 'cmdObj', 'pause', 'ms'],
 };
 
 const rtmpDataCode: Record<string, string[]> = {
@@ -872,7 +998,7 @@ function decodeAmf0Data(dbuf: Buffer): any {
                 }
             });
         } else {
-            Logger.error('Unknown command', resp);
+            logger.error('Unknown command', resp);
         }
     }
 
@@ -897,7 +1023,7 @@ function decodeAMF0Cmd(dbuf: Buffer): any {
             }
         });
     } else {
-        Logger.error('Unknown command', resp);
+        logger.error('Unknown command', resp);
     }
     return resp;
 }
@@ -908,11 +1034,12 @@ function encodeAMF0Cmd(opt: any): Buffer {
 
     if (rtmpCmdCode[opt.cmd]) {
         rtmpCmdCode[opt.cmd].forEach(function (n) {
-            if (opt.hasOwnProperty(n))
+            if (opt.hasOwnProperty(n)) {
                 data = Buffer.concat([data, amf0EncodeOne(opt[n], ctx)]);
+            }
         });
     } else {
-        Logger.error('Unknown command', opt);
+        logger.error('Unknown command', opt);
     }
     return data;
 }
@@ -923,11 +1050,12 @@ function encodeAMF0Data(opt: any): Buffer {
 
     if (rtmpDataCode[opt.cmd]) {
         rtmpDataCode[opt.cmd].forEach(function (n) {
-            if (opt.hasOwnProperty(n))
+            if (opt.hasOwnProperty(n)) {
                 data = Buffer.concat([data, amf0EncodeOne(opt[n], ctx)]);
+            }
         });
     } else {
-        Logger.error('Unknown data', opt);
+        logger.error('Unknown data', opt);
     }
     return data;
 }
@@ -950,7 +1078,7 @@ function decodeAMF3Cmd(dbuf: Buffer): any {
             }
         });
     } else {
-        Logger.error('Unknown command', resp);
+        logger.error('Unknown command', resp);
     }
     return resp;
 }
@@ -961,11 +1089,12 @@ function encodeAMF3Cmd(opt: any): Buffer {
 
     if (rtmpCmdCode[opt.cmd]) {
         rtmpCmdCode[opt.cmd].forEach(function (n) {
-            if (opt.hasOwnProperty(n))
+            if (opt.hasOwnProperty(n)) {
                 data = Buffer.concat([data, amf3EncodeOne(opt[n], ctx)]);
+            }
         });
     } else {
-        Logger.error('Unknown command', opt);
+        logger.error('Unknown command', opt);
     }
     return data;
 }

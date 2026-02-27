@@ -1,5 +1,4 @@
 import { spawn } from 'child_process';
-import Crypto from 'crypto';
 import context from './context.js';
 
 function generateNewSessionID() {

@@ -4,11 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateNewSessionID = generateNewSessionID;
-exports.verifyAuth = verifyAuth;
 exports.getFFmpegVersion = getFFmpegVersion;
 exports.getFFmpegUrl = getFFmpegUrl;
 const child_process_1 = require("child_process");
-const crypto_1 = __importDefault(require("crypto"));
 const context_js_1 = __importDefault(require("./context.js"));
 function generateNewSessionID() {
     let sessionID = '';
@@ -20,21 +18,6 @@ function generateNewSessionID() {
         }
     } while (context_js_1.default.sessions.has(sessionID));
     return sessionID;
-}
-function verifyAuth(signStr, streamId, secretKey) {
-    if (signStr === undefined) {
-        return false;
-    }
-    let now = Date.now() / 1000 | 0;
-    let exp = parseInt(signStr.split('-')[0]);
-    let shv = signStr.split('-')[1];
-    let str = streamId + '-' + exp + '-' + secretKey;
-    if (exp < now) {
-        return false;
-    }
-    let md5 = crypto_1.default.createHash('md5');
-    let ohv = md5.update(str).digest('hex');
-    return shv === ohv;
 }
 function getFFmpegVersion(ffpath) {
     return new Promise((resolve, reject) => {

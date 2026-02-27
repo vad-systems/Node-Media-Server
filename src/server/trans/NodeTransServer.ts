@@ -1,21 +1,18 @@
 import fs from 'fs';
 import _ from 'lodash';
 import * as mkdirp from 'mkdirp';
-import { context, Logger, NodeCoreUtils } from '../../core/index.js';
-import { NodeAvSession } from '../NodeAvSession.js';
-import NodeConfigurableServer from '../NodeConfigurableServer.js';
-import { NodeSession } from '../NodeSession.js';
-import { NodeTransSession } from './NodeTransSession.js';
-import { Arguments, SessionID, TransSessionConfig } from '../../types/index.js';
+import { LoggerFactory, NodeCoreUtils } from '../../core/index.js';
+import { TransSessionConfig } from '../../types/index.js';
 import checkSelectiveTask from '../../util/checkSelectiveTask.js';
+import { BaseAvSession } from '../BaseAvSession.js';
+import NodeTaskServer from '../NodeTaskServer.js';
+import { NodeTransSession } from './NodeTransSession.js';
 
-class NodeTransServer extends NodeConfigurableServer {
-    private transSessions: Map<SessionID, Map<SessionID, NodeTransSession>> = new Map();
+class NodeTransServer extends NodeTaskServer {
+    private logger = LoggerFactory.getLogger('Trans Server');
 
     constructor() {
         super();
-        this.onDonePublish = this.onDonePublish.bind(this);
-        this.onPostPublish = this.onPostPublish.bind(this);
     }
 
     async run() {
@@ -28,21 +25,21 @@ class NodeTransServer extends NodeConfigurableServer {
             mkdirp.sync(mediaroot.toString());
             fs.accessSync(mediaroot, fs.constants.W_OK);
         } catch (error) {
-            Logger.error(`Node Media Trans Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
+            this.logger.error(`Node Media Trans Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
             return;
         }
 
         try {
             fs.accessSync(ffmpeg, fs.constants.X_OK);
         } catch (error) {
-            Logger.error(`Node Media Trans Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
+            this.logger.error(`Node Media Trans Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
             return;
         }
 
         const version = await NodeCoreUtils.getFFmpegVersion(ffmpeg);
         if (version === '' || parseInt(version.split('.')[0]) < 4) {
-            Logger.error('Node Media Trans Server startup failed. ffmpeg requires version 4.0.0 above');
-            Logger.error('Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
+            this.logger.error('Node Media Trans Server startup failed. ffmpeg requires version 4.0.0 above');
+            this.logger.error('Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
             return;
         }
 
@@ -54,75 +51,46 @@ class NodeTransServer extends NodeConfigurableServer {
             apps += ' ';
         }
 
-        context.nodeEvent.on('postPublish', this.onPostPublish);
-        context.nodeEvent.on('donePublish', this.onDonePublish);
-
-        Logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
+        this.logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
     }
 
-    onPostPublish(session: NodeSession<any, any>) {
-        if (session instanceof NodeAvSession) {
-            const regRes = /\/(.*)\/(.*)/gi.exec(session.streamPath);
-            const [app, name] = _.slice(regRes, 1);
+    handleTaskMatching(session: BaseAvSession<any, any>, app: string, name: string) {
+        const { tasks, ffmpeg } = this.config.trans;
+        let i = tasks.length;
+        const mediaroot = this.config.http.mediaroot;
 
-            const { tasks, ffmpeg } = this.config.trans;
-            let i = tasks.length;
-            const mediaroot = this.config.http.mediaroot;
+        while (i--) {
+            let taskConfig = _.cloneDeep(tasks[i]);
+            let sessionConfig: TransSessionConfig = {
+                ..._.cloneDeep(taskConfig),
+                ffmpeg,
+                mediaroot: mediaroot,
+                rtmpPort: this.config.rtmp.port,
+                streamPath: session.streamPath,
+                streamApp: app,
+                streamName: name,
+            };
+            sessionConfig.args = session.streamQuery;
 
-            while (i--) {
-                let taskConfig = _.cloneDeep(tasks[i]);
-                let sessionConfig: TransSessionConfig = {
-                    ..._.cloneDeep(taskConfig),
-                    ffmpeg,
-                    mediaroot: mediaroot,
-                    rtmpPort: this.config.rtmp.port,
-                    streamPath: session.streamPath,
-                    streamApp: app,
-                    streamName: name,
-                };
-                sessionConfig.args = session.streamQuery;
-
-                if (!checkSelectiveTask(taskConfig, app, session.streamPath)) {
-                    continue;
-                }
-
-                let sess = new NodeTransSession(sessionConfig);
-                let sessions = this.transSessions.get(session.id);
-                if (!sessions) {
-                    sessions = new Map();
-                    this.transSessions.set(sess.id, sessions);
-                }
-                sessions.set(sess.id, sess);
-                sess.on('end', () => {
-                    sessions.delete(sess.id);
-                });
-                sess.run();
+            if (!checkSelectiveTask(taskConfig, app, session.streamPath)) {
+                continue;
             }
-        }
-    }
 
-    onDonePublish(session: NodeSession<any, any>) {
-        const sessions = this.transSessions.get(session.id);
-        if (sessions) {
-            for (let [_, sess] of sessions) {
-                sess.end();
+            let sess = new NodeTransSession(sessionConfig);
+
+            if (session.broadcast) {
+                sess.broadcast = session.broadcast;
+                session.broadcast.subscribers.set(sess.id, sess);
             }
+
+            sess.run();
         }
     }
 
     stop() {
         super.stop();
 
-        context.nodeEvent.off('postPublish', this.onPostPublish);
-        context.nodeEvent.off('donePublish', this.onDonePublish);
-
-        for (let [id, sessions] of this.transSessions) {
-            for (let [_, session] of sessions) {
-                session.end();
-            }
-        }
-
-        Logger.log(`Node Media Trans Server stopped.`);
+        this.logger.log(`Node Media Trans Server stopped.`);
     }
 }
 

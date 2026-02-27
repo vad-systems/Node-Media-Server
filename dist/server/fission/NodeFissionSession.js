@@ -1,14 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeFissionSession = void 0;
-const index_js_1 = require("../../core/index.js");
 const NodeFfmpegSession_js_1 = require("../NodeFfmpegSession.js");
 class NodeFissionSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
     constructor(conf) {
         super(conf, '127.0.0.1', 'fission');
     }
     run() {
-        let inPath = `rtmp://${this.remoteIp}:${this.conf.rtmpPort}${this.conf.streamPath}`;
+        let inPath = this.getRtmpInputPath(this.conf.rtmpPort, this.conf.streamPath);
         let argv = ['-i', inPath];
         for (let m of this.conf.model) {
             let x264 = [
@@ -42,7 +41,7 @@ class NodeFissionSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
                 ...outPath,
             ];
         }
-        index_js_1.Logger.log('[fission]', `id=${this.id}`, 'cmd=ffmpeg', argv.join(' '));
+        this.logger.log('cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
 }

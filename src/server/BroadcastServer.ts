@@ -50,9 +50,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
     };
 
     public postPlay(session: S) {
-        if (session.remoteIp !== '') {
-            context.nodeEvent.emit('prePlay', session);
-        }
+        context.nodeEvent.emit('prePlay', session);
 
         const config = context.configProvider.getConfig();
 
@@ -62,9 +60,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
             }
         }
 
-        if (session.remoteIp !== '') {
-            context.nodeEvent.emit('postPlay', session);
-        }
+        context.nodeEvent.emit('postPlay', session);
 
         session.startTime = Date.now();
         this.subscribers.set(session.id, session);
@@ -72,9 +68,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
 
     public donePlay(session: S) {
         session.endTime = Date.now();
-        if (session.remoteIp !== '') {
-            context.nodeEvent.emit('donePlay', session);
-        }
+        context.nodeEvent.emit('donePlay', session);
         this.subscribers.delete(session.id);
     }
 
@@ -85,7 +79,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
 
         if (config.auth?.publish) {
             if (!this.verifyAuth(config.auth?.secret, session)) {
-                return `publish stream ${session.streamPath} authentication verification failed`;
+                throw new Error(`publish stream ${session.streamPath} authentication verification failed`);
             }
         }
 
@@ -93,16 +87,23 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
             session.startTime = Date.now();
             this.publisher = session;
         } else {
-            return `streamPath=${session.streamPath} already has a publisher`;
+            throw new Error(`streamPath=${session.streamPath} already has a publisher`);
         }
         context.nodeEvent.emit('postPublish', session);
-        return null;
     }
 
     public donePublish(session: S) {
         if (session === this.publisher) {
             session.endTime = Date.now();
             context.nodeEvent.emit('donePublish', session);
+
+            this.subscribers.forEach((subscriber) => {
+                if (subscriber.isFfmpegTask()) {
+                    subscriber.stop();
+                    this.subscribers.delete(subscriber.id);
+                }
+            });
+
             this.publisher = null;
         }
     }

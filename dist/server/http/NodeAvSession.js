@@ -3,22 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NodeHttpSession = void 0;
+exports.NodeAvSession = void 0;
 const ws_1 = __importDefault(require("ws"));
 const context_js_1 = __importDefault(require("../../core/context.js"));
 const flv_js_1 = __importDefault(require("../../core/protocol/flv.js"));
-const AvBroadcastServer_js_1 = __importDefault(require("../AvBroadcastServer.js"));
-const NodeAvSession_js_1 = require("../NodeAvSession.js");
-class NodeHttpSession extends NodeAvSession_js_1.NodeAvSession {
-    get avBroadcast() {
-        return this.broadcast;
-    }
+const BaseAvSession_js_1 = require("../BaseAvSession.js");
+class NodeAvSession extends BaseAvSession_js_1.BaseAvSession {
     constructor(config, remoteIp, protocol, info) {
         super(config, remoteIp, protocol);
         this.run = () => {
-            var _a;
-            this.broadcast = (_a = context_js_1.default.broadcasts.get(this.streamPath)) !== null && _a !== void 0 ? _a : new AvBroadcastServer_js_1.default();
-            context_js_1.default.broadcasts.set(this.streamPath, this.broadcast);
             if (this.res instanceof ws_1.default) {
                 this.res.on('message', this.onData);
                 this.res.on('close', this.onClose);
@@ -37,31 +30,6 @@ class NodeHttpSession extends NodeAvSession_js_1.NodeAvSession {
             }
             context_js_1.default.nodeEvent.emit('postConnect', this);
         };
-        this.onPlay = () => {
-            try {
-                this.broadcast.postPlay(this);
-            }
-            catch (err) {
-                this.logger.error(`${this.remoteIp} play ${this.streamPath} error, ${err}`);
-                this.stop();
-                return;
-            }
-            this.isPublisher = false;
-            this.logger.log(`${this.remoteIp} start play ${this.streamPath}`);
-        };
-        this.onPush = () => {
-            try {
-                this.broadcast.postPublish(this);
-            }
-            catch (err) {
-                this.logger.error(`${this.remoteIp} push ${this.streamPath} error, ${err}`);
-                this.stop();
-                return;
-            }
-            this.isPublisher = true;
-            this.flv.onPacketCallback = this.onPacket;
-            this.logger.log(`${this.remoteIp} start push ${this.streamPath}`);
-        };
         this.onData = (data) => {
             this.inBytes += data.length;
             try {
@@ -71,23 +39,6 @@ class NodeHttpSession extends NodeAvSession_js_1.NodeAvSession {
                 this.logger.error(`${this.remoteIp} parserData error, ${err}`);
                 this.stop();
             }
-        };
-        this.onClose = () => {
-            this.logger.log(`close`);
-            if (this.isPublisher) {
-                this.broadcast.donePublish(this);
-            }
-            else {
-                this.broadcast.donePlay(this);
-            }
-            context_js_1.default.nodeEvent.emit('doneConnect', this);
-            context_js_1.default.sessions.delete(this.id);
-        };
-        this.onError = (err) => {
-            this.logger.error(`${this.remoteIp} socket error, ${err}`);
-        };
-        this.onPacket = (packet) => {
-            this.avBroadcast.broadcastMessage(packet);
         };
         this.sendBuffer = (buffer) => {
             if (this.res instanceof ws_1.default) {
@@ -126,5 +77,9 @@ class NodeHttpSession extends NodeAvSession_js_1.NodeAvSession {
         this.req = req;
         this.res = res;
     }
+    onPush() {
+        super.onPush();
+        this.flv.onPacketCallback = this.onPacket;
+    }
 }
-exports.NodeHttpSession = NodeHttpSession;
+exports.NodeAvSession = NodeAvSession;

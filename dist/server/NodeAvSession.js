@@ -10,8 +10,6 @@ var Protocol;
 class NodeAvSession extends NodeSession_js_1.NodeSession {
     constructor(conf, remoteIp, protocol) {
         super(conf, remoteIp, protocol.toString());
-        this._streamPath = null;
-        this._streamQuery = null;
         this._audioCodec = null;
         this._audioProfile = null;
         this._audioChannels = null;
@@ -23,21 +21,7 @@ class NodeAvSession extends NodeSession_js_1.NodeSession {
         this._videoHeight = null;
         this._videoFramerate = null;
         this._videoDatarate = null;
-        this._startTime = null;
-        this._endTime = null;
         this.protocol = protocol;
-    }
-    set streamPath(path) {
-        this._streamPath = path;
-    }
-    get streamPath() {
-        return this._streamPath;
-    }
-    set streamQuery(query) {
-        this._streamQuery = query;
-    }
-    get streamQuery() {
-        return this._streamQuery;
     }
     set audioCodec(codec) {
         this._audioCodec = codec;
@@ -104,18 +88,6 @@ class NodeAvSession extends NodeSession_js_1.NodeSession {
     }
     get videoDatarate() {
         return this._videoDatarate;
-    }
-    set startTime(time) {
-        this._startTime = time;
-    }
-    get startTime() {
-        return this._startTime;
-    }
-    set endTime(time) {
-        this._endTime = time;
-    }
-    get endTime() {
-        return this._endTime;
     }
 }
 exports.NodeAvSession = NodeAvSession;

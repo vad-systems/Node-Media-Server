@@ -5,24 +5,21 @@ import fs, { PathLike } from 'fs';
 import Http from 'http';
 import H2EBridge from 'http2-express';
 import Https from 'https';
-import _ from 'lodash';
 import path from 'path';
 import WebSocket from 'ws';
 import relayRoute from '../../api/routes/relay.js';
 import serverRoute from '../../api/routes/server.js';
 import streamsRoute from '../../api/routes/streams.js';
-import { context, Logger } from '../../core/index.js';
-import NodeConfigurableServer from '../NodeConfigurableServer.js';
-import { NodeSession } from '../NodeSession.js';
-import { NodeHttpSession } from './NodeHttpSession.js';
-import { NodeRtmpSession } from '../rtmp/NodeRtmpSession.js';
-import { HttpSessionConfig, NodeConnectionType, NodeHttpRequest, NodeHttpResponse } from '../../types/index.js';
+import { context, LoggerFactory } from '../../core/index.js';
+import { Config } from '../../types/index.js';
+import { NodeAvServer } from './NodeAvServer.js';
+import { NodeAvSession } from './NodeAvSession.js';
 
 const DEFAULTHTTP_PORT = 80;
 const DEFAULT_HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
 
-class NodeHttpServer extends NodeConfigurableServer {
+class NodeHttpServer {
     private mediaroot: PathLike;
     private port: number;
     private httpServer: Http.Server;
@@ -31,15 +28,23 @@ class NodeHttpServer extends NodeConfigurableServer {
     private sport?: number;
     private httpsServer?: Https.Server;
     private wssServer?: WebSocket.Server;
+    public avServer: NodeAvServer;
+    private logger = LoggerFactory.getLogger('HTTP Server');
+    private config: Config;
 
     constructor() {
-        super();
-        this.onPostPlay = this.onPostPlay.bind(this);
-        this.onPostPublish = this.onPostPublish.bind(this);
-        this.onDoneConnect = this.onDoneConnect.bind(this);
+        this.config = context.configProvider.getConfig();
+        context.nodeEvent.on('configChanged', () => {
+            this.config = context.configProvider.getConfig();
+        });
+    }
+
+    public isRunning() {
+        return !!this.httpServer;
     }
 
     initServer() {
+        this.avServer = new NodeAvServer();
         this.port = this.config.http.port || DEFAULTHTTP_PORT;
         this.mediaroot = this.config.http.mediaroot || HTTP_MEDIAROOT;
 
@@ -59,17 +64,8 @@ class NodeHttpServer extends NodeConfigurableServer {
             req.method === 'OPTIONS' ? res.sendStatus(200) : next();
         });
 
-        app.get('/{*splat}.flv', (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
-            const nmsReq = {
-                req,
-                nmsConnectionType: NodeConnectionType.HTTP,
-                remoteAddress: req.ip,
-                remotePort: req.socket.remotePort,
-            };
-            const nmsRes = {
-                res,
-            };
-            this.handleConnect(nmsReq, nmsRes);
+        app.all('/{*splat}.flv', (req: Express.Request, res: Express.Response) => {
+            this.avServer.handleHttpRequest(req, res);
         });
 
         const adminEntry = path.join(__dirname + '/../../../public/admin/index.html');
@@ -113,118 +109,70 @@ class NodeHttpServer extends NodeConfigurableServer {
     }
 
     async run() {
-        await super.run();
-
         this.initServer();
+        await this.avServer.run();
 
         this.httpServer.listen(this.port, () => {
-            Logger.log(`Node Media Http Server started on port: ${this.port}`);
+            this.logger.log(`Node Media Http Server started on port: ${this.port}`);
         });
 
         this.httpServer.on('error', (e) => {
-            Logger.error(`Node Media Http Server ${e}`);
+            this.logger.error(`Node Media Http Server ${e}`);
         });
 
         this.httpServer.on('close', () => {
-            Logger.log('Node Media Http Server closed');
+            this.logger.log('Node Media Http Server closed');
         });
 
         this.wsServer = new WebSocket.Server({ server: this.httpServer });
 
         this.wsServer.on('connection', (ws: WebSocket.WebSocket, req: Http.IncomingMessage) => {
-            const nmsReq = {
-                req,
-                nmsConnectionType: NodeConnectionType.WS,
-                remoteAddress: req.socket.remoteAddress,
-                remotePort: req.socket.remotePort,
-            };
-            const nmsRes = {
-                res: ws,
-            };
-            this.handleConnect(nmsReq, nmsRes);
+            this.avServer.handleWsRequest(req, ws);
         });
 
         this.wsServer.on('listening', () => {
-            Logger.log(`Node Media WebSocket Server started on port: ${this.port}`);
+            this.logger.log(`Node Media WebSocket Server started on port: ${this.port}`);
         });
         this.wsServer.on('error', (e) => {
-            Logger.error(`Node Media WebSocket Server ${e}`);
+            this.logger.error(`Node Media WebSocket Server ${e}`);
         });
         this.wsServer.on('close', () => {
-            Logger.log(`Node Media WebSocket Server closed`);
+            this.logger.log(`Node Media WebSocket Server closed`);
         });
 
         if (this.httpsServer) {
             this.httpsServer.listen(this.sport, () => {
-                Logger.log(`Node Media Https Server started on port: ${this.sport}`);
+                this.logger.log(`Node Media Https Server started on port: ${this.sport}`);
             });
 
             this.httpsServer.on('error', (e) => {
-                Logger.error(`Node Media Https Server ${e}`);
+                this.logger.error(`Node Media Https Server ${e}`);
             });
 
             this.httpsServer.on('close', () => {
-                Logger.log('Node Media Https Server Close.');
+                this.logger.log('Node Media Https Server Close.');
             });
 
             this.wssServer = new WebSocket.Server({ server: this.httpsServer });
 
             this.wssServer.on('connection', (ws, req) => {
-                const nmsReq = {
-                    req,
-                    nmsConnectionType: NodeConnectionType.WS,
-                    remoteAddress: req.socket.remoteAddress,
-                    remotePort: req.socket.remotePort,
-                };
-                const nmsRes = {
-                    res: ws,
-                };
-                this.handleConnect(nmsReq, nmsRes);
+                this.avServer.handleWsRequest(req, ws);
             });
 
             this.wssServer.on('listening', () => {
-                Logger.log(`Node Media WebSocketSecure Server started on port: ${this.sport}`);
+                this.logger.log(`Node Media WebSocketSecure Server started on port: ${this.sport}`);
             });
             this.wssServer.on('error', (e) => {
-                Logger.error(`Node Media WebSocketSecure Server ${e}`);
+                this.logger.error(`Node Media WebSocketSecure Server ${e}`);
             });
             this.wssServer.on('close', () => {
-                Logger.log(`Node Media WebSocketSecure Server closed`);
+                this.logger.log(`Node Media WebSocketSecure Server closed`);
             });
-        }
-
-        context.nodeEvent.on('postPlay', this.onPostPlay);
-        context.nodeEvent.on('postPublish', this.onPostPublish);
-        context.nodeEvent.on('doneConnect', this.onDoneConnect);
-    }
-
-    onPostPlay(session: NodeSession<any, any>) {
-        context.stat.accepted++;
-    }
-
-    onPostPublish(session: NodeSession<any, any>) {
-        context.stat.accepted++;
-    }
-
-    onDoneConnect(session: NodeSession<any, any>) {
-        if (session instanceof NodeHttpSession) {
-            let socket = session.req.socket;
-            context.stat.inbytes += socket.bytesRead;
-            context.stat.outbytes += socket.bytesWritten;
-        } else if (session instanceof NodeRtmpSession) {
-            let socket = session.socket;
-            context.stat.inbytes += socket.bytesRead;
-            context.stat.outbytes += socket.bytesWritten;
         }
     }
 
     stop() {
-        super.stop();
-
-        context.nodeEvent.off('postPlay', this.onPostPlay);
-        context.nodeEvent.off('postPublish', this.onPostPublish);
-        context.nodeEvent.off('doneConnect', this.onDoneConnect);
-
+        this.avServer.stop();
         this.httpServer.close();
         if (this.httpsServer) {
             this.httpsServer.close();
@@ -236,22 +184,15 @@ class NodeHttpServer extends NodeConfigurableServer {
         }
 
         context.sessions.forEach((session, id) => {
-            if (session instanceof NodeHttpSession) {
+            if (session instanceof NodeAvSession) {
                 session.req.destroy();
                 context.sessions.delete(id);
             }
         });
 
-        Logger.log(`Node Media Http Server stopped.`);
+        this.logger.log(`Node Media Http Server stopped.`);
     }
 
-    handleConnect(req: NodeHttpRequest, res: NodeHttpResponse) {
-        const sessionConf: HttpSessionConfig = {
-            auth: _.cloneDeep(this.config.auth),
-        };
-        let session = new NodeHttpSession(sessionConf, req, res);
-        session.run();
-    }
 }
 
 export { NodeHttpServer };

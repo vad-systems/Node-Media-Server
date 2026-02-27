@@ -1,6 +1,5 @@
-import { Logger } from '../../core/index.js';
-import { NodeFfmpegSession } from '../NodeFfmpegSession.js';
 import { FissionSessionConfig } from '../../types/index.js';
+import { NodeFfmpegSession } from '../NodeFfmpegSession.js';
 
 class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig> {
     constructor(conf: FissionSessionConfig) {
@@ -8,7 +7,7 @@ class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig>
     }
 
     run() {
-        let inPath = `rtmp://${this.remoteIp}:${this.conf.rtmpPort}${this.conf.streamPath}`;
+        let inPath = this.getRtmpInputPath(this.conf.rtmpPort, this.conf.streamPath);
         let argv = ['-i', inPath];
         for (let m of this.conf.model) {
             let x264 = [
@@ -45,7 +44,7 @@ class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig>
             ];
         }
 
-        Logger.log('[fission]', `id=${this.id}`, 'cmd=ffmpeg', argv.join(' '));
+        this.logger.log('cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
 }

@@ -9,22 +9,31 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
         super(conf, remoteIp, tag);
         this.ffmpeg_exec = null;
     }
+    isFfmpegTask() {
+        return true;
+    }
+    getRtmpInputPath(port, streamPath) {
+        return `rtmp://127.0.0.1:${port}${streamPath}`;
+    }
     run(argv) {
         let argumentList = argv.filter(Boolean);
         this.ffmpeg_exec = (0, child_process_1.spawn)(this.conf.ffmpeg, argumentList);
+        this.startTime = Date.now();
         this.ffmpeg_exec.on('error', (e) => {
-            index_js_1.Logger.ffdebug(`[ffmpeg error] ${this.id}: ${e}`);
+            this.logger.ffdebug(`[ffmpeg error] ${e}`);
         });
         this.ffmpeg_exec.stdout.on('data', (data) => {
-            index_js_1.Logger.ffdebug(`[ffmpeg stdout] ${this.id}: ${data}`);
+            this.logger.ffdebug(`[ffmpeg stdout] ${data}`);
         });
         this.ffmpeg_exec.stderr.on('data', (data) => {
-            index_js_1.Logger.ffdebug(`[ffmpeg stderr] ${this.id}: ${data}`);
+            this.logger.ffdebug(`[ffmpeg stderr] ${data}`);
         });
         this.ffmpeg_exec.on('close', (code) => {
-            index_js_1.Logger.log(`[ffmpeg end] ${this.id}`);
+            this.logger.log(`[ffmpeg end]`);
             this.emit('end', this.id);
+            index_js_1.context.nodeEvent.emit('doneConnect', this);
         });
+        index_js_1.context.nodeEvent.emit('postConnect', this);
     }
     end() {
         this.ffmpeg_exec.kill();
@@ -33,6 +42,7 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
         this.end();
     }
     sendBuffer(buffer) {
+        this.outBytes += buffer.length;
     }
 }
 exports.NodeFfmpegSession = NodeFfmpegSession;

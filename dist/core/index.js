@@ -40,11 +40,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.context = exports.amf = exports.Bitop = exports.NodeCoreUtils = void 0;
-const amf = __importStar(require("./protocol/amf.js"));
-exports.amf = amf;
-const context_js_1 = __importDefault(require("./context.js"));
-exports.context = context_js_1.default;
 const bitop_js_1 = __importDefault(require("./bitop.js"));
 exports.Bitop = bitop_js_1.default;
+const context_js_1 = __importDefault(require("./context.js"));
+exports.context = context_js_1.default;
+const amf = __importStar(require("./protocol/amf.js"));
+exports.amf = amf;
 __exportStar(require("./logger.js"), exports);
 exports.NodeCoreUtils = __importStar(require("./utils.js"));

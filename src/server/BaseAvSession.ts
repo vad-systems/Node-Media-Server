@@ -1,13 +1,12 @@
+import context from '../core/context.js';
+import AVPacket from '../core/protocol/AVPacket.js';
 import { FlvAudioCodec, FlvVideoCodec } from '../core/protocol/flv.js';
 import { SessionConfig } from '../types/index.js';
+import AvBroadcastServer from './AvBroadcastServer.js';
 import { NodeSession } from './NodeSession.js';
+import { Protocol } from './Protocol.js';
 
-export enum Protocol {
-    RTMP = 'rtmp',
-    FLV = 'flv',
-}
-
-abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<A, T> {
+abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<A, T> {
     public readonly protocol: Protocol;
 
     private _audioCodec: FlvAudioCodec = null;
@@ -25,6 +24,68 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     protected constructor(conf: T, remoteIp: string, protocol: Protocol) {
         super(conf, remoteIp, protocol.toString());
         this.protocol = protocol;
+
+        this.onPlay = this.onPlay.bind(this);
+        this.onPush = this.onPush.bind(this);
+        this.onClose = this.onClose.bind(this);
+        this.onError = this.onError.bind(this);
+        this.onPacket = this.onPacket.bind(this);
+    }
+
+    protected get avBroadcast(): AvBroadcastServer<any, any> {
+        return this.broadcast as AvBroadcastServer<any, any>;
+    }
+
+    protected onPlay() {
+        try {
+            this.initBroadcast();
+            this.broadcast.postPlay(this);
+        } catch (err: any) {
+            this.logger.error(`${this.remoteIp} play ${this.streamPath} error, ${err}`);
+            this.stop();
+            return;
+        }
+        this.isPublisher = false;
+        this.logger.log(`${this.remoteIp} start play ${this.streamPath}`);
+    }
+
+    protected onPush() {
+        try {
+            this.initBroadcast();
+            this.broadcast.postPublish(this);
+        } catch (err: any) {
+            this.logger.error(`${this.remoteIp} push ${this.streamPath} error, ${err}`);
+            this.stop();
+            return;
+        }
+        this.isPublisher = true;
+        this.logger.log(`${this.remoteIp} start push ${this.streamPath}`);
+    }
+
+    protected onClose() {
+        this.logger.log(`close`);
+        if (this.isPublisher) {
+            this.broadcast?.donePublish(this);
+        } else {
+            this.broadcast?.donePlay(this);
+        }
+        context.nodeEvent.emit('doneConnect', this);
+        context.sessions.delete(this.id);
+    }
+
+    protected onError(err: any) {
+        this.logger.error(`${this.remoteIp} socket error, ${err}`);
+    }
+
+    protected onPacket(packet: AVPacket) {
+        this.avBroadcast?.broadcastMessage(packet);
+    }
+
+    private initBroadcast() {
+        if (!this.broadcast) {
+            this.broadcast = context.broadcasts.get(this.streamPath) as AvBroadcastServer<any, any> ?? new AvBroadcastServer();
+            context.broadcasts.set(this.streamPath, this.broadcast);
+        }
     }
 
     public set audioCodec(codec: FlvAudioCodec) {
@@ -116,4 +177,4 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     }
 }
 
-export { NodeAvSession };
+export { BaseAvSession };

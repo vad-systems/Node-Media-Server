@@ -3,10 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Logger = void 0;
+exports.Logger = exports.LoggerInstance = exports.LoggerFactory = void 0;
 const chalk_1 = __importDefault(require("chalk"));
-const context_js_1 = __importDefault(require("./context.js"));
 const index_js_1 = require("../types/index.js");
+const context_js_1 = __importDefault(require("./context.js"));
 let logType = index_js_1.LogType.NORMAL;
 let rollingLogLength = 20;
 const setLogType = (type) => {
@@ -30,54 +30,79 @@ const logTime = () => {
     let nowDate = new Date();
     return nowDate.toLocaleDateString() + ' ' + nowDate.toLocaleTimeString([], { hour12: false });
 };
-const log = (...args) => {
-    context_js_1.default.nodeEvent.emit('logMessage', ...args);
-    if (logType < index_js_1.LogType.NORMAL) {
-        return;
+class LoggerInstance {
+    constructor(prefix = '') {
+        this.prefix = prefix;
     }
-    const logEntry = [logTime(), process.pid, chalk_1.default.bold.green('[INFO]'), ...args];
-    console.log(...logEntry);
-    addRollingLog(...logEntry);
-};
-const error = (...args) => {
-    context_js_1.default.nodeEvent.emit('errorMessage', ...args);
-    if (logType < index_js_1.LogType.ERROR) {
-        return;
+    format(args) {
+        return this.prefix ? [`[${this.prefix}]`, ...args] : args;
     }
-    const logEntry = [logTime(), process.pid, chalk_1.default.bold.red('[ERROR]'), ...args];
-    console.log(...logEntry);
-    addRollingLog(...logEntry);
-};
-const warn = (...args) => {
-    context_js_1.default.nodeEvent.emit('warnMessage', ...args);
-    if (logType < index_js_1.LogType.ERROR) {
-        return;
+    error(...args) {
+        const formattedArgs = this.format(args);
+        context_js_1.default.nodeEvent.emit('errorMessage', ...formattedArgs);
+        if (logType < index_js_1.LogType.ERROR) {
+            return;
+        }
+        const logEntry = [logTime(), process.pid, chalk_1.default.bold.red('[ERROR]'), ...formattedArgs];
+        console.log(...logEntry);
+        addRollingLog(...logEntry);
     }
-    const logEntry = [logTime(), process.pid, chalk_1.default.bold.yellow('[WARN]'), ...args];
-    console.log(...logEntry);
-    addRollingLog(...logEntry);
-};
-const debug = (...args) => {
-    context_js_1.default.nodeEvent.emit('debugMessage', ...args);
-    if (logType < index_js_1.LogType.DEBUG) {
-        return;
+    warn(...args) {
+        const formattedArgs = this.format(args);
+        context_js_1.default.nodeEvent.emit('warnMessage', ...formattedArgs);
+        if (logType < index_js_1.LogType.WARN) {
+            return;
+        }
+        const logEntry = [logTime(), process.pid, chalk_1.default.bold.yellow('[WARN]'), ...formattedArgs];
+        console.log(...logEntry);
+        addRollingLog(...logEntry);
     }
-    const logEntry = [logTime(), process.pid, chalk_1.default.bold.blue('[DEBUG]'), ...args];
-    console.log(...logEntry);
-    addRollingLog(...logEntry);
-};
-const ffdebug = (...args) => {
-    context_js_1.default.nodeEvent.emit('ffDebugMessage', ...args);
-    if (logType < index_js_1.LogType.FFDEBUG) {
-        return;
+    log(...args) {
+        const formattedArgs = this.format(args);
+        context_js_1.default.nodeEvent.emit('logMessage', ...formattedArgs);
+        if (logType < index_js_1.LogType.NORMAL) {
+            return;
+        }
+        const logEntry = [logTime(), process.pid, chalk_1.default.bold.green('[INFO]'), ...formattedArgs];
+        console.log(...logEntry);
+        addRollingLog(...logEntry);
     }
-    const logEntry = [logTime(), process.pid, chalk_1.default.bold.blue('[FFDEBUG]'), ...args];
-    console.log(...logEntry);
-    addRollingLog(...logEntry);
-};
+    debug(...args) {
+        const formattedArgs = this.format(args);
+        context_js_1.default.nodeEvent.emit('debugMessage', ...formattedArgs);
+        if (logType < index_js_1.LogType.DEBUG) {
+            return;
+        }
+        const logEntry = [logTime(), process.pid, chalk_1.default.bold.blue('[DEBUG]'), ...formattedArgs];
+        console.log(...logEntry);
+        addRollingLog(...logEntry);
+    }
+    ffdebug(...args) {
+        const formattedArgs = this.format(args);
+        context_js_1.default.nodeEvent.emit('ffDebugMessage', ...formattedArgs);
+        if (logType < index_js_1.LogType.FFDEBUG) {
+            return;
+        }
+        const logEntry = [logTime(), process.pid, chalk_1.default.bold.blue('[FFDEBUG]'), ...formattedArgs];
+        console.log(...logEntry);
+        addRollingLog(...logEntry);
+    }
+}
+exports.LoggerInstance = LoggerInstance;
+class LoggerFactory {
+    static getLogger(prefix = '') {
+        return new LoggerInstance(prefix);
+    }
+}
+exports.LoggerFactory = LoggerFactory;
+const defaultLogger = new LoggerInstance();
 const Logger = {
     setLogType, setRollingLogLength,
-    log, warn, error, debug, ffdebug,
+    log: defaultLogger.log.bind(defaultLogger),
+    warn: defaultLogger.warn.bind(defaultLogger),
+    error: defaultLogger.error.bind(defaultLogger),
+    debug: defaultLogger.debug.bind(defaultLogger),
+    ffdebug: defaultLogger.ffdebug.bind(defaultLogger),
 };
 exports.Logger = Logger;
 exports.default = Logger;

@@ -1,9 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = require("lodash");
-/**
- * get all relay tasks
- */
 function getStreams(req, res, next) {
     let stats = {};
     this.sessions.forEach(function (session, id) {
@@ -22,15 +19,12 @@ function getStreams(req, res, next) {
             path: session.conf.inPath,
             url: session.conf.ouPath,
             mode: session.conf.mode,
-            ts: session.ts,
+            ts: Math.floor(session.startTime / 1000),
             id: id,
         });
     });
     res.json(stats);
 }
-/**
- * get relay task by id
- */
 function getStreamByID(req, res, next) {
     const relaySession = Array.from(this.sessions.values()).filter((session) => session.constructor.name === 'NodeRelaySession' &&
         req.params.id === session.id);
@@ -40,14 +34,11 @@ function getStreamByID(req, res, next) {
         path: item.conf.inPath,
         url: item.conf.ouPath,
         mode: item.conf.mode,
-        ts: item.ts,
+        ts: Math.floor(item.startTime / 1000),
         id: item.id,
     }));
     res.json(relays);
 }
-/**
- * get relay task by name
- */
 function getStreamByName(req, res, next) {
     const relaySession = Array.from(this.sessions.values()).filter((session) => session.constructor.name === 'NodeRelaySession' &&
         req.params.app === session.conf.app &&
@@ -57,14 +48,11 @@ function getStreamByName(req, res, next) {
         name: item.conf.name,
         url: item.conf.ouPath,
         mode: item.conf.mode,
-        ts: item.ts,
+        ts: Math.floor(item.startTime / 1000),
         id: item.id,
     }));
     res.json(relays);
 }
-/**
- * delete relay task
- */
 function delStream(req, res, next) {
     let relaySession = this.sessions.get(req.params.id);
     if (relaySession) {

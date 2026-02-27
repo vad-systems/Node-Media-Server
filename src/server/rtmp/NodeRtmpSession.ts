@@ -1,28 +1,18 @@
 import { Socket } from 'net';
 import context from '../../core/context.js';
-import logger from '../../core/logger.js';
-import AVPacket from '../../core/protocol/AVPacket.js';
 import Rtmp from '../../core/protocol/rtmp.js';
 import { RtmpSessionConfig } from '../../types/index.js';
-import AvBroadcastServer from '../AvBroadcastServer.js';
-import { NodeAvSession, Protocol } from '../NodeAvSession.js';
+import { BaseAvSession } from '../BaseAvSession.js';
+import { Protocol } from '../Protocol.js';
 
-class NodeRtmpSession extends NodeAvSession<never, RtmpSessionConfig> {
+class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     public readonly socket: Socket;
     private rtmp: Rtmp;
-    private broadcast: AvBroadcastServer<RtmpSessionConfig, NodeRtmpSession>;
-    private streamApp: string;
-    private streamName: string;
-    private streamHost: string;
-    private isPublisher: boolean;
-    private inBytes: number = 0;
-    private outBytes: number = 0;
 
     constructor(config: RtmpSessionConfig, socket: Socket) {
         super(config, socket.remoteAddress + ':' + socket.remotePort, Protocol.RTMP);
         this.socket = socket;
         this.rtmp = new Rtmp();
-        this.broadcast = new AvBroadcastServer();
     }
 
     run = () => {
@@ -34,6 +24,7 @@ class NodeRtmpSession extends NodeAvSession<never, RtmpSessionConfig> {
         this.socket.on('data', this.onData);
         this.socket.on('close', this.onClose);
         this.socket.on('error', this.onError);
+        context.nodeEvent.emit('postConnect', this);
     };
 
     onConnect = (req: { app: string, name: string, host: string, query: any }) => {
@@ -42,64 +33,21 @@ class NodeRtmpSession extends NodeAvSession<never, RtmpSessionConfig> {
         this.streamHost = req.host;
         this.streamPath = '/' + req.app + '/' + req.name;
         this.streamQuery = req.query;
-        this.broadcast = context.broadcasts.get(this.streamPath) as AvBroadcastServer<RtmpSessionConfig, NodeRtmpSession>
-            ?? new AvBroadcastServer();
-        context.broadcasts.set(this.streamPath, this.broadcast);
-    };
-
-    onPlay = () => {
-        try {
-            this.broadcast.postPlay(this);
-        } catch (err: any) {
-            logger.error(`RTMP session ${this.id} ${this.remoteIp} play ${this.streamPath} error, ${err}`);
-            this.socket.end();
-            return;
-        }
-
-        this.isPublisher = false;
-        logger.log(`RTMP session ${this.id} ${this.remoteIp} start play ${this.streamPath}`);
-    };
-
-    onPush = () => {
-        const err = this.broadcast.postPublish(this);
-        if (err != null) {
-            logger.error(`RTMP session ${this.id} ${this.remoteIp} push ${this.streamPath} error, ${err}`);
-            this.socket.end();
-            return;
-        }
-        this.isPublisher = true;
-        logger.log(`RTMP session ${this.id} ${this.remoteIp} start push ${this.streamPath}`);
     };
 
     onOutput = (buffer: Buffer) => {
+        this.outBytes += buffer.length;
         this.socket.write(buffer);
-    };
-
-    onPacket = (packet: AVPacket) => {
-        this.broadcast.broadcastMessage(packet);
     };
 
     onData = (data: Buffer) => {
         this.inBytes += data.length;
-        let err = this.rtmp.parserData(data);
-        if (err != null) {
-            logger.error(`RTMP session ${this.id} ${this.remoteIp} parserData error, ${err}`);
+        try {
+            this.rtmp.parserData(data);
+        } catch (err: any) {
+            this.logger.error(`${this.remoteIp} parserData error, ${err}`);
             this.socket.end();
         }
-    };
-
-    onClose = () => {
-        logger.log(`RTMP session ${this.id} close`);
-        if (this.isPublisher) {
-            this.broadcast.donePublish(this);
-        } else {
-            this.broadcast.donePlay(this);
-        }
-        context.sessions.delete(this.id);
-    };
-
-    onError = (error: Error) => {
-        logger.log(`RTMP session ${this.id} socket error, ${error.name}: ${error.message}`);
     };
 
     sendBuffer = (buffer: Buffer) => {

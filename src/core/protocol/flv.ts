@@ -1,6 +1,8 @@
 import { Buffer } from 'node:buffer';
-import logger from '../logger.js';
+import { LoggerFactory } from '../logger.js';
 import AVPacket from './AVPacket.js';
+
+const logger = LoggerFactory.getLogger('FLV Protocol');
 
 enum FlvMediaType {
     AUDIO = 8,
@@ -115,10 +117,10 @@ class Flv {
         this.parserPreviousBytes = 0;
     }
 
-    private onPacketCallback = (avpacket: AVPacket) => {
+    onPacketCallback = (avpacket: AVPacket) => {
     };
 
-    private parserData = (buffer: Buffer) => {
+    public parserData(buffer: Buffer) {
         let s = buffer.length;
         let n = 0;
         let p = 0;
@@ -191,14 +193,13 @@ class Flv {
                             );
                             this.onPacketCallback(packet);
                         } else {
-                            return 'flv tag parser error';
+                            throw new Error('flv tag parser error');
                         }
                     }
                     break;
             }
         }
-        return null;
-    };
+    }
 
     private parserTagAlloc = (size: number) => {
         if (this.parserTagCapacity < size) {

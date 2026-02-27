@@ -39,8 +39,9 @@ class Bitop {
     }
     read_golomb() {
         let n;
-        for (n = 0; this.read(1) == 0 && !this.iserro; n++)
+        for (n = 0; this.read(1) == 0 && !this.iserro; n++) {
             ;
+        }
         return Math.pow(2, n) + this.read(n) - 1;
     }
 }

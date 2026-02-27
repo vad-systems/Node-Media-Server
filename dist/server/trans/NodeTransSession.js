@@ -40,10 +40,9 @@ exports.NodeTransSession = void 0;
 const dateformat_1 = __importDefault(require("dateformat"));
 const fs_1 = __importDefault(require("fs"));
 const mkdirp = __importStar(require("mkdirp"));
-const index_js_1 = require("../../core/index.js");
 const NodeFfmpegSession_js_1 = require("../NodeFfmpegSession.js");
 const isHlsFile = (filename) => filename.endsWith('.ts') || filename.endsWith('.m3u8');
-const isTemFiles = (filename) => filename.endsWith('.tmp');
+const isTempFiles = (filename) => filename.endsWith('.tmp');
 const isDashFile = (filename) => filename.endsWith('.mpd') || filename.endsWith('.m4s');
 class NodeTransSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
     constructor(conf) {
@@ -61,19 +60,19 @@ class NodeTransSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
         const streamName = this.getConfig('streamName');
         const mediaroot = this.getConfig('mediaroot');
         const rtmpPort = this.getConfig('rtmpPort') || '1935';
-        const inPath = `rtmp://${this.remoteIp}:${rtmpPort}${streamPath}`;
+        const inPath = this.getRtmpInputPath(rtmpPort, streamPath);
         const ouPath = `${mediaroot}/${streamApp}/${streamName}`;
         let mapStr = '';
         if (isRtmp) {
             const rtmpApp = this.getConfig('rtmpApp');
             if (rtmpApp) {
                 if (rtmpApp === streamApp) {
-                    index_js_1.Logger.error('[Transmuxing RTMP] Cannot output to the same app.');
+                    this.logger.error('[Transmuxing RTMP] Cannot output to the same app.');
                 }
                 else {
                     let rtmpOutput = `rtmp://127.0.0.1:${rtmpPort}/${rtmpApp}/${streamName}`;
                     mapStr += `[f=flv]${rtmpOutput}|`;
-                    index_js_1.Logger.log(`[Transmuxing RTMP] ${streamPath} to ${rtmpOutput}`);
+                    this.logger.log(`[Transmuxing RTMP] ${streamPath} to ${rtmpOutput}`);
                 }
             }
         }
@@ -82,21 +81,21 @@ class NodeTransSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
             let mp4FileName = (0, dateformat_1.default)('yyyy-mm-dd-HH-MM-ss') + '.mp4';
             let mapMp4 = `${mp4Flags}${ouPath}/${mp4FileName}|`;
             mapStr += mapMp4;
-            index_js_1.Logger.log(`[Transmuxing MP4] ${streamPath} to ${ouPath}/${mp4FileName}`);
+            this.logger.log(`[Transmuxing MP4] ${streamPath} to ${ouPath}/${mp4FileName}`);
         }
         if (isHls) {
             const hlsFlags = this.getConfig('hlsFlags') || '';
             let hlsFileName = 'index.m3u8';
             let mapHls = `${hlsFlags}${ouPath}/${hlsFileName}|`;
             mapStr += mapHls;
-            index_js_1.Logger.log(`[Transmuxing HLS] ${streamPath} to ${ouPath}/${hlsFileName}`);
+            this.logger.log(`[Transmuxing HLS] ${streamPath} to ${ouPath}/${hlsFileName}`);
         }
         if (isDash) {
             const dashFlags = this.getConfig('dashFlags');
             let dashFileName = 'index.mpd';
             let mapDash = `${dashFlags}${ouPath}/${dashFileName}`;
             mapStr += mapDash;
-            index_js_1.Logger.log(`[Transmuxing DASH] ${streamPath} to ${ouPath}/${dashFileName}`);
+            this.logger.log(`[Transmuxing DASH] ${streamPath} to ${ouPath}/${dashFileName}`);
         }
         mkdirp.sync(ouPath);
         const vcParam = this.getConfig('vcParam');
@@ -114,11 +113,11 @@ class NodeTransSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
         ];
         let self = this;
         this.on('end', (id) => {
-            index_js_1.Logger.log('[trans]', `id=${id}`, 'end');
+            this.logger.log('end');
             self.cleanTempFiles(ouPath);
             self.deleteHlsFiles(ouPath);
         });
-        index_js_1.Logger.log('[trans]', `id=${this.id}`, 'cmd=ffmpeg', argv.join(' '));
+        this.logger.log('cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
     deleteHlsFiles(ouPath) {
@@ -144,12 +143,12 @@ class NodeTransSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
                 return;
             }
             if (self.getConfig('dashKeep')) {
-                files.filter((filename) => isTemFiles(filename)).forEach((filename) => {
+                files.filter((filename) => isTempFiles(filename)).forEach((filename) => {
                     fs_1.default.unlinkSync(`${ouPath}/${filename}`);
                 });
             }
             else {
-                files.filter((filename) => isTemFiles(filename) || isDashFile(filename)).forEach((filename) => {
+                files.filter((filename) => isTempFiles(filename) || isDashFile(filename)).forEach((filename) => {
                     fs_1.default.unlinkSync(`${ouPath}/${filename}`);
                 });
             }

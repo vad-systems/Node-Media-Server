@@ -39,9 +39,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_buffer_1 = require("node:buffer");
 const node_crypto_1 = __importDefault(require("node:crypto"));
 const querystring_1 = __importDefault(require("querystring"));
-const logger_js_1 = __importDefault(require("../logger.js"));
+const logger_js_1 = require("../logger.js");
 const AMF = __importStar(require("./amf.js"));
 const flv_js_1 = __importDefault(require("./flv.js"));
+const logger = logger_js_1.LoggerFactory.getLogger('RTMP Protocol');
 const RTMP_HANDSHAKE_SIZE = 1536;
 var RtmpHandshakeState;
 (function (RtmpHandshakeState) {
@@ -281,143 +282,6 @@ class Rtmp {
         };
         this.onOutputCallback = (buffer) => {
         };
-        this.parserData = (buffer) => {
-            let bytes = buffer.length;
-            let p = 0;
-            let n = 0;
-            while (bytes > 0) {
-                switch (this.handshakeState) {
-                    case RtmpHandshakeState.UNINIT:
-                        // logger.log('RTMP_HANDSHAKE_UNINIT');
-                        this.handshakeState = RtmpHandshakeState.HANDSHAKE_0;
-                        this.handshakeBytes = 0;
-                        bytes -= 1;
-                        p += 1;
-                        break;
-                    case RtmpHandshakeState.HANDSHAKE_0:
-                        // logger.log('RTMP_HANDSHAKE_0');
-                        n = RTMP_HANDSHAKE_SIZE - this.handshakeBytes;
-                        n = n <= bytes ? n : bytes;
-                        buffer.copy(this.handshakePayload, this.handshakeBytes, p, p + n);
-                        this.handshakeBytes += n;
-                        bytes -= n;
-                        p += n;
-                        if (this.handshakeBytes === RTMP_HANDSHAKE_SIZE) {
-                            this.handshakeState = RtmpHandshakeState.HANDSHAKE_1;
-                            this.handshakeBytes = 0;
-                            let s0s1s2 = generateS0S1S2(this.handshakePayload);
-                            this.onOutputCallback(s0s1s2);
-                        }
-                        break;
-                    case RtmpHandshakeState.HANDSHAKE_1:
-                        // logger.log('RTMP_HANDSHAKE_1');
-                        n = RTMP_HANDSHAKE_SIZE - this.handshakeBytes;
-                        n = n <= bytes ? n : bytes;
-                        buffer.copy(this.handshakePayload, this.handshakeBytes, p, n);
-                        this.handshakeBytes += n;
-                        bytes -= n;
-                        p += n;
-                        if (this.handshakeBytes === RTMP_HANDSHAKE_SIZE) {
-                            this.handshakeState = RtmpHandshakeState.HANDSHAKE_2;
-                            this.handshakeBytes = 0;
-                        }
-                        break;
-                    case RtmpHandshakeState.HANDSHAKE_2:
-                    default:
-                        return this.chunkRead(buffer, p, bytes);
-                }
-            }
-            return null;
-        };
-        this.chunkRead = (data, p, bytes) => {
-            let size = 0;
-            let offset = 0;
-            let extended_timestamp = 0;
-            while (offset < bytes) {
-                switch (this.parserState) {
-                    case RtmpParserState.INIT:
-                        this.parserBytes = 1;
-                        this.parserBuffer[0] = data[p + offset++];
-                        if (0 === (this.parserBuffer[0] & 0x3f)) {
-                            this.parserBasicBytes = 2;
-                        }
-                        else if (1 === (this.parserBuffer[0] & 0x3f)) {
-                            this.parserBasicBytes = 3;
-                        }
-                        else {
-                            this.parserBasicBytes = 1;
-                        }
-                        this.parserState = RtmpParserState.BASIC_HEADER;
-                        break;
-                    case RtmpParserState.BASIC_HEADER:
-                        while (this.parserBytes < this.parserBasicBytes && offset < bytes) {
-                            this.parserBuffer[this.parserBytes++] = data[p + offset++];
-                        }
-                        if (this.parserBytes >= this.parserBasicBytes) {
-                            this.parserState = RtmpParserState.MESSAGE_HEADER;
-                        }
-                        break;
-                    case RtmpParserState.MESSAGE_HEADER:
-                        size = rtmpHeaderSize[this.parserBuffer[0] >> 6] + this.parserBasicBytes;
-                        while (this.parserBytes < size && offset < bytes) {
-                            this.parserBuffer[this.parserBytes++] = data[p + offset++];
-                        }
-                        if (this.parserBytes >= size) {
-                            this.packetParse();
-                            this.parserState = RtmpParserState.EXTENDED_TIMESTAMP;
-                        }
-                        break;
-                    case RtmpParserState.EXTENDED_TIMESTAMP:
-                        size = rtmpHeaderSize[this.parserPacket.header.fmt] + this.parserBasicBytes;
-                        if (this.parserPacket.header.timestamp === 0xffffff) {
-                            size += 4;
-                        }
-                        while (this.parserBytes < size && offset < bytes) {
-                            this.parserBuffer[this.parserBytes++] = data[p + offset++];
-                        }
-                        if (this.parserBytes >= size) {
-                            if (this.parserPacket.header.timestamp === 0xffffff) {
-                                extended_timestamp = this.parserBuffer.readUInt32BE(rtmpHeaderSize[this.parserPacket.header.fmt] + this.parserBasicBytes);
-                            }
-                            else {
-                                extended_timestamp = this.parserPacket.header.timestamp;
-                            }
-                            if (this.parserPacket.bytes === 0) {
-                                if (RtmpChunk.TYPE_0 === this.parserPacket.header.fmt) {
-                                    this.parserPacket.clock = extended_timestamp;
-                                }
-                                else {
-                                    this.parserPacket.clock += extended_timestamp;
-                                }
-                                this.packetAlloc();
-                            }
-                            this.parserState = RtmpParserState.PAYLOAD;
-                        }
-                        break;
-                    case RtmpParserState.PAYLOAD:
-                        size = Math.min(this.inChunkSize - (this.parserPacket.bytes % this.inChunkSize), this.parserPacket.header.length - this.parserPacket.bytes);
-                        size = Math.min(size, bytes - offset);
-                        if (size > 0) {
-                            data.copy(this.parserPacket.payload, this.parserPacket.bytes, p + offset, p + offset + size);
-                        }
-                        this.parserPacket.bytes += size;
-                        offset += size;
-                        if (this.parserPacket.bytes >= this.parserPacket.header.length) {
-                            this.parserState = RtmpParserState.INIT;
-                            this.parserPacket.bytes = 0;
-                            if (this.parserPacket.clock > 0xffffffff) {
-                                break;
-                            }
-                            this.packetHandler();
-                        }
-                        else if (0 === this.parserPacket.bytes % this.inChunkSize) {
-                            this.parserState = RtmpParserState.INIT;
-                        }
-                        break;
-                }
-            }
-            return null;
-        };
         this.packetParse = () => {
             var _a;
             let fmt = this.parserBuffer[0] >> 6;
@@ -602,6 +466,142 @@ class Rtmp {
         this.outChunkSize = RTMP_MAX_CHUNK_SIZE;
         this.streams = 0;
     }
+    parserData(buffer) {
+        let bytes = buffer.length;
+        let p = 0;
+        let n = 0;
+        while (bytes > 0) {
+            switch (this.handshakeState) {
+                case RtmpHandshakeState.UNINIT:
+                    // logger.log('RTMP_HANDSHAKE_UNINIT');
+                    this.handshakeState = RtmpHandshakeState.HANDSHAKE_0;
+                    this.handshakeBytes = 0;
+                    bytes -= 1;
+                    p += 1;
+                    break;
+                case RtmpHandshakeState.HANDSHAKE_0:
+                    // logger.log('RTMP_HANDSHAKE_0');
+                    n = RTMP_HANDSHAKE_SIZE - this.handshakeBytes;
+                    n = n <= bytes ? n : bytes;
+                    buffer.copy(this.handshakePayload, this.handshakeBytes, p, p + n);
+                    this.handshakeBytes += n;
+                    bytes -= n;
+                    p += n;
+                    if (this.handshakeBytes === RTMP_HANDSHAKE_SIZE) {
+                        this.handshakeState = RtmpHandshakeState.HANDSHAKE_1;
+                        this.handshakeBytes = 0;
+                        let s0s1s2 = generateS0S1S2(this.handshakePayload);
+                        this.onOutputCallback(s0s1s2);
+                    }
+                    break;
+                case RtmpHandshakeState.HANDSHAKE_1:
+                    // logger.log('RTMP_HANDSHAKE_1');
+                    n = RTMP_HANDSHAKE_SIZE - this.handshakeBytes;
+                    n = n <= bytes ? n : bytes;
+                    buffer.copy(this.handshakePayload, this.handshakeBytes, p, n);
+                    this.handshakeBytes += n;
+                    bytes -= n;
+                    p += n;
+                    if (this.handshakeBytes === RTMP_HANDSHAKE_SIZE) {
+                        this.handshakeState = RtmpHandshakeState.HANDSHAKE_2;
+                        this.handshakeBytes = 0;
+                    }
+                    break;
+                case RtmpHandshakeState.HANDSHAKE_2:
+                default:
+                    this.chunkRead(buffer, p, bytes);
+                    return;
+            }
+        }
+    }
+    chunkRead(data, p, bytes) {
+        let size = 0;
+        let offset = 0;
+        let extended_timestamp = 0;
+        while (offset < bytes) {
+            switch (this.parserState) {
+                case RtmpParserState.INIT:
+                    this.parserBytes = 1;
+                    this.parserBuffer[0] = data[p + offset++];
+                    if (0 === (this.parserBuffer[0] & 0x3f)) {
+                        this.parserBasicBytes = 2;
+                    }
+                    else if (1 === (this.parserBuffer[0] & 0x3f)) {
+                        this.parserBasicBytes = 3;
+                    }
+                    else {
+                        this.parserBasicBytes = 1;
+                    }
+                    this.parserState = RtmpParserState.BASIC_HEADER;
+                    break;
+                case RtmpParserState.BASIC_HEADER:
+                    while (this.parserBytes < this.parserBasicBytes && offset < bytes) {
+                        this.parserBuffer[this.parserBytes++] = data[p + offset++];
+                    }
+                    if (this.parserBytes >= this.parserBasicBytes) {
+                        this.parserState = RtmpParserState.MESSAGE_HEADER;
+                    }
+                    break;
+                case RtmpParserState.MESSAGE_HEADER:
+                    size = rtmpHeaderSize[this.parserBuffer[0] >> 6] + this.parserBasicBytes;
+                    while (this.parserBytes < size && offset < bytes) {
+                        this.parserBuffer[this.parserBytes++] = data[p + offset++];
+                    }
+                    if (this.parserBytes >= size) {
+                        this.packetParse();
+                        this.parserState = RtmpParserState.EXTENDED_TIMESTAMP;
+                    }
+                    break;
+                case RtmpParserState.EXTENDED_TIMESTAMP:
+                    size = rtmpHeaderSize[this.parserPacket.header.fmt] + this.parserBasicBytes;
+                    if (this.parserPacket.header.timestamp === 0xffffff) {
+                        size += 4;
+                    }
+                    while (this.parserBytes < size && offset < bytes) {
+                        this.parserBuffer[this.parserBytes++] = data[p + offset++];
+                    }
+                    if (this.parserBytes >= size) {
+                        if (this.parserPacket.header.timestamp === 0xffffff) {
+                            extended_timestamp = this.parserBuffer.readUInt32BE(rtmpHeaderSize[this.parserPacket.header.fmt] + this.parserBasicBytes);
+                        }
+                        else {
+                            extended_timestamp = this.parserPacket.header.timestamp;
+                        }
+                        if (this.parserPacket.bytes === 0) {
+                            if (RtmpChunk.TYPE_0 === this.parserPacket.header.fmt) {
+                                this.parserPacket.clock = extended_timestamp;
+                            }
+                            else {
+                                this.parserPacket.clock += extended_timestamp;
+                            }
+                            this.packetAlloc();
+                        }
+                        this.parserState = RtmpParserState.PAYLOAD;
+                    }
+                    break;
+                case RtmpParserState.PAYLOAD:
+                    size = Math.min(this.inChunkSize - (this.parserPacket.bytes % this.inChunkSize), this.parserPacket.header.length - this.parserPacket.bytes);
+                    size = Math.min(size, bytes - offset);
+                    if (size > 0) {
+                        data.copy(this.parserPacket.payload, this.parserPacket.bytes, p + offset, p + offset + size);
+                    }
+                    this.parserPacket.bytes += size;
+                    offset += size;
+                    if (this.parserPacket.bytes >= this.parserPacket.header.length) {
+                        this.parserState = RtmpParserState.INIT;
+                        this.parserPacket.bytes = 0;
+                        if (this.parserPacket.clock > 0xffffffff) {
+                            break;
+                        }
+                        this.packetHandler();
+                    }
+                    else if (0 === this.parserPacket.bytes % this.inChunkSize) {
+                        this.parserState = RtmpParserState.INIT;
+                    }
+                    break;
+            }
+        }
+    }
     invokeHandler() {
         let offset = this.parserPacket.header.type === RtmpType.FLEX_MESSAGE ? 1 : 0;
         let payload = this.parserPacket.payload.subarray(offset, this.parserPacket.header.length);
@@ -623,7 +623,7 @@ class Rtmp {
                 this.onDeleteStream(invokeMessage);
                 break;
             default:
-                logger_js_1.default.warn(`unhandled invoke message ${invokeMessage.cmd}`);
+                logger.debug(`unhandled invoke message ${invokeMessage.cmd}`);
                 break;
         }
     }

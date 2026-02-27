@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const os_1 = __importDefault(require("os"));
-const Package = require("../../../package.json");
+const Package = require('../../../package.json');
 function cpuAverage() {
     let totalIdle = 0, totalTick = 0;
     let cpus = os_1.default.cpus();
@@ -38,24 +38,20 @@ function getSessionsInfo(sessions) {
         ws: 0,
     };
     for (let session of sessions.values()) {
-        if (session.TAG === "relay") {
+        if (session.isFfmpegTask()) {
             continue;
         }
-        if (session.TAG === "fission") {
-            continue;
-        }
-        let socket = session.TAG === "rtmp" ? session.socket : session.req.socket;
-        info.inbytes += socket.bytesRead;
-        info.outbytes += socket.bytesWritten;
-        info.rtmp += session.TAG === "rtmp" ? 1 : 0;
-        info.http += session.TAG === "http-flv" ? 1 : 0;
-        info.ws += session.TAG === "websocket-flv" ? 1 : 0;
+        info.inbytes += session.inBytes;
+        info.outbytes += session.outBytes;
+        info.rtmp += session.TAG === 'rtmp' ? 1 : 0;
+        info.http += session.TAG === 'http-flv' ? 1 : 0;
+        info.ws += session.TAG === 'websocket-flv' ? 1 : 0;
     }
     return info;
 }
 function getConfig(req, res, next) {
     const config = this.configProvider.getConfig();
-    const { http, https, rtmp, trans, relay, fission } = config;
+    const { http, https, rtmp, trans, relay, fission, } = config;
     const response = {
         http: {
             mediaroot: http === null || http === void 0 ? void 0 : http.mediaroot,
@@ -79,25 +75,28 @@ function getConfig(req, res, next) {
     res.json(response);
 }
 function updateConfig(req, res, next) {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
 }
 function getStatus(req, res, next) {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f;
     const response = {
+        av: {
+            running: ((_a = this.server.avServer) === null || _a === void 0 ? void 0 : _a.isRunning()) || false,
+        },
         fission: {
-            running: ((_a = this.server.fissionServer) === null || _a === void 0 ? void 0 : _a.isRunning()) || false,
+            running: ((_b = this.server.fissionServer) === null || _b === void 0 ? void 0 : _b.isRunning()) || false,
         },
         http: {
-            running: ((_b = this.server.httpServer) === null || _b === void 0 ? void 0 : _b.isRunning()) || false,
+            running: ((_c = this.server.httpServer) === null || _c === void 0 ? void 0 : _c.isRunning()) || false,
         },
         relay: {
-            running: ((_c = this.server.relayServer) === null || _c === void 0 ? void 0 : _c.isRunning()) || false,
+            running: ((_d = this.server.relayServer) === null || _d === void 0 ? void 0 : _d.isRunning()) || false,
         },
         rtmp: {
-            running: ((_d = this.server.rtmpServer) === null || _d === void 0 ? void 0 : _d.isRunning()) || false,
+            running: ((_e = this.server.rtmpServer) === null || _e === void 0 ? void 0 : _e.isRunning()) || false,
         },
         trans: {
-            running: ((_e = this.server.transServer) === null || _e === void 0 ? void 0 : _e.isRunning()) || false,
+            running: ((_f = this.server.transServer) === null || _f === void 0 ? void 0 : _f.isRunning()) || false,
         },
     };
     res.json(response);

@@ -1,13 +1,9 @@
-import { Logger } from '../../core/index.js';
-import { NodeFfmpegSession } from '../NodeFfmpegSession.js';
 import { RelaySessionConfig, RtspTransport } from '../../types/index.js';
+import { NodeFfmpegSession } from '../NodeFfmpegSession.js';
 
 class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
-    ts = null;
-
     constructor(conf: RelaySessionConfig) {
         super(conf, '127.0.0.1', 'relay');
-        this.ts = Date.now() / 1000 | 0;
     }
 
     run() {
@@ -36,7 +32,7 @@ class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
             }
         }
 
-        Logger.log('[relay]', `id=${this.id}`, 'cmd=ffmpeg', argv.join(' '));
+        this.logger.log('cmd=ffmpeg', argv.join(' '));
         super.run(argv);
     }
 }

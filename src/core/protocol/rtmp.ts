@@ -1,10 +1,12 @@
 import { Buffer } from 'node:buffer';
 import crypto from 'node:crypto';
 import QueryString, { ParsedUrlQuery } from 'querystring';
-import logger from '../logger.js';
+import { LoggerFactory } from '../logger.js';
 import * as AMF from './amf.js';
 import AVPacket from './AVPacket.js';
 import Flv from './flv.js';
+
+const logger = LoggerFactory.getLogger('RTMP Protocol');
 
 const RTMP_HANDSHAKE_SIZE = 1536;
 
@@ -331,7 +333,7 @@ class Rtmp {
     onOutputCallback = (buffer: Buffer) => {
     };
 
-    parserData = (buffer: Buffer) => {
+    public parserData(buffer: Buffer) {
         let bytes = buffer.length;
         let p = 0;
         let n = 0;
@@ -374,11 +376,11 @@ class Rtmp {
                     break;
                 case RtmpHandshakeState.HANDSHAKE_2:
                 default:
-                    return this.chunkRead(buffer, p, bytes);
+                    this.chunkRead(buffer, p, bytes);
+                    return;
             }
         }
-        return null;
-    };
+    }
 
     static createMessage = (avpacket: AVPacket) => {
         let rtmpPacket = new RtmpPacket();
@@ -514,7 +516,7 @@ class Rtmp {
         return chunks;
     };
 
-    chunkRead = (data: Buffer, p: number, bytes: number) => {
+    private chunkRead(data: Buffer, p: number, bytes: number) {
         let size = 0;
         let offset = 0;
         let extended_timestamp = 0;
@@ -605,8 +607,7 @@ class Rtmp {
                     break;
             }
         }
-        return null;
-    };
+    }
 
 
     packetParse = () => {
@@ -725,7 +726,7 @@ class Rtmp {
                 this.onDeleteStream(invokeMessage);
                 break;
             default:
-                logger.warn(`unhandled invoke message ${invokeMessage.cmd}`);
+                logger.debug(`unhandled invoke message ${invokeMessage.cmd}`);
                 break;
         }
     }

@@ -2,7 +2,7 @@ import { PathLike } from 'fs';
 import { SessionConfig } from '../session.js';
 import { AuthConfig } from './index.js';
 
-export type HttpSessionConfig = SessionConfig<never> & {
+export type AvSessionConfig = SessionConfig<never> & {
     readonly auth?: AuthConfig;
 }
 

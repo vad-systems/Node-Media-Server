@@ -14,7 +14,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
             name,
             publisher: broadcast.publisher ? {
                 app,
-                strean: name,
+                stream: name,
                 clientId: broadcast.publisher.id,
                 ip: broadcast.publisher.remoteIp,
                 protocol: broadcast.publisher.protocol,
@@ -37,116 +37,50 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
             } : null,
             subscribers: [...broadcast.subscribers.values()].map(
                 subscriber => {
-                    switch (subscriber.constructor.name) {
-                        case 'NodeRtmpSession': {
+                    switch (subscriber.TAG) {
+                        case 'rtmp': {
                             return {
                                 app,
                                 stream: name,
                                 clientId: subscriber.id,
-                                connectCreated: subscriber.connectTime,
-                                bytes: subscriber.socket.bytesWritten,
+                                connectCreated: subscriber.startTime,
+                                bytes: subscriber.outBytes,
                                 ip: subscriber.remoteIp,
                                 protocol: 'rtmp',
                             };
                         }
-                        case 'NodeHttpSession': {
+                        case 'http-flv':
+                        case 'websocket-flv': {
                             return {
                                 app,
                                 stream: name,
                                 clientId: subscriber.id,
-                                connectCreated: subscriber.connectTime,
-                                bytes: subscriber.req.connection.bytesWritten,
+                                connectCreated: subscriber.startTime,
+                                bytes: subscriber.outBytes,
                                 ip: subscriber.remoteIp,
                                 protocol: subscriber.TAG === 'websocket-flv' ? 'ws' : 'http',
                             };
                         }
+                        case 'relay':
+                        case 'trans':
+                        case 'fission': {
+                            return {
+                                app,
+                                stream: name,
+                                clientId: subscriber.id,
+                                connectCreated: subscriber.startTime,
+                                bytes: subscriber.outBytes,
+                                ip: subscriber.remoteIp,
+                                protocol: subscriber.TAG,
+                            };
+                        }
                     }
                     return null;
-                }
-            ).filter(Boolean)
+                },
+            ).filter(Boolean),
         });
     });
 
-    this.sessions.forEach(function (session: any, id) {
-        if (session.isStarting) {
-            let regRes = /\/(.*)\/(.*)/gi.exec(
-                session.publishStreamPath || session.playStreamPath,
-            );
-
-            if (regRes === null) {
-                return;
-            }
-
-            let [app, stream] = _.slice(regRes, 1);
-
-            if (!_.get(stats, [app, stream])) {
-                _.setWith(stats, [app, stream], {
-                    publisher: null,
-                    subscribers: [],
-                }, Object);
-            }
-
-            switch (true) {
-                case session.isPublishing: {
-                    _.setWith(stats, [app, stream, 'publisher'], {
-                        app: app,
-                        stream: stream,
-                        clientId: session.id,
-                        connectCreated: session.connectTime,
-                        bytes: session.socket.bytesRead,
-                        ip: session.socket.remoteAddress,
-                        audio: session.audioCodec > 0 ? {
-                            codec: session.audioCodecName,
-                            profile: session.audioProfileName,
-                            samplerate: session.audioSamplerate,
-                            channels: session.audioChannels,
-                        } : null,
-                        video: session.videoCodec > 0 ? {
-                            codec: session.videoCodecName,
-                            width: session.videoWidth,
-                            height: session.videoHeight,
-                            profile: session.videoProfileName,
-                            level: session.videoLevel,
-                            fps: session.videoFps,
-                        } : null,
-                    }, Object);
-                    break;
-                }
-                case !!session.playStreamPath: {
-                    switch (session.constructor.name) {
-                        case 'NodeRtmpSession': {
-                            stats[app][stream]['subscribers'].push({
-                                app: app,
-                                stream: stream,
-                                clientId: session.id,
-                                connectCreated: session.connectTime,
-                                bytes: session.socket.bytesWritten,
-                                ip: session.socket.remoteAddress,
-                                protocol: 'rtmp',
-                            });
-
-                            break;
-                        }
-                        case 'NodeHttpSession': {
-                            stats[app][stream]['subscribers'].push({
-                                app: app,
-                                stream: stream,
-                                clientId: session.id,
-                                connectCreated: session.connectTime,
-                                bytes: session.req.connection.bytesWritten,
-                                ip: session.req.connection.remoteAddress,
-                                protocol: session.TAG === 'websocket-flv' ? 'ws' : 'http',
-                            });
-
-                            break;
-                        }
-                    }
-
-                    break;
-                }
-            }
-        }
-    });
     res.json(stats);
 }
 
@@ -161,29 +95,24 @@ function getStream(this: Context, req: Request, res: Response, next: NextFunctio
     };
 
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
+    let broadcast = this.broadcasts.get(publishStreamPath);
 
     let publisherSession: any = this.sessions.get(
-        this.publishers.get(publishStreamPath),
+        broadcast?.publisher?.id,
     );
 
     streamStats.isLive = !!publisherSession;
-    streamStats.viewers = _.filter(
-        Array.from(this.sessions.values()),
-        (session: any) => {
-            return session.playStreamPath === publishStreamPath;
-        },
-    ).length;
+    streamStats.viewers = broadcast?.subscribers?.size || 0;
     streamStats.duration = streamStats.isLive
         ? Math.ceil((
-            Date.now() - publisherSession.startTimestamp
+            Date.now() - publisherSession.startTime
         ) / 1000)
         : 0;
-    streamStats.bitrate =
-        streamStats.duration > 0 ? publisherSession.bitrate : 0;
+    streamStats.bitrate = 0;
     streamStats.startTime = streamStats.isLive
-        ? publisherSession.connectTime
+        ? publisherSession.startTime
         : null;
-    streamStats.arguments = !!publisherSession ? publisherSession.publishArgs : {};
+    streamStats.arguments = !!publisherSession ? publisherSession.streamQuery : {};
 
     res.json(streamStats);
 }
@@ -191,7 +120,7 @@ function getStream(this: Context, req: Request, res: Response, next: NextFunctio
 function delStream(this: Context, req: Request, res: Response, next: NextFunction) {
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
     let publisherSession = this.sessions.get(
-        this.publishers.get(publishStreamPath),
+        this.broadcasts.get(publishStreamPath)?.publisher?.id,
     );
 
     if (publisherSession) {

@@ -48,17 +48,38 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = __importDefault(require("lodash"));
 const index_js_1 = require("./core/index.js");
 const NodeFissionServer_js_1 = require("./server/fission/NodeFissionServer.js");
+const NodeAvSession_js_1 = require("./server/http/NodeAvSession.js");
 const NodeHttpServer_js_1 = require("./server/http/NodeHttpServer.js");
 const NodeRelayServer_js_1 = require("./server/relay/NodeRelayServer.js");
 const NodeRtmpServer_js_1 = require("./server/rtmp/NodeRtmpServer.js");
+const NodeRtmpSession_js_1 = require("./server/rtmp/NodeRtmpSession.js");
 const NodeTransServer_js_1 = require("./server/trans/NodeTransServer.js");
 const types = __importStar(require("./types/index.js"));
 const index_js_2 = require("./types/index.js");
 const Package = require('../package.json');
 class NodeMediaServer {
     constructor(config) {
+        this.logger = index_js_1.LoggerFactory.getLogger('Core');
         this.updateConfig(config);
         index_js_1.context.server = this;
+        index_js_1.context.nodeEvent.on('postPlay', (session) => {
+            index_js_1.context.stat.accepted++;
+        });
+        index_js_1.context.nodeEvent.on('postPublish', (session) => {
+            index_js_1.context.stat.accepted++;
+        });
+        index_js_1.context.nodeEvent.on('doneConnect', (session) => {
+            if (session instanceof NodeAvSession_js_1.NodeAvSession) {
+                let socket = session.req.socket;
+                index_js_1.context.stat.inbytes += socket.bytesRead;
+                index_js_1.context.stat.outbytes += socket.bytesWritten;
+            }
+            else if (session instanceof NodeRtmpSession_js_1.NodeRtmpSession) {
+                let socket = session.socket;
+                index_js_1.context.stat.inbytes += socket.bytesRead;
+                index_js_1.context.stat.outbytes += socket.bytesWritten;
+            }
+        });
     }
     updateConfig(config) {
         index_js_1.context.configProvider.setConfig(new index_js_2.Config(lodash_1.default.cloneDeep(config)));
@@ -67,7 +88,7 @@ class NodeMediaServer {
         return __awaiter(this, void 0, void 0, function* () {
             const config = index_js_1.context.configProvider.getConfig();
             index_js_1.Logger.setLogType(config.logType);
-            index_js_1.Logger.log(`Node Media Server v${Package.version}`);
+            this.logger.log(`Node Media Server v${Package.version}`);
             if (config.rtmp) {
                 this.rtmpServer = new NodeRtmpServer_js_1.NodeRtmpServer();
                 yield this.rtmpServer.run();
@@ -75,11 +96,12 @@ class NodeMediaServer {
             if (config.http) {
                 this.httpServer = new NodeHttpServer_js_1.NodeHttpServer();
                 yield this.httpServer.run();
+                this.avServer = this.httpServer.avServer;
             }
             const processorsRunning = [];
             if (config.trans) {
                 if (config.cluster) {
-                    index_js_1.Logger.log('NodeTransServer does not work in cluster mode');
+                    this.logger.log('NodeTransServer does not work in cluster mode');
                 }
                 else {
                     this.transServer = new NodeTransServer_js_1.NodeTransServer();
@@ -88,7 +110,7 @@ class NodeMediaServer {
             }
             if (config.relay) {
                 if (config.cluster) {
-                    index_js_1.Logger.log('NodeRelayServer does not work in cluster mode');
+                    this.logger.log('NodeRelayServer does not work in cluster mode');
                 }
                 else {
                     this.relayServer = new NodeRelayServer_js_1.NodeRelayServer();
@@ -97,15 +119,15 @@ class NodeMediaServer {
             }
             if (config.fission) {
                 if (config.cluster) {
-                    index_js_1.Logger.log('NodeFissionServer does not work in cluster mode');
+                    this.logger.log('NodeFissionServer does not work in cluster mode');
                 }
                 else {
                     this.fissionServer = new NodeFissionServer_js_1.NodeFissionServer();
                     processorsRunning.push(this.fissionServer.run());
                 }
             }
-            process.on('uncaughtException', function (err) {
-                index_js_1.Logger.error('uncaughtException', err);
+            process.on('uncaughtException', (err) => {
+                this.logger.error('uncaughtException', err);
             });
             process.on('SIGINT', function () {
                 process.exit();

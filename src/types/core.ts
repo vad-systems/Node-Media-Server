@@ -11,15 +11,15 @@ export type Arguments = {
 };
 
 export type NodeEventMap = {
-    preConnect: [NodeSession<any, any>];
-    postConnect: [NodeSession<any, any>];
-    prePlay: [NodeSession<any, any>];
-    postPlay: [NodeSession<any, any>];
-    donePlay: [NodeSession<any, any>];
-    doneConnect: [NodeSession<any, any>];
-    prePublish: [NodeSession<any, any>];
-    postPublish: [NodeSession<any, any>];
-    donePublish: [NodeSession<any, any>];
+    preConnect: [NodeSession<any, any, any>];
+    postConnect: [NodeSession<any, any, any>];
+    prePlay: [NodeSession<any, any, any>];
+    postPlay: [NodeSession<any, any, any>];
+    donePlay: [NodeSession<any, any, any>];
+    doneConnect: [NodeSession<any, any, any>];
+    prePublish: [NodeSession<any, any, any>];
+    postPublish: [NodeSession<any, any, any>];
+    donePublish: [NodeSession<any, any, any>];
     configChanged: [];
     logMessage: any[];
     errorMessage: any[];
@@ -40,7 +40,6 @@ export enum LogType {
 export type Context = {
     server: NodeMediaServer | null,
     sessions: Map<SessionID, NodeSession<any, any>>;
-    publishers: Map<string, SessionID>;
     broadcasts: Map<string, BroadcastServer<any, any>>;
     idlePlayers: Set<SessionID>;
     nodeEvent: EventEmitter<NodeEventMap>;

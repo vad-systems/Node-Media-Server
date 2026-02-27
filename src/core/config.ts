@@ -1,13 +1,14 @@
 import { PathLike, readFileSync } from 'fs';
 import { writeFileSync } from 'node:fs';
-import { Config } from '../types/index.js';
 import context from '../core/context.js';
+import { Config } from '../types/index.js';
 
 class ConfigProvider {
     private configLocation: PathLike = undefined;
     private config: Config = undefined;
 
-    constructor() {}
+    constructor() {
+    }
 
     public getConfig(): Config {
         if (!this.isLoaded()) {
@@ -48,7 +49,7 @@ class ConfigProvider {
         }
         writeFileSync(
             this.configLocation,
-            JSON.stringify(this.config, undefined, 4)
+            JSON.stringify(this.config, undefined, 4),
         );
     }
 }

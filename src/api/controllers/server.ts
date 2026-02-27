@@ -1,8 +1,8 @@
-import OS from 'os';
 import { NextFunction, Request, Response } from 'express';
+import OS from 'os';
 import { Context } from '../../types/index.js';
 
-const Package = require("../../../package.json");
+const Package = require('../../../package.json');
 
 function cpuAverage() {
     let totalIdle = 0, totalTick = 0;
@@ -11,7 +11,9 @@ function cpuAverage() {
     for (let i = 0, len = cpus.length; i < len; i++) {
         let cpu = cpus[i];
         for (let type in cpu.times) {
-            totalTick += (cpu.times as any)[type];
+            totalTick += (
+                cpu.times as any
+            )[type];
         }
         totalIdle += cpu.times.idle;
     }
@@ -27,7 +29,9 @@ function percentageCPU(): Promise<number> {
             let idleDifference = endMeasure.idle - startMeasure.idle;
             let totalDifference = endMeasure.total - startMeasure.total;
 
-            let percentageCPU = 100 - ~~(100 * idleDifference / totalDifference);
+            let percentageCPU = 100 - ~~(
+                100 * idleDifference / totalDifference
+            );
             resolve(percentageCPU);
         }, 100);
     });
@@ -43,18 +47,14 @@ function getSessionsInfo(sessions: Context['sessions']) {
     };
 
     for (let session of sessions.values()) {
-        if (session.TAG === "relay") {
+        if (session.isFfmpegTask()) {
             continue;
         }
-        if (session.TAG === "fission") {
-            continue;
-        }
-        let socket = session.TAG === "rtmp" ? (session as any).socket : (session as any).req.socket;
-        info.inbytes += socket.bytesRead;
-        info.outbytes += socket.bytesWritten;
-        info.rtmp += session.TAG === "rtmp" ? 1 : 0;
-        info.http += session.TAG === "http-flv" ? 1 : 0;
-        info.ws += session.TAG === "websocket-flv" ? 1 : 0;
+        info.inbytes += session.inBytes;
+        info.outbytes += session.outBytes;
+        info.rtmp += session.TAG === 'rtmp' ? 1 : 0;
+        info.http += session.TAG === 'http-flv' ? 1 : 0;
+        info.ws += session.TAG === 'websocket-flv' ? 1 : 0;
     }
 
     return info;
@@ -67,7 +67,7 @@ function getConfig(this: Context, req: Request, res: Response, next: NextFunctio
         rtmp,
         trans,
         relay,
-        fission
+        fission,
     } = config;
 
     const response = {
@@ -95,11 +95,14 @@ function getConfig(this: Context, req: Request, res: Response, next: NextFunctio
 }
 
 function updateConfig(this: Context, req: Request, res: Response, next: NextFunction) {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
 }
 
 function getStatus(this: Context, req: Request, res: Response, next: NextFunction) {
     const response = {
+        av: {
+            running: this.server.avServer?.isRunning() || false,
+        },
         fission: {
             running: this.server.fissionServer?.isRunning() || false,
         },

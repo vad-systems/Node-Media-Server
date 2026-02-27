@@ -1,5 +1,5 @@
 import express from 'express';
-import { Context } from 'node:vm';
+import { Context } from '../../types/index.js';
 import streamController from '../controllers/streams.js';
 
 export default (context: Context) => {
