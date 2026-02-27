@@ -1,4 +1,4 @@
-const Bitop = require('./bitop.js');
+const { default: Bitop } = require('./bitop.js');
 
 const AAC_SAMPLE_RATE = [
     96000, 88200, 64000, 48000,
