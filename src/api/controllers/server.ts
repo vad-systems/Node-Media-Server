@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import OS from 'os';
-import { Config, Context } from '../../types/index.js';
+import { Config, Context } from '@vad-systems/nms-shared';
 
 const Package = require('../../../package.json');
 

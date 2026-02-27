@@ -2,8 +2,8 @@ import Fs from 'fs';
 import _ from 'lodash';
 import Net from 'net';
 import Tls from 'tls';
-import { context, LoggerFactory } from '../../core/index.js';
-import NodeConfigurableServer from '../NodeConfigurableServer.js';
+import { context, LoggerFactory } from '@vad-systems/nms-core';
+import { NodeConfigurableServer } from '@vad-systems/nms-server';
 import { NodeRtmpSession } from './NodeRtmpSession.js';
 
 const RTMP_PORT = 1935;

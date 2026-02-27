@@ -1,7 +1,6 @@
 import EventEmitter from 'events';
-import BroadcastServer from '../server/BroadcastServer.js';
-import { NodeSession } from '../server/NodeSession.js';
-import { Context, NodeEventMap, SessionID } from '../types/index.js';
+import { BroadcastServer, NodeSession } from '@vad-systems/nms-server';
+import { Context, NodeEventMap, SessionID } from '@vad-systems/nms-shared';
 import ConfigProvider from './config.js';
 
 let sessions: Map<SessionID, NodeSession<any, any>> = new Map();

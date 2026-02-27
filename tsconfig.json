@@ -9,7 +9,23 @@
     "outDir": "./dist",
     "allowJs": true,
     "esModuleInterop": true,
-    "target": "es2015",
-    "module": "CommonJS"
+    "isolatedModules": true,
+    "target": "esnext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "plugins": [
+      {
+        "transform": "typescript-transform-paths",
+      }
+    ],
+    "paths": {
+      "@vad-systems/nms-core": ["src/core"],
+      "@vad-systems/nms-protocol": ["src/protocol"],
+      "@vad-systems/nms-server": ["src/server"],
+      "@vad-systems/nms-plugins": ["src/plugins"],
+      "@vad-systems/nms-shared": ["src/shared"],
+      "@vad-systems/nms-api": ["src/api"]
+    }
   }
 }

@@ -5,11 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = require("fs");
 const node_fs_1 = require("node:fs");
-const context_js_1 = __importDefault(require("../core/context.js"));
+const context_js_1 = __importDefault(require("./context.js"));
 class ConfigProvider {
+    configLocation = undefined;
+    config = undefined;
     constructor() {
-        this.configLocation = undefined;
-        this.config = undefined;
     }
     getConfig() {
         if (!this.isLoaded()) {

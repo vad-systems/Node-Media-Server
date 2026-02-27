@@ -1,9 +1,8 @@
 import { Socket } from 'net';
-import context from '../../core/context.js';
-import Rtmp from '../../core/protocol/rtmp.js';
-import { RtmpSessionConfig } from '../../types/index.js';
-import { BaseAvSession } from '../BaseAvSession.js';
-import { Protocol } from '../Protocol.js';
+import { context } from '@vad-systems/nms-core';
+import { Rtmp } from '@vad-systems/nms-protocol';
+import { RtmpSessionConfig } from '@vad-systems/nms-shared';
+import { BaseAvSession, Protocol } from '@vad-systems/nms-server';
 
 class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     public readonly socket: Socket;

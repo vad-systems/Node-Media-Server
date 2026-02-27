@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { get, set } from 'lodash';
-import { Context } from '../../types/index.js';
+import { Context } from '@vad-systems/nms-shared';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};

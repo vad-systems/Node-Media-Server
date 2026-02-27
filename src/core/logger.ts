@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { LogType } from '../types/index.js';
+import { LogType } from '@vad-systems/nms-shared';
 import context from './context.js';
 
 let logType = LogType.NORMAL;

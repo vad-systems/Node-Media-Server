@@ -1,7 +1,7 @@
 import { PathLike, readFileSync } from 'fs';
 import { writeFileSync } from 'node:fs';
-import context from '../core/context.js';
-import { Config } from '../types/index.js';
+import context from './context.js';
+import { Config } from '@vad-systems/nms-shared';
 
 class ConfigProvider {
     private configLocation: PathLike = undefined;

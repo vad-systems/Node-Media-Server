@@ -1,5 +1,5 @@
 import express from 'express';
-import { Context } from '../../types/index.js';
+import { Context } from '@vad-systems/nms-shared';
 import transController from '../controllers/trans.js';
 
 export default (context: Context) => {

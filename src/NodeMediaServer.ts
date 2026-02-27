@@ -1,15 +1,11 @@
 import _ from 'lodash';
-import { context, Logger, LoggerFactory } from './core/index.js';
-import { NodeFissionServer } from './server/fission/NodeFissionServer.js';
-import { NodeAvServer } from './server/http/NodeAvServer.js';
-import { NodeAvSession } from './server/http/NodeAvSession.js';
-import { NodeHttpServer } from './server/http/NodeHttpServer.js';
-import { NodeRelayServer } from './server/relay/NodeRelayServer.js';
-import { NodeRtmpServer } from './server/rtmp/NodeRtmpServer.js';
-import { NodeRtmpSession } from './server/rtmp/NodeRtmpSession.js';
-import { NodeTransServer } from './server/trans/NodeTransServer.js';
-import * as types from './types/index.js';
-import { Config, ConfigType, NodeEventMap } from './types/index.js';
+import { context, Logger, LoggerFactory } from '@vad-systems/nms-core';
+import { NodeFissionServer } from '@vad-systems/nms-plugins';
+import { NodeAvServer, NodeAvSession, NodeHttpServer, NodeRtmpServer, NodeRtmpSession } from '@vad-systems/nms-server';
+import { NodeRelayServer } from '@vad-systems/nms-plugins';
+import { NodeTransServer } from '@vad-systems/nms-plugins';
+import * as types from '@vad-systems/nms-shared';
+import { Config, ConfigType, NodeEventMap } from '@vad-systems/nms-shared';
 
 const Package = require('../package.json');
 

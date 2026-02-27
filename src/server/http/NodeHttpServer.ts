@@ -7,15 +7,11 @@ import H2EBridge from 'http2-express';
 import Https from 'https';
 import path from 'path';
 import WebSocket from 'ws';
-import fissionRoute from '../../api/routes/fission.js';
-import relayRoute from '../../api/routes/relay.js';
-import serverRoute from '../../api/routes/server.js';
-import streamsRoute from '../../api/routes/streams.js';
-import transRoute from '../../api/routes/trans.js';
-import { context, LoggerFactory } from '../../core/index.js';
-import { Config } from '../../types/index.js';
-import { NodeAvServer } from './NodeAvServer.js';
-import { NodeAvSession } from './NodeAvSession.js';
+import { setupRoutes } from '@vad-systems/nms-api';
+import { context, LoggerFactory } from '@vad-systems/nms-core';
+import { Config } from '@vad-systems/nms-shared';
+import { NodeAvServer } from '../av/NodeAvServer.js';
+import { NodeAvSession } from '../av/NodeAvSession.js';
 
 const DEFAULTHTTP_PORT = 80;
 const DEFAULT_HTTPS_PORT = 443;
@@ -84,11 +80,7 @@ class NodeHttpServer {
                     basicAuth(this.config.auth.api_user, this.config.auth.api_pass),
                 );
             }
-            app.use('/api/streams', streamsRoute(context));
-            app.use('/api/server', serverRoute(context));
-            app.use('/api/relay', relayRoute(context));
-            app.use('/api/trans', transRoute(context));
-            app.use('/api/fission', fissionRoute(context));
+            setupRoutes(app, context);
         }
 
         app.use(Express.static(path.join(__dirname + '/../../../public')));

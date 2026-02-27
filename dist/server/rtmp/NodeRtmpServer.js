@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -17,17 +8,19 @@ const fs_1 = __importDefault(require("fs"));
 const lodash_1 = __importDefault(require("lodash"));
 const net_1 = __importDefault(require("net"));
 const tls_1 = __importDefault(require("tls"));
-const index_js_1 = require("../../core/index.js");
-const NodeConfigurableServer_js_1 = __importDefault(require("../NodeConfigurableServer.js"));
+const nms_core_1 = require("../../core");
+const nms_server_1 = require("..");
 const NodeRtmpSession_js_1 = require("./NodeRtmpSession.js");
 const RTMP_PORT = 1935;
 const RTMPS_PORT = 443;
-class NodeRtmpServer extends NodeConfigurableServer_js_1.default {
+class NodeRtmpServer extends nms_server_1.NodeConfigurableServer {
+    port;
+    tcpServer;
+    sslPort = null;
+    tlsServer = null;
+    logger = nms_core_1.LoggerFactory.getLogger('RTMP Server');
     constructor() {
         super();
-        this.sslPort = null;
-        this.tlsServer = null;
-        this.logger = index_js_1.LoggerFactory.getLogger('RTMP Server');
     }
     initServer() {
         const sessionConfig = {
@@ -56,34 +49,29 @@ class NodeRtmpServer extends NodeConfigurableServer_js_1.default {
             }
         }
     }
-    run() {
-        const _super = Object.create(null, {
-            run: { get: () => super.run }
+    async run() {
+        await super.run();
+        this.initServer();
+        this.tcpServer.listen(this.port, () => {
+            this.logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
         });
-        return __awaiter(this, void 0, void 0, function* () {
-            yield _super.run.call(this);
-            this.initServer();
-            this.tcpServer.listen(this.port, () => {
-                this.logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
-            });
-            this.tcpServer.on('error', (e) => {
-                this.logger.error(`Node Media Rtmp Server ${e}`);
-            });
-            this.tcpServer.on('close', () => {
-                this.logger.log('Node Media Rtmp Server Close.');
-            });
-            if (this.tlsServer) {
-                this.tlsServer.listen(this.sslPort, () => {
-                    this.logger.log(`Node Media Rtmps Server started on port: ${this.sslPort}`);
-                });
-                this.tlsServer.on('error', (e) => {
-                    this.logger.error(`Node Media Rtmps Server ${e}`);
-                });
-                this.tlsServer.on('close', () => {
-                    this.logger.log('Node Media Rtmps Server Close.');
-                });
-            }
+        this.tcpServer.on('error', (e) => {
+            this.logger.error(`Node Media Rtmp Server ${e}`);
         });
+        this.tcpServer.on('close', () => {
+            this.logger.log('Node Media Rtmp Server Close.');
+        });
+        if (this.tlsServer) {
+            this.tlsServer.listen(this.sslPort, () => {
+                this.logger.log(`Node Media Rtmps Server started on port: ${this.sslPort}`);
+            });
+            this.tlsServer.on('error', (e) => {
+                this.logger.error(`Node Media Rtmps Server ${e}`);
+            });
+            this.tlsServer.on('close', () => {
+                this.logger.log('Node Media Rtmps Server Close.');
+            });
+        }
     }
     stop() {
         super.stop();
@@ -91,7 +79,7 @@ class NodeRtmpServer extends NodeConfigurableServer_js_1.default {
         if (this.tlsServer) {
             this.tlsServer.close();
         }
-        index_js_1.context.sessions.forEach((session, id) => {
+        nms_core_1.context.sessions.forEach((session, id) => {
             if (session instanceof NodeRtmpSession_js_1.NodeRtmpSession) {
                 session.stop();
             }

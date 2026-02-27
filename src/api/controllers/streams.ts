@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
-import { FlvAudioCodec, FlvVideoCodec } from '../../core/protocol/flv.js';
-import { Context } from '../../types/index.js';
+import { FlvAudioCodec, FlvVideoCodec } from '@vad-systems/nms-protocol';
+import { Context } from '@vad-systems/nms-shared';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};

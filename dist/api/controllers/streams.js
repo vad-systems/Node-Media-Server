@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = __importDefault(require("lodash"));
-const flv_js_1 = require("../../core/protocol/flv.js");
+const nms_protocol_1 = require("../../protocol");
 function getStreams(req, res, next) {
     let stats = {};
     this.broadcasts.forEach((broadcast, key) => {
@@ -22,7 +22,7 @@ function getStreams(req, res, next) {
                 protocol: publisher.protocol === 'websocket-flv' ? 'ws' : (publisher.protocol === 'http-flv' ? 'http' : publisher.protocol),
                 connectCreated: publisher.startTime,
                 video: publisher.videoCodec !== null ? {
-                    codec: flv_js_1.FlvVideoCodec[publisher.videoCodec],
+                    codec: nms_protocol_1.FlvVideoCodec[publisher.videoCodec],
                     width: publisher.videoWidth,
                     height: publisher.videoHeight,
                     profile: publisher.videoProfile,
@@ -30,7 +30,7 @@ function getStreams(req, res, next) {
                     fps: publisher.videoFramerate,
                 } : null,
                 audio: publisher.audioCodec !== null ? {
-                    codec: flv_js_1.FlvAudioCodec[publisher.audioCodec],
+                    codec: nms_protocol_1.FlvAudioCodec[publisher.audioCodec],
                     profile: publisher.audioProfile,
                     channels: publisher.audioChannels,
                     samplerate: publisher.audioSamplerate,
@@ -83,7 +83,6 @@ function getStreams(req, res, next) {
     res.json(stats);
 }
 function getStream(req, res, next) {
-    var _a, _b;
     let streamStats = {
         isLive: false,
         viewers: 0,
@@ -94,9 +93,9 @@ function getStream(req, res, next) {
     };
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
     let broadcast = this.broadcasts.get(publishStreamPath);
-    let publisherSession = this.sessions.get((_a = broadcast === null || broadcast === void 0 ? void 0 : broadcast.publisher) === null || _a === void 0 ? void 0 : _a.id);
+    let publisherSession = this.sessions.get(broadcast?.publisher?.id);
     streamStats.isLive = !!publisherSession;
-    streamStats.viewers = ((_b = broadcast === null || broadcast === void 0 ? void 0 : broadcast.subscribers) === null || _b === void 0 ? void 0 : _b.size) || 0;
+    streamStats.viewers = broadcast?.subscribers?.size || 0;
     streamStats.duration = streamStats.isLive
         ? Math.ceil((Date.now() - publisherSession.startTime) / 1000)
         : 0;
@@ -108,9 +107,8 @@ function getStream(req, res, next) {
     res.json(streamStats);
 }
 function delStream(req, res, next) {
-    var _a, _b;
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
-    let publisherSession = this.sessions.get((_b = (_a = this.broadcasts.get(publishStreamPath)) === null || _a === void 0 ? void 0 : _a.publisher) === null || _b === void 0 ? void 0 : _b.id);
+    let publisherSession = this.sessions.get(this.broadcasts.get(publishStreamPath)?.publisher?.id);
     if (publisherSession) {
         publisherSession.stop();
         res.json('ok');

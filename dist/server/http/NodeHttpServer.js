@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -22,23 +13,28 @@ const http2_express_1 = __importDefault(require("http2-express"));
 const https_1 = __importDefault(require("https"));
 const path_1 = __importDefault(require("path"));
 const ws_1 = __importDefault(require("ws"));
-const fission_js_1 = __importDefault(require("../../api/routes/fission.js"));
-const relay_js_1 = __importDefault(require("../../api/routes/relay.js"));
-const server_js_1 = __importDefault(require("../../api/routes/server.js"));
-const streams_js_1 = __importDefault(require("../../api/routes/streams.js"));
-const trans_js_1 = __importDefault(require("../../api/routes/trans.js"));
-const index_js_1 = require("../../core/index.js");
-const NodeAvServer_js_1 = require("./NodeAvServer.js");
-const NodeAvSession_js_1 = require("./NodeAvSession.js");
+const nms_api_1 = require("../../api");
+const nms_core_1 = require("../../core");
+const NodeAvServer_js_1 = require("../av/NodeAvServer.js");
+const NodeAvSession_js_1 = require("../av/NodeAvSession.js");
 const DEFAULTHTTP_PORT = 80;
 const DEFAULT_HTTPS_PORT = 443;
 const HTTP_MEDIAROOT = './media';
 class NodeHttpServer {
+    mediaroot;
+    port;
+    httpServer;
+    wsServer;
+    sport;
+    httpsServer;
+    wssServer;
+    avServer;
+    logger = nms_core_1.LoggerFactory.getLogger('HTTP Server');
+    config;
     constructor() {
-        this.logger = index_js_1.LoggerFactory.getLogger('HTTP Server');
-        this.config = index_js_1.context.configProvider.getConfig();
-        index_js_1.context.nodeEvent.on('configChanged', () => {
-            this.config = index_js_1.context.configProvider.getConfig();
+        this.config = nms_core_1.context.configProvider.getConfig();
+        nms_core_1.context.nodeEvent.on('configChanged', () => {
+            this.config = nms_core_1.context.configProvider.getConfig();
         });
     }
     isRunning() {
@@ -71,11 +67,7 @@ class NodeHttpServer {
             if (this.config.auth && this.config.auth.api) {
                 app.use(['/api/*splat', '/static/*splat', '/admin/*splat'], (0, basic_auth_connect_1.default)(this.config.auth.api_user, this.config.auth.api_pass));
             }
-            app.use('/api/streams', (0, streams_js_1.default)(index_js_1.context));
-            app.use('/api/server', (0, server_js_1.default)(index_js_1.context));
-            app.use('/api/relay', (0, relay_js_1.default)(index_js_1.context));
-            app.use('/api/trans', (0, trans_js_1.default)(index_js_1.context));
-            app.use('/api/fission', (0, fission_js_1.default)(index_js_1.context));
+            (0, nms_api_1.setupRoutes)(app, nms_core_1.context);
         }
         app.use(express_1.default.static(path_1.default.join(__dirname + '/../../../public')));
         app.use(express_1.default.static(this.mediaroot.toString()));
@@ -95,57 +87,55 @@ class NodeHttpServer {
             this.httpsServer = https_1.default.createServer(options, app);
         }
     }
-    run() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.initServer();
-            yield this.avServer.run();
-            this.httpServer.listen(this.port, () => {
-                this.logger.log(`Node Media Http Server started on port: ${this.port}`);
+    async run() {
+        this.initServer();
+        await this.avServer.run();
+        this.httpServer.listen(this.port, () => {
+            this.logger.log(`Node Media Http Server started on port: ${this.port}`);
+        });
+        this.httpServer.on('error', (e) => {
+            this.logger.error(`Node Media Http Server ${e}`);
+        });
+        this.httpServer.on('close', () => {
+            this.logger.log('Node Media Http Server closed');
+        });
+        this.wsServer = new ws_1.default.Server({ server: this.httpServer });
+        this.wsServer.on('connection', (ws, req) => {
+            this.avServer.handleWsRequest(req, ws);
+        });
+        this.wsServer.on('listening', () => {
+            this.logger.log(`Node Media WebSocket Server started on port: ${this.port}`);
+        });
+        this.wsServer.on('error', (e) => {
+            this.logger.error(`Node Media WebSocket Server ${e}`);
+        });
+        this.wsServer.on('close', () => {
+            this.logger.log(`Node Media WebSocket Server closed`);
+        });
+        if (this.httpsServer) {
+            this.httpsServer.listen(this.sport, () => {
+                this.logger.log(`Node Media Https Server started on port: ${this.sport}`);
             });
-            this.httpServer.on('error', (e) => {
-                this.logger.error(`Node Media Http Server ${e}`);
+            this.httpsServer.on('error', (e) => {
+                this.logger.error(`Node Media Https Server ${e}`);
             });
-            this.httpServer.on('close', () => {
-                this.logger.log('Node Media Http Server closed');
+            this.httpsServer.on('close', () => {
+                this.logger.log('Node Media Https Server Close.');
             });
-            this.wsServer = new ws_1.default.Server({ server: this.httpServer });
-            this.wsServer.on('connection', (ws, req) => {
+            this.wssServer = new ws_1.default.Server({ server: this.httpsServer });
+            this.wssServer.on('connection', (ws, req) => {
                 this.avServer.handleWsRequest(req, ws);
             });
-            this.wsServer.on('listening', () => {
-                this.logger.log(`Node Media WebSocket Server started on port: ${this.port}`);
+            this.wssServer.on('listening', () => {
+                this.logger.log(`Node Media WebSocketSecure Server started on port: ${this.sport}`);
             });
-            this.wsServer.on('error', (e) => {
-                this.logger.error(`Node Media WebSocket Server ${e}`);
+            this.wssServer.on('error', (e) => {
+                this.logger.error(`Node Media WebSocketSecure Server ${e}`);
             });
-            this.wsServer.on('close', () => {
-                this.logger.log(`Node Media WebSocket Server closed`);
+            this.wssServer.on('close', () => {
+                this.logger.log(`Node Media WebSocketSecure Server closed`);
             });
-            if (this.httpsServer) {
-                this.httpsServer.listen(this.sport, () => {
-                    this.logger.log(`Node Media Https Server started on port: ${this.sport}`);
-                });
-                this.httpsServer.on('error', (e) => {
-                    this.logger.error(`Node Media Https Server ${e}`);
-                });
-                this.httpsServer.on('close', () => {
-                    this.logger.log('Node Media Https Server Close.');
-                });
-                this.wssServer = new ws_1.default.Server({ server: this.httpsServer });
-                this.wssServer.on('connection', (ws, req) => {
-                    this.avServer.handleWsRequest(req, ws);
-                });
-                this.wssServer.on('listening', () => {
-                    this.logger.log(`Node Media WebSocketSecure Server started on port: ${this.sport}`);
-                });
-                this.wssServer.on('error', (e) => {
-                    this.logger.error(`Node Media WebSocketSecure Server ${e}`);
-                });
-                this.wssServer.on('close', () => {
-                    this.logger.log(`Node Media WebSocketSecure Server closed`);
-                });
-            }
-        });
+        }
     }
     stop() {
         this.avServer.stop();
@@ -157,7 +147,7 @@ class NodeHttpServer {
         if (this.wssServer) {
             this.wssServer.close();
         }
-        index_js_1.context.sessions.forEach((session, id) => {
+        nms_core_1.context.sessions.forEach((session, id) => {
             if (session instanceof NodeAvSession_js_1.NodeAvSession) {
                 session.stop();
             }

@@ -5,12 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Logger = exports.LoggerInstance = exports.LoggerFactory = void 0;
 const chalk_1 = __importDefault(require("chalk"));
-const index_js_1 = require("../types/index.js");
+const nms_shared_1 = require("../shared");
 const context_js_1 = __importDefault(require("./context.js"));
-let logType = index_js_1.LogType.NORMAL;
+let logType = nms_shared_1.LogType.NORMAL;
 let rollingLogLength = 20;
 const setLogType = (type) => {
-    if (Object.values(index_js_1.LogType).indexOf(type) === -1) {
+    if (Object.values(nms_shared_1.LogType).indexOf(type) === -1) {
         return;
     }
     logType = type;
@@ -31,6 +31,7 @@ const logTime = () => {
     return nowDate.toLocaleDateString() + ' ' + nowDate.toLocaleTimeString([], { hour12: false });
 };
 class LoggerInstance {
+    prefix;
     constructor(prefix = '') {
         this.prefix = prefix;
     }
@@ -40,7 +41,7 @@ class LoggerInstance {
     error(...args) {
         const formattedArgs = this.format(args);
         context_js_1.default.nodeEvent.emit('errorMessage', ...formattedArgs);
-        if (logType < index_js_1.LogType.ERROR) {
+        if (logType < nms_shared_1.LogType.ERROR) {
             return;
         }
         const logEntry = [logTime(), process.pid, chalk_1.default.bold.red('[ERROR]'), ...formattedArgs];
@@ -50,7 +51,7 @@ class LoggerInstance {
     warn(...args) {
         const formattedArgs = this.format(args);
         context_js_1.default.nodeEvent.emit('warnMessage', ...formattedArgs);
-        if (logType < index_js_1.LogType.WARN) {
+        if (logType < nms_shared_1.LogType.WARN) {
             return;
         }
         const logEntry = [logTime(), process.pid, chalk_1.default.bold.yellow('[WARN]'), ...formattedArgs];
@@ -60,7 +61,7 @@ class LoggerInstance {
     log(...args) {
         const formattedArgs = this.format(args);
         context_js_1.default.nodeEvent.emit('logMessage', ...formattedArgs);
-        if (logType < index_js_1.LogType.NORMAL) {
+        if (logType < nms_shared_1.LogType.NORMAL) {
             return;
         }
         const logEntry = [logTime(), process.pid, chalk_1.default.bold.green('[INFO]'), ...formattedArgs];
@@ -70,7 +71,7 @@ class LoggerInstance {
     debug(...args) {
         const formattedArgs = this.format(args);
         context_js_1.default.nodeEvent.emit('debugMessage', ...formattedArgs);
-        if (logType < index_js_1.LogType.DEBUG) {
+        if (logType < nms_shared_1.LogType.DEBUG) {
             return;
         }
         const logEntry = [logTime(), process.pid, chalk_1.default.bold.blue('[DEBUG]'), ...formattedArgs];
@@ -80,7 +81,7 @@ class LoggerInstance {
     ffdebug(...args) {
         const formattedArgs = this.format(args);
         context_js_1.default.nodeEvent.emit('ffDebugMessage', ...formattedArgs);
-        if (logType < index_js_1.LogType.FFDEBUG) {
+        if (logType < nms_shared_1.LogType.FFDEBUG) {
             return;
         }
         const logEntry = [logTime(), process.pid, chalk_1.default.bold.blue('[FFDEBUG]'), ...formattedArgs];

@@ -1,20 +1,11 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = __importDefault(require("lodash"));
 const os_1 = __importDefault(require("os"));
-const index_js_1 = require("../../types/index.js");
+const nms_shared_1 = require("../../shared");
 const Package = require('../../../package.json');
 function cpuAverage() {
     let totalIdle = 0, totalTick = 0;
@@ -65,19 +56,19 @@ function getConfig(req, res, next) {
     const { http, https, rtmp, trans, relay, fission, } = config;
     const response = {
         http: {
-            mediaroot: http === null || http === void 0 ? void 0 : http.mediaroot,
-            port: http === null || http === void 0 ? void 0 : http.port,
-            allow_origin: http === null || http === void 0 ? void 0 : http.allow_origin,
+            mediaroot: http?.mediaroot,
+            port: http?.port,
+            allow_origin: http?.allow_origin,
         },
         https: {
-            port: https === null || https === void 0 ? void 0 : https.port,
+            port: https?.port,
         },
         rtmp: {
-            port: rtmp === null || rtmp === void 0 ? void 0 : rtmp.port,
-            chunk_size: rtmp === null || rtmp === void 0 ? void 0 : rtmp.chunk_size,
-            ping: rtmp === null || rtmp === void 0 ? void 0 : rtmp.ping,
-            ping_timeout: rtmp === null || rtmp === void 0 ? void 0 : rtmp.ping_timeout,
-            gop_cache: rtmp === null || rtmp === void 0 ? void 0 : rtmp.gop_cache,
+            port: rtmp?.port,
+            chunk_size: rtmp?.chunk_size,
+            ping: rtmp?.ping,
+            ping_timeout: rtmp?.ping_timeout,
+            gop_cache: rtmp?.gop_cache,
         },
         trans,
         relay,
@@ -88,34 +79,32 @@ function getConfig(req, res, next) {
 function updateConfig(req, res, next) {
     const currentConfig = this.configProvider.getConfig();
     const newConfigData = lodash_1.default.merge({}, currentConfig, req.body);
-    const newConfig = new index_js_1.Config(newConfigData);
+    const newConfig = new nms_shared_1.Config(newConfigData);
     this.configProvider.setConfig(newConfig);
     res.json(this.configProvider.getConfig());
 }
-function startServer(req, res, next) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const serverName = req.params.server;
-        const servers = {
-            rtmp: this.server.rtmpServer,
-            av: this.server.avServer,
-            trans: this.server.transServer,
-            relay: this.server.relayServer,
-            fission: this.server.fissionServer,
-        };
-        const server = servers[serverName];
-        if (server) {
-            if (!server.isRunning()) {
-                yield server.run();
-                res.json({ status: 'ok' });
-            }
-            else {
-                res.status(400).json({ error: 'Server already running' });
-            }
+async function startServer(req, res, next) {
+    const serverName = req.params.server;
+    const servers = {
+        rtmp: this.server.rtmpServer,
+        av: this.server.avServer,
+        trans: this.server.transServer,
+        relay: this.server.relayServer,
+        fission: this.server.fissionServer,
+    };
+    const server = servers[serverName];
+    if (server) {
+        if (!server.isRunning()) {
+            await server.run();
+            res.json({ status: 'ok' });
         }
         else {
-            res.status(404).json({ error: 'Server not found' });
+            res.status(400).json({ error: 'Server already running' });
         }
-    });
+    }
+    else {
+        res.status(404).json({ error: 'Server not found' });
+    }
 }
 function stopServer(req, res, next) {
     const serverName = req.params.server;
@@ -141,25 +130,24 @@ function stopServer(req, res, next) {
     }
 }
 function getStatus(req, res, next) {
-    var _a, _b, _c, _d, _e, _f;
     const response = {
         av: {
-            running: ((_a = this.server.avServer) === null || _a === void 0 ? void 0 : _a.isRunning()) || false,
+            running: this.server.avServer?.isRunning() || false,
         },
         fission: {
-            running: ((_b = this.server.fissionServer) === null || _b === void 0 ? void 0 : _b.isRunning()) || false,
+            running: this.server.fissionServer?.isRunning() || false,
         },
         http: {
-            running: ((_c = this.server.httpServer) === null || _c === void 0 ? void 0 : _c.isRunning()) || false,
+            running: this.server.httpServer?.isRunning() || false,
         },
         relay: {
-            running: ((_d = this.server.relayServer) === null || _d === void 0 ? void 0 : _d.isRunning()) || false,
+            running: this.server.relayServer?.isRunning() || false,
         },
         rtmp: {
-            running: ((_e = this.server.rtmpServer) === null || _e === void 0 ? void 0 : _e.isRunning()) || false,
+            running: this.server.rtmpServer?.isRunning() || false,
         },
         trans: {
-            running: ((_f = this.server.transServer) === null || _f === void 0 ? void 0 : _f.isRunning()) || false,
+            running: this.server.transServer?.isRunning() || false,
         },
     };
     res.json(response);

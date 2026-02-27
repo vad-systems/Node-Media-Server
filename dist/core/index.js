@@ -15,6 +15,9 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
 var __importStar = (this && this.__importStar) || (function () {
     var ownKeys = function(o) {
         ownKeys = Object.getOwnPropertyNames || function (o) {
@@ -32,19 +35,15 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __exportStar = (this && this.__exportStar) || function(m, exports) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.context = exports.amf = exports.Bitop = exports.NodeCoreUtils = void 0;
-const bitop_js_1 = __importDefault(require("./bitop.js"));
-exports.Bitop = bitop_js_1.default;
+exports.ConfigProvider = exports.context = exports.NodeCoreUtils = void 0;
 const context_js_1 = __importDefault(require("./context.js"));
 exports.context = context_js_1.default;
-const amf = __importStar(require("./protocol/amf.js"));
-exports.amf = amf;
+const config_js_1 = __importDefault(require("./config.js"));
+exports.ConfigProvider = config_js_1.default;
 __exportStar(require("./logger.js"), exports);
 exports.NodeCoreUtils = __importStar(require("./utils.js"));
+exports.default = context_js_1.default;
