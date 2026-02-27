@@ -94,15 +94,18 @@ class NodeFissionServer extends node_configurable_server_js_1.default {
         });
     }
     onPostPublish(srcId, streamPath, args) {
+        index_js_1.Logger.log('[fission postPublish] Check for fission tasks', `id=${srcId}`, `streamPath=${streamPath}`);
         let regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
         let [app, name] = lodash_1.default.slice(regRes, 1);
         for (let task of this.config.fission.tasks) {
             if (!(0, checkSelectiveTask_js_1.default)(task, app, streamPath)) {
+                index_js_1.Logger.debug('[fission] pattern check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${streamPath}`, task);
                 continue;
             }
             let s = index_js_1.context.sessions.get(srcId);
             const nameSegments = name.split('_');
             if (s.isLocal() && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
+                index_js_1.Logger.debug('[fission] duplication check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${streamPath}`, task);
                 continue;
             }
             let taskConf = lodash_1.default.cloneDeep(task);
