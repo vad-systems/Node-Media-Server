@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import context from './context.js';
-import { LogType } from '../types.js';
+import { LogType } from '../types/index.js';
 
 let logType = LogType.NORMAL;
 

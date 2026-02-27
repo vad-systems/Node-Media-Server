@@ -3,8 +3,9 @@ import _ from 'lodash';
 import { context, Logger, NodeCoreUtils } from './core/index.js';
 import { NodeFissionSession } from './node_fission_session.js';
 import { NodeRelaySession } from './node_relay_session.js';
-import { Arguments, Config, FissionSessionConfig, SessionID } from './types.js';
+import { Arguments, Config, FissionSessionConfig, SessionID } from './types/index.js';
 import * as mkdirp from 'mkdirp';
+import asRegExp from './util/asRegExp.js';
 
 class NodeFissionServer {
     config: Config;
@@ -46,13 +47,8 @@ class NodeFissionServer {
         let regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
         let [app, name] = _.slice(regRes, 1);
         for (let task of this.config.fission.tasks) {
-            regRes = /(.*)\/(.*)/gi.exec(task.rule);
-            let [ruleApp, ruleName] = _.slice(regRes, 1);
-            if ((
-                app === ruleApp || ruleApp === '*'
-            ) && (
-                name === ruleName || ruleName === '*'
-            )) {
+            const pattern = asRegExp(task.pattern);
+            if (app === task.app && (!pattern || pattern.test(streamPath))) {
                 let s = context.sessions.get(srcId);
                 const nameSegments = name.split('_');
                 if (s.isLocal && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {

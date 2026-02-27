@@ -4,7 +4,7 @@ import { context, Logger, av, amf, NodeCoreUtils } from './core/index.js';
 import { NodeHttpSession } from './node_http_session.js';
 import Handshake from './node_rtmp_handshake.js';
 import { NodeSession } from './node_session.js';
-import { RtmpSessionConfig, SessionID } from './types.js';
+import { RtmpSessionConfig, SessionID } from './types/index.js';
 
 const N_CHUNK_STREAM = 8;
 const RTMP_VERSION = 3;

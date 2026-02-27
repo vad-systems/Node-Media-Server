@@ -1,6 +1,6 @@
 import { Logger } from './core/index.js';
 import { NodeFfmpegSession } from './node_ffmpeg_session.js';
-import { RelaySessionConfig, RtspTransport } from './types.js';
+import { RelaySessionConfig, RtspTransport } from './types/index.js';
 
 class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
     ts = null;

@@ -1,7 +1,7 @@
 import EventEmitter from 'events';
 import _ from 'lodash';
 import { NodeCoreUtils } from './core/index.js';
-import { SessionConfig, SessionID } from './types.js';
+import { SessionConfig, SessionID } from './types/index.js';
 
 type SessionEventMap = {
     end: [SessionID],
