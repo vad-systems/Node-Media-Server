@@ -19,25 +19,6 @@ function generateNewSessionID() {
     return sessionID;
 }
 
-function verifyAuth(signStr: string | undefined, streamId: string, secretKey: string) {
-    if (signStr === undefined) {
-        return false;
-    }
-    let now = Date.now() / 1000 | 0;
-    let exp = parseInt(signStr.split('-')[0]);
-    let shv = signStr.split('-')[1];
-    let str = streamId + '-' + exp + '-' + secretKey;
-
-    if (exp < now) {
-        return false;
-    }
-
-    let md5 = Crypto.createHash('md5');
-    let ohv = md5.update(str).digest('hex');
-
-    return shv === ohv;
-}
-
 function getFFmpegVersion(ffpath: string): Promise<string> {
     return new Promise((resolve, reject) => {
         let ffmpeg_exec = spawn(ffpath, ['-version']);
@@ -76,7 +57,6 @@ function getFFmpegUrl() {
 
 export {
     generateNewSessionID,
-    verifyAuth,
     getFFmpegVersion,
     getFFmpegUrl,
 };

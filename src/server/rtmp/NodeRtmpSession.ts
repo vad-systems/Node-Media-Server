@@ -4,13 +4,13 @@ import logger from '../../core/logger.js';
 import AVPacket from '../../core/protocol/AVPacket.js';
 import Rtmp from '../../core/protocol/rtmp.js';
 import { RtmpSessionConfig } from '../../types/index.js';
-import BroadcastServer from '../BroadcastServer.js';
+import AvBroadcastServer from '../AvBroadcastServer.js';
 import { NodeAvSession, Protocol } from '../NodeAvSession.js';
 
 class NodeRtmpSession extends NodeAvSession<never, RtmpSessionConfig> {
     public readonly socket: Socket;
     private rtmp: Rtmp;
-    private broadcast: BroadcastServer<RtmpSessionConfig, NodeRtmpSession>;
+    private broadcast: AvBroadcastServer<RtmpSessionConfig, NodeRtmpSession>;
     private streamApp: string;
     private streamName: string;
     private streamHost: string;
@@ -22,7 +22,7 @@ class NodeRtmpSession extends NodeAvSession<never, RtmpSessionConfig> {
         super(config, socket.remoteAddress + ':' + socket.remotePort, Protocol.RTMP);
         this.socket = socket;
         this.rtmp = new Rtmp();
-        this.broadcast = new BroadcastServer();
+        this.broadcast = new AvBroadcastServer();
     }
 
     run = () => {
@@ -42,17 +42,20 @@ class NodeRtmpSession extends NodeAvSession<never, RtmpSessionConfig> {
         this.streamHost = req.host;
         this.streamPath = '/' + req.app + '/' + req.name;
         this.streamQuery = req.query;
-        this.broadcast = context.broadcasts.get(this.streamPath) ?? new BroadcastServer();
+        this.broadcast = context.broadcasts.get(this.streamPath) as AvBroadcastServer<RtmpSessionConfig, NodeRtmpSession>
+            ?? new AvBroadcastServer();
         context.broadcasts.set(this.streamPath, this.broadcast);
     };
 
     onPlay = () => {
-        const err = this.broadcast.postPlay(this);
-        if (err != null) {
+        try {
+            this.broadcast.postPlay(this);
+        } catch (err: any) {
             logger.error(`RTMP session ${this.id} ${this.remoteIp} play ${this.streamPath} error, ${err}`);
             this.socket.end();
             return;
         }
+
         this.isPublisher = false;
         logger.log(`RTMP session ${this.id} ${this.remoteIp} start play ${this.streamPath}`);
     };
@@ -72,10 +75,6 @@ class NodeRtmpSession extends NodeAvSession<never, RtmpSessionConfig> {
         this.socket.write(buffer);
     };
 
-    /**
-     *
-     * @param {AVPacket} packet
-     */
     onPacket = (packet: AVPacket) => {
         this.broadcast.broadcastMessage(packet);
     };

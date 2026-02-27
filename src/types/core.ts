@@ -31,9 +31,10 @@ export type NodeEventMap = {
 export enum LogType {
     NONE = 0,
     ERROR = 1,
-    NORMAL = 2,
-    DEBUG = 3,
-    FFDEBUG = 4,
+    WARN = 2,
+    NORMAL = 3,
+    DEBUG = 4,
+    FFDEBUG = 5,
 }
 
 export type Context = {

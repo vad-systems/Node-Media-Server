@@ -32,17 +32,6 @@ const logTime = () => {
     return nowDate.toLocaleDateString() + ' ' + nowDate.toLocaleTimeString([], { hour12: false });
 };
 
-const log = (...args: any[]) => {
-    context.nodeEvent.emit('logMessage', ...args);
-    if (logType < LogType.NORMAL) {
-        return;
-    }
-
-    const logEntry = [logTime(), process.pid, chalk.bold.green('[INFO]'), ...args]
-    console.log(...logEntry);
-    addRollingLog(...logEntry);
-};
-
 const error = (...args: any[]) => {
     context.nodeEvent.emit('errorMessage', ...args);
     if (logType < LogType.ERROR) {
@@ -56,11 +45,22 @@ const error = (...args: any[]) => {
 
 const warn = (...args: any[]) => {
     context.nodeEvent.emit('warnMessage', ...args);
-    if (logType < LogType.ERROR) {
+    if (logType < LogType.WARN) {
         return;
     }
 
     const logEntry = [logTime(), process.pid, chalk.bold.yellow('[WARN]'), ...args]
+    console.log(...logEntry);
+    addRollingLog(...logEntry);
+};
+
+const log = (...args: any[]) => {
+    context.nodeEvent.emit('logMessage', ...args);
+    if (logType < LogType.NORMAL) {
+        return;
+    }
+
+    const logEntry = [logTime(), process.pid, chalk.bold.green('[INFO]'), ...args]
     console.log(...logEntry);
     addRollingLog(...logEntry);
 };
