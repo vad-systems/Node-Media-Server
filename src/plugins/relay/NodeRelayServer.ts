@@ -65,6 +65,9 @@ class NodeRelayServer extends NodeTaskServer {
             if (session.broadcast) {
                 session.broadcast.subscribers.delete(id);
             }
+            if (session.isStop) {
+                return;
+            }
             setTimeout(() => {
                 if (session.broadcast && session.broadcast.publisher) {
                     this.logger.log(

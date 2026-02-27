@@ -102,10 +102,8 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
             context.nodeEvent.emit('donePublish', session);
 
             this.subscribers.forEach((subscriber) => {
-                if (subscriber.isFfmpegTask()) {
-                    subscriber.stop();
-                    this.subscribers.delete(subscriber.id);
-                }
+                subscriber.stop();
+                this.subscribers.delete(subscriber.id);
             });
 
             this.publisher = null;

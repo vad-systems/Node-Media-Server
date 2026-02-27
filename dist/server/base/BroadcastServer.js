@@ -89,10 +89,8 @@ class BroadcastServer {
             nms_core_1.context.idlePlayers.add(session.id);
             nms_core_1.context.nodeEvent.emit('donePublish', session);
             this.subscribers.forEach((subscriber) => {
-                if (subscriber.isFfmpegTask()) {
-                    subscriber.stop();
-                    this.subscribers.delete(subscriber.id);
-                }
+                subscriber.stop();
+                this.subscribers.delete(subscriber.id);
             });
             this.publisher = null;
         }

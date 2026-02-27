@@ -41,6 +41,7 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
         this.ffmpeg_exec.kill();
     }
     stop() {
+        this.isStop = true;
         this.end();
     }
     sendBuffer(buffer) {

@@ -55,6 +55,9 @@ class NodeRelayServer extends nms_server_1.NodeTaskServer {
             if (session.broadcast) {
                 session.broadcast.subscribers.delete(id);
             }
+            if (session.isStop) {
+                return;
+            }
             setTimeout(() => {
                 if (session.broadcast && session.broadcast.publisher) {
                     this.logger.log('[relay dynamic push] restart', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);

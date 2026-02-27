@@ -1,7 +1,7 @@
 import fs from 'fs';
 import _ from 'lodash';
 import * as mkdirp from 'mkdirp';
-import { LoggerFactory, NodeCoreUtils } from '@vad-systems/nms-core';
+import { context, LoggerFactory, NodeCoreUtils } from '@vad-systems/nms-core';
 import { TransSessionConfig, checkSelectiveTask } from '@vad-systems/nms-shared';
 import { BaseAvSession, NodeTaskServer } from '@vad-systems/nms-server';
 import { NodeTransSession } from './NodeTransSession.js';
@@ -74,12 +74,46 @@ class NodeTransServer extends NodeTaskServer {
                 continue;
             }
 
+            let isExisting = false;
+            for (let s of context.sessions.values()) {
+                if (s.TAG === 'trans' && s.streamPath === session.streamPath && _.isMatch(s.getConfig(), taskConfig)) {
+                    isExisting = true;
+                    break;
+                }
+            }
+            if (isExisting) {
+                this.logger.debug(
+                    '[trans] session still running',
+                    `srcid=${session.id}`,
+                    `streamPath=${session.streamPath}`,
+                    taskConfig,
+                );
+                continue;
+            }
+
             let sess = new NodeTransSession(sessionConfig);
 
             if (session.broadcast) {
                 sess.broadcast = session.broadcast;
                 session.broadcast.subscribers.set(sess.id, sess);
             }
+
+            const id = sess.id;
+            sess.on('end', (id) => {
+                this.logger.log('[trans] ended', `id=${id}`, sessionConfig.streamPath);
+                if (sess.broadcast) {
+                    sess.broadcast.subscribers.delete(id);
+                }
+                if (sess.isStop) {
+                    return;
+                }
+                setTimeout(() => {
+                    if (sess.broadcast && sess.broadcast.publisher) {
+                        this.logger.log('[trans] restart', `id=${id}`, sessionConfig.streamPath);
+                        this.handleTaskMatching(sess.broadcast.publisher as BaseAvSession<any, any>, app, name);
+                    }
+                }, 1000);
+            });
 
             sess.run();
         }

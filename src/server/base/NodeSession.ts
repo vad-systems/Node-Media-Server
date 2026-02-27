@@ -33,6 +33,8 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
     private _inBytes: number = 0;
     private _outBytes: number = 0;
 
+    private _isStop: boolean = false;
+
     protected constructor(conf: T, remoteIp: string, tag: string) {
         super();
         this.conf = _.cloneDeep(conf);
@@ -159,6 +161,14 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
 
     public get outBytes() {
         return this._outBytes;
+    }
+
+    public get isStop(): boolean {
+        return this._isStop;
+    }
+
+    public set isStop(value: boolean) {
+        this._isStop = value;
     }
 
     abstract stop(): void;

@@ -61,6 +61,23 @@ class NodeFissionServer extends NodeTaskServer {
                 continue;
             }
 
+            let isExisting = false;
+            for (let s of context.sessions.values()) {
+                if (s.TAG === 'fission' && s.streamPath === session.streamPath && _.isEqual(s.getConfig('model'), task.model)) {
+                    isExisting = true;
+                    break;
+                }
+            }
+            if (isExisting) {
+                this.logger.debug(
+                    '[fission] session still running',
+                    `srcid=${srcId}`,
+                    `streamPath=${session.streamPath}`,
+                    task,
+                );
+                continue;
+            }
+
             const broadcast = session.broadcast;
             const nameSegments = name.split('_');
             if (!broadcast) {
@@ -114,6 +131,9 @@ class NodeFissionServer extends NodeTaskServer {
                 );
                 if (sess.broadcast) {
                     sess.broadcast.subscribers.delete(id);
+                }
+                if (sess.isStop) {
+                    return;
                 }
                 setTimeout(() => {
                     if (sess.broadcast && sess.broadcast.publisher) {

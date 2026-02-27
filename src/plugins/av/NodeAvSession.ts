@@ -90,6 +90,7 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
     };
 
     stop = () => {
+        this.isStop = true;
         if (this.res instanceof WebSocket) {
             this.res.close();
         } else {

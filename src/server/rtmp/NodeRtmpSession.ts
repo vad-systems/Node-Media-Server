@@ -55,6 +55,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     };
 
     stop = () => {
+        this.isStop = true;
         this.socket.end();
     };
 }

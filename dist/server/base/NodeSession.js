@@ -24,6 +24,7 @@ class NodeSession extends events_1.default {
     _endTime = null;
     _inBytes = 0;
     _outBytes = 0;
+    _isStop = false;
     constructor(conf, remoteIp, tag) {
         super();
         this.conf = lodash_1.default.cloneDeep(conf);
@@ -124,6 +125,12 @@ class NodeSession extends events_1.default {
     }
     get outBytes() {
         return this._outBytes;
+    }
+    get isStop() {
+        return this._isStop;
+    }
+    set isStop(value) {
+        this._isStop = value;
     }
 }
 exports.NodeSession = NodeSession;

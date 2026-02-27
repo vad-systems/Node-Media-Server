@@ -102,11 +102,38 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
             if (!(0, nms_shared_1.checkSelectiveTask)(taskConfig, app, session.streamPath)) {
                 continue;
             }
+            let isExisting = false;
+            for (let s of nms_core_1.context.sessions.values()) {
+                if (s.TAG === 'trans' && s.streamPath === session.streamPath && lodash_1.default.isMatch(s.getConfig(), taskConfig)) {
+                    isExisting = true;
+                    break;
+                }
+            }
+            if (isExisting) {
+                this.logger.debug('[trans] session still running', `srcid=${session.id}`, `streamPath=${session.streamPath}`, taskConfig);
+                continue;
+            }
             let sess = new NodeTransSession_js_1.NodeTransSession(sessionConfig);
             if (session.broadcast) {
                 sess.broadcast = session.broadcast;
                 session.broadcast.subscribers.set(sess.id, sess);
             }
+            const id = sess.id;
+            sess.on('end', (id) => {
+                this.logger.log('[trans] ended', `id=${id}`, sessionConfig.streamPath);
+                if (sess.broadcast) {
+                    sess.broadcast.subscribers.delete(id);
+                }
+                if (sess.isStop) {
+                    return;
+                }
+                setTimeout(() => {
+                    if (sess.broadcast && sess.broadcast.publisher) {
+                        this.logger.log('[trans] restart', `id=${id}`, sessionConfig.streamPath);
+                        this.handleTaskMatching(sess.broadcast.publisher, app, name);
+                    }
+                }, 1000);
+            });
             sess.run();
         }
     }

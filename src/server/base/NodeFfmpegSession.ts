@@ -50,6 +50,7 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
     }
 
     stop() {
+        this.isStop = true;
         this.end();
     }
 

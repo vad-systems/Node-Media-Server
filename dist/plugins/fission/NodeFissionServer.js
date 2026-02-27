@@ -82,6 +82,17 @@ class NodeFissionServer extends nms_server_1.NodeTaskServer {
                 this.logger.debug('[fission] pattern check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${session.streamPath}`, task);
                 continue;
             }
+            let isExisting = false;
+            for (let s of nms_core_1.context.sessions.values()) {
+                if (s.TAG === 'fission' && s.streamPath === session.streamPath && lodash_1.default.isEqual(s.getConfig('model'), task.model)) {
+                    isExisting = true;
+                    break;
+                }
+            }
+            if (isExisting) {
+                this.logger.debug('[fission] session still running', `srcid=${srcId}`, `streamPath=${session.streamPath}`, task);
+                continue;
+            }
             const broadcast = session.broadcast;
             const nameSegments = name.split('_');
             if (!broadcast) {
@@ -114,6 +125,9 @@ class NodeFissionServer extends nms_server_1.NodeTaskServer {
                 this.logger.log('[fission] ended', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
                 if (sess.broadcast) {
                     sess.broadcast.subscribers.delete(id);
+                }
+                if (sess.isStop) {
+                    return;
                 }
                 setTimeout(() => {
                     if (sess.broadcast && sess.broadcast.publisher) {
