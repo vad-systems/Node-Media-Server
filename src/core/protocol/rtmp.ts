@@ -731,13 +731,13 @@ class Rtmp {
     }
 
     dataHandler = () => {
-        let parcket = Flv.parserTag(
+        let packet = Flv.parserTag(
             this.parserPacket.header.type,
             this.parserPacket.clock,
             this.parserPacket.header.length,
             this.parserPacket.payload,
         );
-        this.onPacketCallback(parcket);
+        this.onPacketCallback(packet);
     };
 
     onConnect = (invokeMessage: any) => {
@@ -746,7 +746,7 @@ class Rtmp {
         this.streamApp = invokeMessage.cmdObj.app;
         this.streamHost = url.hostname;
         this.objectEncoding = invokeMessage.cmdObj.objectEncoding != null ? invokeMessage.cmdObj.objectEncoding : 0;
-        this.connectTime = new Date();
+        this.connectTime = new Date(); // TODO: Pass through as startTime
         this.startTimestamp = Date.now();
         this.sendWindowACK(5000000);
         this.setPeerBandwidth(5000000, 2);

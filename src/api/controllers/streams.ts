@@ -1,33 +1,71 @@
-import _ from 'lodash';
 import { NextFunction, Request, Response } from 'express';
+import _ from 'lodash';
+import { FlvAudioCodec, FlvVideoCodec } from '../../core/protocol/flv.js';
 import { Context } from '../../types/index.js';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};
 
-        this.broadcasts.forEach((broadcast, key) => {
-            const [k, app, name] = key.split("/");
-            _.setWith(stats, [app, name], {
-                key,
+    this.broadcasts.forEach((broadcast, key) => {
+        const [k, app, name] = key.split('/');
+        _.setWith(stats, [app, name], {
+            key,
+            app,
+            name,
+            publisher: broadcast.publisher ? {
                 app,
-                name,
-                publisher: broadcast.publisher ? {
-                    id: broadcast.publisher.id,
-                    ip: broadcast.publisher.ip,
-                    protocol: broadcast.publisher.protocol,
-                    createTime: broadcast.publisher.createTime,
-                    videoCodec: broadcast.publisher.videoCodec,
-                    videoWidth: broadcast.publisher.videoWidth,
-                    videoHeight: broadcast.publisher.videoHeight,
-                    videoFramerate: broadcast.publisher.videoFramerate,
-                    audioCodec: broadcast.publisher.audioCodec,
-                    audioChannels: broadcast.publisher.audioChannels,
-                    audioSamplerate: broadcast.publisher.audioSamplerate,
-                    inBytes: broadcast.publisher.inBytes,
+                strean: name,
+                clientId: broadcast.publisher.id,
+                ip: broadcast.publisher.remoteIp,
+                protocol: broadcast.publisher.protocol,
+                connectCreated: broadcast.publisher.startTime,
+                video: broadcast.publisher.videoCodec > 0 ? {
+                    codec: FlvVideoCodec[broadcast.publisher.videoCodec],
+                    width: broadcast.publisher.videoWidth,
+                    height: broadcast.publisher.videoHeight,
+                    profile: broadcast.publisher.profile,
+                    level: broadcast.publisher.level,
+                    fps: broadcast.publisher.videoFramerate,
                 } : null,
-                subscribers: broadcast.subscribers?.size || 0
-            });
+                audio: broadcast.publisher.audioCodec > 0 ? {
+                    codec: FlvAudioCodec[broadcast.publisher.audioCodec],
+                    profile: broadcast.publisher.profile,
+                    channels: broadcast.publisher.audioChannels,
+                    samplerate: broadcast.publisher.audioSamplerate,
+                } : null,
+                bytes: broadcast.publisher.inBytes,
+            } : null,
+            subscribers: [...broadcast.subscribers.values()].map(
+                subscriber => {
+                    switch (subscriber.constructor.name) {
+                        case 'NodeRtmpSession': {
+                            return {
+                                app,
+                                stream: name,
+                                clientId: subscriber.id,
+                                connectCreated: subscriber.connectTime,
+                                bytes: subscriber.socket.bytesWritten,
+                                ip: subscriber.remoteIp,
+                                protocol: 'rtmp',
+                            };
+                        }
+                        case 'NodeHttpSession': {
+                            return {
+                                app,
+                                stream: name,
+                                clientId: subscriber.id,
+                                connectCreated: subscriber.connectTime,
+                                bytes: subscriber.req.connection.bytesWritten,
+                                ip: subscriber.remoteIp,
+                                protocol: subscriber.TAG === 'websocket-flv' ? 'ws' : 'http',
+                            };
+                        }
+                    }
+                    return null;
+                }
+            ).filter(Boolean)
         });
+    });
 
     this.sessions.forEach(function (session: any, id) {
         if (session.isStarting) {

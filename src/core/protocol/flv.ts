@@ -23,37 +23,40 @@ enum FlvFrameType {
     VIDEO_INFO_CMD = 5,
 }
 
-const FLV_AVC_SEQUENCE_HEADER = 0;
 const FLV_AVC_NALU = 1;
 const FLV_AVC_END_OF_SEQUENCE = 2;
 
-export enum FlvCodec {
+export enum FlvVideoCodec {
+    H263 = 2,
+    SCREEN = 3,
+    VP6 = 4,
+    VP6A = 5,
+    SCREEN2 = 6,
+    VP8 = 7,
+    H264 = 7,
+    REALH263 = 8,
+    MPEG4 = 9,
+    VP9 = 8,
+    SPEEX = 11,
+    H265 = 12,
+    AV1 = 13,
+    HEVC = 15,
+    MPEG2TS = 16,
+}
+
+export enum FlvAudioCodec {
     PCM = 0,
     ADPCM = 1,
     MP3 = 2,
-    H263 = 2,
     PCM_LE = 3,
-    SCREEN = 3,
-    VP6 = 4,
     NELLYMOSER_16KHZ_MONO = 4,
-    VP6A = 5,
     NELLYMOSER_8KHZ_MONO = 5,
-    SCREEN2 = 6,
     NELLYMOSER = 6,
-    H264 = 7, // video
     PCM_ALAW = 7,
-    REALH263 = 8,
     PCM_MULAW = 8,
-    MPEG4 = 9,
     ExHeader = 9,
-    AAC = 10, // audio
-    SPEEX = 11,
-    AAC_LATM = 13, // audio
-    VP8 = 7,
-    VP9 = 8,
-    H265 = 12, // video
-    HEVC = 15, // video
-    MPEG2TS = 16,
+    AAC = 10,
+    AAC_LATM = 13,
 }
 
 class FOURCC {
@@ -70,6 +73,7 @@ class FOURCC {
 
 enum VideoPacketType {
     SequenceStart = 0,
+    AvcSequenceHeader = 0,
     CodedFrames = 1,
     SequenceEnd = 2,
     CodedFramesX = 3,
@@ -249,8 +253,8 @@ class Flv {
             const soundFormat = data[0] >> 4;
             packet.codec_id = soundFormat;
             packet.flags = 1;
-            if (soundFormat !== FlvCodec.ExHeader) {
-                if (soundFormat === FlvCodec.AAC) {
+            if (soundFormat !== FlvAudioCodec.ExHeader) {
+                if (soundFormat === FlvAudioCodec.AAC) {
                     if (data[1] === 0) {
                         packet.flags = 0;
                     }
@@ -284,8 +288,6 @@ class Flv {
                             packet.flags = 4;
                         }
                     } else if (videoPacketType === VideoPacketType.Metadata) {
-                        // const hdrMetadata = AMF.parseScriptData(packet.data.buffer, 5, packet.size);
-                        // logger.debug(`hdrMetadata:${JSON.stringify(hdrMetadata)}`);
                         packet.flags = 6;
                     }
 
@@ -298,12 +300,12 @@ class Flv {
                 }
             } else {
                 const cts = data.readUintBE(2, 3);
-                const VideoPacketType = data[1];
+                const videoPacketType = data[1];
                 packet.codec_id = codecID;
                 packet.pts = packet.dts + cts;
                 packet.flags = 4;
-                if (codecID === FlvCodec.H264) {
-                    if (VideoPacketType === FLV_AVC_SEQUENCE_HEADER) {
+                if (codecID === FlvVideoCodec.H264) {
+                    if (videoPacketType === VideoPacketType.AvcSequenceHeader) {
                         packet.flags = 2;
                     } else {
                         if (frameType === FlvFrameType.KEY) {

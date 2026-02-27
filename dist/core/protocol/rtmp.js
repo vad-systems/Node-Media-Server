@@ -504,8 +504,8 @@ class Rtmp {
         this.eventHandler = () => {
         };
         this.dataHandler = () => {
-            let parcket = flv_js_1.default.parserTag(this.parserPacket.header.type, this.parserPacket.clock, this.parserPacket.header.length, this.parserPacket.payload);
-            this.onPacketCallback(parcket);
+            let packet = flv_js_1.default.parserTag(this.parserPacket.header.type, this.parserPacket.clock, this.parserPacket.header.length, this.parserPacket.payload);
+            this.onPacketCallback(packet);
         };
         this.onConnect = (invokeMessage) => {
             const url = new URL(invokeMessage.cmdObj.tcUrl);
@@ -513,7 +513,7 @@ class Rtmp {
             this.streamApp = invokeMessage.cmdObj.app;
             this.streamHost = url.hostname;
             this.objectEncoding = invokeMessage.cmdObj.objectEncoding != null ? invokeMessage.cmdObj.objectEncoding : 0;
-            this.connectTime = new Date();
+            this.connectTime = new Date(); // TODO: Pass through as startTime
             this.startTimestamp = Date.now();
             this.sendWindowACK(5000000);
             this.setPeerBandwidth(5000000, 2);

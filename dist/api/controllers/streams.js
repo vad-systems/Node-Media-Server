@@ -4,30 +4,65 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = __importDefault(require("lodash"));
+const flv_js_1 = require("../../core/protocol/flv.js");
 function getStreams(req, res, next) {
     let stats = {};
     this.broadcasts.forEach((broadcast, key) => {
-        var _a;
-        const [k, app, name] = key.split("/");
+        const [k, app, name] = key.split('/');
         lodash_1.default.setWith(stats, [app, name], {
             key,
             app,
             name,
             publisher: broadcast.publisher ? {
-                id: broadcast.publisher.id,
-                ip: broadcast.publisher.ip,
+                app,
+                strean: name,
+                clientId: broadcast.publisher.id,
+                ip: broadcast.publisher.remoteIp,
                 protocol: broadcast.publisher.protocol,
-                createTime: broadcast.publisher.createTime,
-                videoCodec: broadcast.publisher.videoCodec,
-                videoWidth: broadcast.publisher.videoWidth,
-                videoHeight: broadcast.publisher.videoHeight,
-                videoFramerate: broadcast.publisher.videoFramerate,
-                audioCodec: broadcast.publisher.audioCodec,
-                audioChannels: broadcast.publisher.audioChannels,
-                audioSamplerate: broadcast.publisher.audioSamplerate,
-                inBytes: broadcast.publisher.inBytes,
+                connectCreated: broadcast.publisher.startTime,
+                video: broadcast.publisher.videoCodec > 0 ? {
+                    codec: flv_js_1.FlvVideoCodec[broadcast.publisher.videoCodec],
+                    width: broadcast.publisher.videoWidth,
+                    height: broadcast.publisher.videoHeight,
+                    profile: broadcast.publisher.profile,
+                    level: broadcast.publisher.level,
+                    fps: broadcast.publisher.videoFramerate,
+                } : null,
+                audio: broadcast.publisher.audioCodec > 0 ? {
+                    codec: flv_js_1.FlvAudioCodec[broadcast.publisher.audioCodec],
+                    profile: broadcast.publisher.profile,
+                    channels: broadcast.publisher.audioChannels,
+                    samplerate: broadcast.publisher.audioSamplerate,
+                } : null,
+                bytes: broadcast.publisher.inBytes,
             } : null,
-            subscribers: ((_a = broadcast.subscribers) === null || _a === void 0 ? void 0 : _a.size) || 0
+            subscribers: [...broadcast.subscribers.values()].map(subscriber => {
+                switch (subscriber.constructor.name) {
+                    case 'NodeRtmpSession': {
+                        return {
+                            app,
+                            stream: name,
+                            clientId: subscriber.id,
+                            connectCreated: subscriber.connectTime,
+                            bytes: subscriber.socket.bytesWritten,
+                            ip: subscriber.remoteIp,
+                            protocol: 'rtmp',
+                        };
+                    }
+                    case 'NodeHttpSession': {
+                        return {
+                            app,
+                            stream: name,
+                            clientId: subscriber.id,
+                            connectCreated: subscriber.connectTime,
+                            bytes: subscriber.req.connection.bytesWritten,
+                            ip: subscriber.remoteIp,
+                            protocol: subscriber.TAG === 'websocket-flv' ? 'ws' : 'http',
+                        };
+                    }
+                }
+                return null;
+            }).filter(Boolean)
         });
     });
     this.sessions.forEach(function (session, id) {

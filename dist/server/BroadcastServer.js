@@ -8,6 +8,7 @@ const node_buffer_1 = require("node:buffer");
 const node_crypto_1 = __importDefault(require("node:crypto"));
 const context_js_1 = __importDefault(require("../core/context.js"));
 const amf_js_1 = require("../core/protocol/amf.js");
+const av_js_1 = require("../core/protocol/av.js");
 const flv_js_1 = __importDefault(require("../core/protocol/flv.js"));
 const rtmp_js_1 = __importDefault(require("../core/protocol/rtmp.js"));
 const NodeAvSession_js_1 = require("./NodeAvSession.js");
@@ -81,6 +82,7 @@ class BroadcastServer {
                         });
                     }
             }
+            session.startTime = Date.now();
             this._subscribers.set(session.id, session);
             return null;
         };
@@ -101,6 +103,7 @@ class BroadcastServer {
                 }
             }
             if (this._publisher == null) {
+                session.startTime = Date.now();
                 this._publisher = session;
             }
             else {
@@ -178,6 +181,12 @@ class BroadcastServer {
             }
             if (this.rtmpGopCache && this.rtmpGopCache.size > 4096) {
                 this.rtmpGopCache.clear();
+            }
+            if (this.flvAudioHeader) {
+                console.log('AUDIO: ', (0, av_js_1.readAACSpecificConfig)(this.flvAudioHeader));
+            }
+            if (this.flvVideoHeader) {
+                console.log('VIDEO: ', (0, av_js_1.readAVCSpecificConfig)(this.flvVideoHeader));
             }
             this._subscribers.forEach((v, k) => {
                 switch (v.protocol) {

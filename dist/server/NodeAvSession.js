@@ -21,6 +21,7 @@ class NodeAvSession extends NodeSession_js_1.NodeSession {
         this._videoHeight = null;
         this._videoFramerate = null;
         this._videoDatarate = null;
+        this._startTime = null;
         this._endTime = null;
         this.protocol = protocol;
     }
@@ -89,6 +90,12 @@ class NodeAvSession extends NodeSession_js_1.NodeSession {
     }
     get videoDatarate() {
         return this._videoDatarate;
+    }
+    set startTime(time) {
+        this._startTime = time;
+    }
+    get startTime() {
+        return this._startTime;
     }
     set endTime(time) {
         this._endTime = time;

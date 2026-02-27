@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FlvCodec = void 0;
+exports.FlvAudioCodec = exports.FlvVideoCodec = void 0;
 const node_buffer_1 = require("node:buffer");
 const logger_js_1 = __importDefault(require("../logger.js"));
 const AVPacket_js_1 = __importDefault(require("./AVPacket.js"));
@@ -28,38 +28,41 @@ var FlvFrameType;
     FlvFrameType[FlvFrameType["GENERATED_KEY"] = 4] = "GENERATED_KEY";
     FlvFrameType[FlvFrameType["VIDEO_INFO_CMD"] = 5] = "VIDEO_INFO_CMD";
 })(FlvFrameType || (FlvFrameType = {}));
-const FLV_AVC_SEQUENCE_HEADER = 0;
 const FLV_AVC_NALU = 1;
 const FLV_AVC_END_OF_SEQUENCE = 2;
-var FlvCodec;
-(function (FlvCodec) {
-    FlvCodec[FlvCodec["PCM"] = 0] = "PCM";
-    FlvCodec[FlvCodec["ADPCM"] = 1] = "ADPCM";
-    FlvCodec[FlvCodec["MP3"] = 2] = "MP3";
-    FlvCodec[FlvCodec["H263"] = 2] = "H263";
-    FlvCodec[FlvCodec["PCM_LE"] = 3] = "PCM_LE";
-    FlvCodec[FlvCodec["SCREEN"] = 3] = "SCREEN";
-    FlvCodec[FlvCodec["VP6"] = 4] = "VP6";
-    FlvCodec[FlvCodec["NELLYMOSER_16KHZ_MONO"] = 4] = "NELLYMOSER_16KHZ_MONO";
-    FlvCodec[FlvCodec["VP6A"] = 5] = "VP6A";
-    FlvCodec[FlvCodec["NELLYMOSER_8KHZ_MONO"] = 5] = "NELLYMOSER_8KHZ_MONO";
-    FlvCodec[FlvCodec["SCREEN2"] = 6] = "SCREEN2";
-    FlvCodec[FlvCodec["NELLYMOSER"] = 6] = "NELLYMOSER";
-    FlvCodec[FlvCodec["H264"] = 7] = "H264";
-    FlvCodec[FlvCodec["PCM_ALAW"] = 7] = "PCM_ALAW";
-    FlvCodec[FlvCodec["REALH263"] = 8] = "REALH263";
-    FlvCodec[FlvCodec["PCM_MULAW"] = 8] = "PCM_MULAW";
-    FlvCodec[FlvCodec["MPEG4"] = 9] = "MPEG4";
-    FlvCodec[FlvCodec["ExHeader"] = 9] = "ExHeader";
-    FlvCodec[FlvCodec["AAC"] = 10] = "AAC";
-    FlvCodec[FlvCodec["SPEEX"] = 11] = "SPEEX";
-    FlvCodec[FlvCodec["AAC_LATM"] = 13] = "AAC_LATM";
-    FlvCodec[FlvCodec["VP8"] = 7] = "VP8";
-    FlvCodec[FlvCodec["VP9"] = 8] = "VP9";
-    FlvCodec[FlvCodec["H265"] = 12] = "H265";
-    FlvCodec[FlvCodec["HEVC"] = 15] = "HEVC";
-    FlvCodec[FlvCodec["MPEG2TS"] = 16] = "MPEG2TS";
-})(FlvCodec || (exports.FlvCodec = FlvCodec = {}));
+var FlvVideoCodec;
+(function (FlvVideoCodec) {
+    FlvVideoCodec[FlvVideoCodec["H263"] = 2] = "H263";
+    FlvVideoCodec[FlvVideoCodec["SCREEN"] = 3] = "SCREEN";
+    FlvVideoCodec[FlvVideoCodec["VP6"] = 4] = "VP6";
+    FlvVideoCodec[FlvVideoCodec["VP6A"] = 5] = "VP6A";
+    FlvVideoCodec[FlvVideoCodec["SCREEN2"] = 6] = "SCREEN2";
+    FlvVideoCodec[FlvVideoCodec["VP8"] = 7] = "VP8";
+    FlvVideoCodec[FlvVideoCodec["H264"] = 7] = "H264";
+    FlvVideoCodec[FlvVideoCodec["REALH263"] = 8] = "REALH263";
+    FlvVideoCodec[FlvVideoCodec["MPEG4"] = 9] = "MPEG4";
+    FlvVideoCodec[FlvVideoCodec["VP9"] = 8] = "VP9";
+    FlvVideoCodec[FlvVideoCodec["SPEEX"] = 11] = "SPEEX";
+    FlvVideoCodec[FlvVideoCodec["H265"] = 12] = "H265";
+    FlvVideoCodec[FlvVideoCodec["AV1"] = 13] = "AV1";
+    FlvVideoCodec[FlvVideoCodec["HEVC"] = 15] = "HEVC";
+    FlvVideoCodec[FlvVideoCodec["MPEG2TS"] = 16] = "MPEG2TS";
+})(FlvVideoCodec || (exports.FlvVideoCodec = FlvVideoCodec = {}));
+var FlvAudioCodec;
+(function (FlvAudioCodec) {
+    FlvAudioCodec[FlvAudioCodec["PCM"] = 0] = "PCM";
+    FlvAudioCodec[FlvAudioCodec["ADPCM"] = 1] = "ADPCM";
+    FlvAudioCodec[FlvAudioCodec["MP3"] = 2] = "MP3";
+    FlvAudioCodec[FlvAudioCodec["PCM_LE"] = 3] = "PCM_LE";
+    FlvAudioCodec[FlvAudioCodec["NELLYMOSER_16KHZ_MONO"] = 4] = "NELLYMOSER_16KHZ_MONO";
+    FlvAudioCodec[FlvAudioCodec["NELLYMOSER_8KHZ_MONO"] = 5] = "NELLYMOSER_8KHZ_MONO";
+    FlvAudioCodec[FlvAudioCodec["NELLYMOSER"] = 6] = "NELLYMOSER";
+    FlvAudioCodec[FlvAudioCodec["PCM_ALAW"] = 7] = "PCM_ALAW";
+    FlvAudioCodec[FlvAudioCodec["PCM_MULAW"] = 8] = "PCM_MULAW";
+    FlvAudioCodec[FlvAudioCodec["ExHeader"] = 9] = "ExHeader";
+    FlvAudioCodec[FlvAudioCodec["AAC"] = 10] = "AAC";
+    FlvAudioCodec[FlvAudioCodec["AAC_LATM"] = 13] = "AAC_LATM";
+})(FlvAudioCodec || (exports.FlvAudioCodec = FlvAudioCodec = {}));
 class FOURCC {
 }
 FOURCC.AV1 = node_buffer_1.Buffer.from('av01');
@@ -74,6 +77,7 @@ FOURCC.AAC = node_buffer_1.Buffer.from('mp4a');
 var VideoPacketType;
 (function (VideoPacketType) {
     VideoPacketType[VideoPacketType["SequenceStart"] = 0] = "SequenceStart";
+    VideoPacketType[VideoPacketType["AvcSequenceHeader"] = 0] = "AvcSequenceHeader";
     VideoPacketType[VideoPacketType["CodedFrames"] = 1] = "CodedFrames";
     VideoPacketType[VideoPacketType["SequenceEnd"] = 2] = "SequenceEnd";
     VideoPacketType[VideoPacketType["CodedFramesX"] = 3] = "CodedFramesX";
@@ -217,8 +221,8 @@ Flv.parserTag = (type, time, size, data) => {
         const soundFormat = data[0] >> 4;
         packet.codec_id = soundFormat;
         packet.flags = 1;
-        if (soundFormat !== FlvCodec.ExHeader) {
-            if (soundFormat === FlvCodec.AAC) {
+        if (soundFormat !== FlvAudioCodec.ExHeader) {
+            if (soundFormat === FlvAudioCodec.AAC) {
                 if (data[1] === 0) {
                     packet.flags = 0;
                 }
@@ -252,8 +256,6 @@ Flv.parserTag = (type, time, size, data) => {
                     }
                 }
                 else if (videoPacketType === VideoPacketType.Metadata) {
-                    // const hdrMetadata = AMF.parseScriptData(packet.data.buffer, 5, packet.size);
-                    // logger.debug(`hdrMetadata:${JSON.stringify(hdrMetadata)}`);
                     packet.flags = 6;
                 }
                 if (fourCC.compare(FOURCC.HEVC) === 0) {
@@ -266,12 +268,12 @@ Flv.parserTag = (type, time, size, data) => {
         }
         else {
             const cts = data.readUintBE(2, 3);
-            const VideoPacketType = data[1];
+            const videoPacketType = data[1];
             packet.codec_id = codecID;
             packet.pts = packet.dts + cts;
             packet.flags = 4;
-            if (codecID === FlvCodec.H264) {
-                if (VideoPacketType === FLV_AVC_SEQUENCE_HEADER) {
+            if (codecID === FlvVideoCodec.H264) {
+                if (videoPacketType === VideoPacketType.AvcSequenceHeader) {
                     packet.flags = 2;
                 }
                 else {

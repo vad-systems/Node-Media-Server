@@ -1,9 +1,9 @@
-import { now, parseInt } from 'lodash';
+import { parseInt } from 'lodash';
 import { Buffer } from 'node:buffer';
 import crypto from 'node:crypto';
-import config from '../core/config.js';
 import context from '../core/context.js';
 import { decodeAmf0Data } from '../core/protocol/amf.js';
+import { readAACSpecificConfig, readAVCSpecificConfig } from '../core/protocol/av.js';
 import AVPacket from '../core/protocol/AVPacket.js';
 import Flv from '../core/protocol/flv.js';
 import Rtmp from '../core/protocol/rtmp.js';
@@ -40,6 +40,7 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
     public get publisher(): S | null {
         return this._publisher;
     }
+
     public set publisher(value: S | null) {
         this._publisher = value;
     }
@@ -47,6 +48,7 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
     public get subscribers(): Map<string, S> {
         return this._subscribers;
     }
+
     public set subscribers(value: Map<string, S>) {
         this._subscribers = value;
     }
@@ -123,6 +125,7 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
                 }
         }
 
+        session.startTime = Date.now();
         this._subscribers.set(session.id, session);
         return null;
     };
@@ -147,6 +150,7 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
         }
 
         if (this._publisher == null) {
+            session.startTime = Date.now();
             this._publisher = session;
         } else {
             return `streamPath=${session.streamPath} already has a publisher`;
@@ -226,6 +230,15 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
 
         if (this.rtmpGopCache && this.rtmpGopCache.size > 4096) {
             this.rtmpGopCache.clear();
+        }
+
+        if (this.flvAudioHeader) {
+            console.log('AUDIO: ', readAACSpecificConfig(this.flvAudioHeader));
+        }
+
+
+        if (this.flvVideoHeader) {
+            console.log('VIDEO: ', readAVCSpecificConfig(this.flvVideoHeader));
         }
 
         this._subscribers.forEach((v, k) => {

@@ -1,4 +1,5 @@
 import { ParsedUrlQuery } from 'querystring';
+import { FlvAudioCodec, FlvVideoCodec } from '../core/protocol/flv.js';
 import { SessionConfig } from '../types/index.js';
 import { NodeSession } from './NodeSession.js';
 
@@ -13,16 +14,17 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     private _streamPath: string | null = null;
     private _streamQuery: ParsedUrlQuery | null = null;
 
-    private _audioCodec: string = null;
+    private _audioCodec: FlvAudioCodec = null;
     private _audioChannels: number = null;
     private _audioSamplerate: number = null;
     private _audioDatarate: number = null;
-    private _videoCodec: string = null;
+    private _videoCodec: FlvVideoCodec = null;
     private _videoWidth: number = null;
     private _videoHeight: number = null;
     private _videoFramerate: number = null;
     private _videoDatarate: number = null;
 
+    private _startTime: number | null = null;
     private _endTime: number | null = null;
 
     protected constructor(conf: T, remoteIp: string, protocol: Protocol) {
@@ -44,7 +46,7 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
         return this._streamQuery;
     }
 
-    public set audioCodec(codec: string) {
+    public set audioCodec(codec: FlvAudioCodec) {
         this._audioCodec = codec;
     }
     public get audioCodec() {
@@ -72,7 +74,7 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
         return this._audioDatarate;
     }
 
-    public set videoCodec(codec: string) {
+    public set videoCodec(codec: FlvVideoCodec) {
         this._videoCodec = codec;
     }
     public get videoCodec() {
@@ -105,6 +107,13 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     }
     public get videoDatarate() {
         return this._videoDatarate;
+    }
+
+    public set startTime(time: number) {
+        this._startTime = time;
+    }
+    public get startTime() {
+        return this._startTime;
     }
 
     public set endTime(time: number) {
