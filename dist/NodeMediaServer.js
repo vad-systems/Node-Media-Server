@@ -151,6 +151,9 @@ class NodeMediaServer {
         if (this.fissionServer) {
             this.fissionServer.stop();
         }
+        if (this.transServer) {
+            this.transServer.stop();
+        }
     }
 }
 NodeMediaServer.types = types;

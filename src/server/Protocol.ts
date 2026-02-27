@@ -1,4 +1,5 @@
 export enum Protocol {
     RTMP = 'rtmp',
-    FLV = 'flv',
+    HTTP_FLV = 'http-flv',
+    WS_FLV = 'websocket-flv',
 }

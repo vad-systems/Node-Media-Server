@@ -106,7 +106,6 @@ class NodeFissionServer extends NodeTaskServer {
                 sessionConf.streamPath,
                 `x${taskConf.model.length}`,
             );
-            context.sessions.set(id, sess);
             sess.on('end', (id) => {
                 this.logger.log(
                     '[fission] ended',
@@ -115,7 +114,6 @@ class NodeFissionServer extends NodeTaskServer {
                     sessionConf.streamPath,
                     `x${taskConf.model.length}`,
                 );
-                context.sessions.delete(id);
                 if (sess.broadcast) {
                     sess.broadcast.subscribers.delete(id);
                 }

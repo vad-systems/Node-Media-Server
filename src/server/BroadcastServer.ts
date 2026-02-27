@@ -64,10 +64,12 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
 
         session.startTime = Date.now();
         this.subscribers.set(session.id, session);
+        context.idlePlayers.delete(session.id);
     }
 
     public donePlay(session: S) {
         session.endTime = Date.now();
+        context.idlePlayers.add(session.id);
         context.nodeEvent.emit('donePlay', session);
         this.subscribers.delete(session.id);
     }
@@ -86,6 +88,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
         if (this.publisher == null) {
             session.startTime = Date.now();
             this.publisher = session;
+            context.idlePlayers.delete(session.id);
         } else {
             throw new Error(`streamPath=${session.streamPath} already has a publisher`);
         }
@@ -95,6 +98,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
     public donePublish(session: S) {
         if (session === this.publisher) {
             session.endTime = Date.now();
+            context.idlePlayers.add(session.id);
             context.nodeEvent.emit('donePublish', session);
 
             this.subscribers.forEach((subscriber) => {

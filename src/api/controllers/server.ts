@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
+import _ from 'lodash';
 import OS from 'os';
-import { Context } from '../../types/index.js';
+import { Config, Context } from '../../types/index.js';
 
 const Package = require('../../../package.json');
 
@@ -95,7 +96,59 @@ function getConfig(this: Context, req: Request, res: Response, next: NextFunctio
 }
 
 function updateConfig(this: Context, req: Request, res: Response, next: NextFunction) {
-    throw new Error('Not implemented');
+    const currentConfig = this.configProvider.getConfig();
+    const newConfigData = _.merge({}, currentConfig, req.body);
+    const newConfig = new Config(newConfigData);
+    this.configProvider.setConfig(newConfig);
+    res.json(this.configProvider.getConfig());
+}
+
+async function startServer(this: Context, req: Request, res: Response, next: NextFunction) {
+    const serverName = req.params.server as string;
+    const servers: any = {
+        rtmp: this.server.rtmpServer,
+        av: this.server.avServer,
+        trans: this.server.transServer,
+        relay: this.server.relayServer,
+        fission: this.server.fissionServer,
+    };
+
+    const server = servers[serverName];
+
+    if (server) {
+        if (!server.isRunning()) {
+            await server.run();
+            res.json({ status: 'ok' });
+        } else {
+            res.status(400).json({ error: 'Server already running' });
+        }
+    } else {
+        res.status(404).json({ error: 'Server not found' });
+    }
+}
+
+function stopServer(this: Context, req: Request, res: Response, next: NextFunction) {
+    const serverName = req.params.server as string;
+    const servers: any = {
+        rtmp: this.server.rtmpServer,
+        av: this.server.avServer,
+        trans: this.server.transServer,
+        relay: this.server.relayServer,
+        fission: this.server.fissionServer,
+    };
+
+    const server = servers[serverName];
+
+    if (server) {
+        if (server.isRunning()) {
+            server.stop();
+            res.json({ status: 'ok' });
+        } else {
+            res.status(400).json({ error: 'Server not running' });
+        }
+    } else {
+        res.status(404).json({ error: 'Server not found' });
+    }
 }
 
 function getStatus(this: Context, req: Request, res: Response, next: NextFunction) {
@@ -140,7 +193,7 @@ function getInfo(this: Context, req: Request, res: Response, next: NextFunction)
                 speed: OS.cpus()[0].speed,
             },
             mem: {
-                totle: OS.totalmem(),
+                total: OS.totalmem(),
                 free: OS.freemem(),
             },
             net: {
@@ -171,4 +224,6 @@ export default {
     getStatus,
     getConfig,
     updateConfig,
+    startServer,
+    stopServer,
 };

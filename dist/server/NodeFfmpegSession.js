@@ -19,6 +19,7 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
         let argumentList = argv.filter(Boolean);
         this.ffmpeg_exec = (0, child_process_1.spawn)(this.conf.ffmpeg, argumentList);
         this.startTime = Date.now();
+        index_js_1.context.idlePlayers.delete(this.id);
         this.ffmpeg_exec.on('error', (e) => {
             this.logger.ffdebug(`[ffmpeg error] ${e}`);
         });
@@ -32,6 +33,7 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
             this.logger.log(`[ffmpeg end]`);
             this.emit('end', this.id);
             index_js_1.context.nodeEvent.emit('doneConnect', this);
+            this.cleanup();
         });
         index_js_1.context.nodeEvent.emit('postConnect', this);
     }

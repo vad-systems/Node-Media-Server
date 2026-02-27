@@ -9,32 +9,33 @@ function getStreams(req, res, next) {
     let stats = {};
     this.broadcasts.forEach((broadcast, key) => {
         const [k, app, name] = key.split('/');
+        const publisher = broadcast.publisher;
         lodash_1.default.setWith(stats, [app, name], {
             key,
             app,
             name,
-            publisher: broadcast.publisher ? {
+            publisher: publisher ? {
                 app,
                 stream: name,
-                clientId: broadcast.publisher.id,
-                ip: broadcast.publisher.remoteIp,
-                protocol: broadcast.publisher.protocol,
-                connectCreated: broadcast.publisher.startTime,
-                video: broadcast.publisher.videoCodec > 0 ? {
-                    codec: flv_js_1.FlvVideoCodec[broadcast.publisher.videoCodec],
-                    width: broadcast.publisher.videoWidth,
-                    height: broadcast.publisher.videoHeight,
-                    profile: broadcast.publisher.videoProfile,
-                    level: broadcast.publisher.level,
-                    fps: broadcast.publisher.videoFramerate,
+                clientId: publisher.id,
+                ip: publisher.remoteIp,
+                protocol: publisher.protocol === 'websocket-flv' ? 'ws' : (publisher.protocol === 'http-flv' ? 'http' : publisher.protocol),
+                connectCreated: publisher.startTime,
+                video: publisher.videoCodec !== null ? {
+                    codec: flv_js_1.FlvVideoCodec[publisher.videoCodec],
+                    width: publisher.videoWidth,
+                    height: publisher.videoHeight,
+                    profile: publisher.videoProfile,
+                    level: publisher.videoLevel,
+                    fps: publisher.videoFramerate,
                 } : null,
-                audio: broadcast.publisher.audioCodec > 0 ? {
-                    codec: flv_js_1.FlvAudioCodec[broadcast.publisher.audioCodec],
-                    profile: broadcast.publisher.audioProfile,
-                    channels: broadcast.publisher.audioChannels,
-                    samplerate: broadcast.publisher.audioSamplerate,
+                audio: publisher.audioCodec !== null ? {
+                    codec: flv_js_1.FlvAudioCodec[publisher.audioCodec],
+                    profile: publisher.audioProfile,
+                    channels: publisher.audioChannels,
+                    samplerate: publisher.audioSamplerate,
                 } : null,
-                bytes: broadcast.publisher.inBytes,
+                bytes: publisher.inBytes,
             } : null,
             subscribers: [...broadcast.subscribers.values()].map(subscriber => {
                 switch (subscriber.TAG) {

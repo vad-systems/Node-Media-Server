@@ -4,5 +4,6 @@ exports.Protocol = void 0;
 var Protocol;
 (function (Protocol) {
     Protocol["RTMP"] = "rtmp";
-    Protocol["FLV"] = "flv";
+    Protocol["HTTP_FLV"] = "http-flv";
+    Protocol["WS_FLV"] = "websocket-flv";
 })(Protocol || (exports.Protocol = Protocol = {}));

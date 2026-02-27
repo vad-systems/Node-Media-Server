@@ -37,4 +37,5 @@ export type RelayConfig = {
 export type RelaySessionConfig = (RelayPushTaskConfig | RelayPullTaskConfig) & FfmpegSessionConfig<never> & {
     inPath: string;
     ouPath: string;
+    name?: string;
 }

@@ -17,6 +17,7 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
         this._audioDatarate = null;
         this._videoCodec = null;
         this._videoProfile = null;
+        this._videoLevel = null;
         this._videoWidth = null;
         this._videoHeight = null;
         this._videoFramerate = null;
@@ -67,7 +68,7 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
             (_b = this.broadcast) === null || _b === void 0 ? void 0 : _b.donePlay(this);
         }
         context_js_1.default.nodeEvent.emit('doneConnect', this);
-        context_js_1.default.sessions.delete(this.id);
+        this.cleanup();
     }
     onError(err) {
         this.logger.error(`${this.remoteIp} socket error, ${err}`);
@@ -124,6 +125,12 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
     }
     get videoProfile() {
         return this._videoProfile;
+    }
+    set videoLevel(level) {
+        this._videoLevel = level;
+    }
+    get videoLevel() {
+        return this._videoLevel;
     }
     set videoWidth(width) {
         this._videoWidth = width;

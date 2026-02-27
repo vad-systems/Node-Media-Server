@@ -16,6 +16,7 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     private _audioDatarate: number = null;
     private _videoCodec: FlvVideoCodec = null;
     private _videoProfile: string = null;
+    private _videoLevel: number = null;
     private _videoWidth: number = null;
     private _videoHeight: number = null;
     private _videoFramerate: number = null;
@@ -70,7 +71,7 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
             this.broadcast?.donePlay(this);
         }
         context.nodeEvent.emit('doneConnect', this);
-        context.sessions.delete(this.id);
+        this.cleanup();
     }
 
     protected onError(err: any) {
@@ -142,6 +143,14 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
 
     public get videoProfile() {
         return this._videoProfile;
+    }
+
+    public set videoLevel(level: number) {
+        this._videoLevel = level;
+    }
+
+    public get videoLevel() {
+        return this._videoLevel;
     }
 
     public set videoWidth(width: number) {

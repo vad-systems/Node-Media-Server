@@ -27,7 +27,13 @@ class NodeSession extends events_1.default {
         this.remoteIp = remoteIp;
         this.TAG = tag;
         this.logger = index_js_1.LoggerFactory.getLogger(`${this.TAG} ${this.id}`);
+        index_js_1.context.sessions.set(this.id, this);
+        index_js_1.context.idlePlayers.add(this.id);
         index_js_1.context.nodeEvent.emit('preConnect', this);
+    }
+    cleanup() {
+        index_js_1.context.sessions.delete(this.id);
+        index_js_1.context.idlePlayers.delete(this.id);
     }
     getConfig(key = null) {
         if (!key) {

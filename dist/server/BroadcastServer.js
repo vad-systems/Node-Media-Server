@@ -56,9 +56,11 @@ class BroadcastServer {
         context_js_1.default.nodeEvent.emit('postPlay', session);
         session.startTime = Date.now();
         this.subscribers.set(session.id, session);
+        context_js_1.default.idlePlayers.delete(session.id);
     }
     donePlay(session) {
         session.endTime = Date.now();
+        context_js_1.default.idlePlayers.add(session.id);
         context_js_1.default.nodeEvent.emit('donePlay', session);
         this.subscribers.delete(session.id);
     }
@@ -74,6 +76,7 @@ class BroadcastServer {
         if (this.publisher == null) {
             session.startTime = Date.now();
             this.publisher = session;
+            context_js_1.default.idlePlayers.delete(session.id);
         }
         else {
             throw new Error(`streamPath=${session.streamPath} already has a publisher`);
@@ -83,6 +86,7 @@ class BroadcastServer {
     donePublish(session) {
         if (session === this.publisher) {
             session.endTime = Date.now();
+            context_js_1.default.idlePlayers.add(session.id);
             context_js_1.default.nodeEvent.emit('donePublish', session);
             this.subscribers.forEach((subscriber) => {
                 if (subscriber.isFfmpegTask()) {

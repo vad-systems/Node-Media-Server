@@ -7,9 +7,11 @@ import H2EBridge from 'http2-express';
 import Https from 'https';
 import path from 'path';
 import WebSocket from 'ws';
+import fissionRoute from '../../api/routes/fission.js';
 import relayRoute from '../../api/routes/relay.js';
 import serverRoute from '../../api/routes/server.js';
 import streamsRoute from '../../api/routes/streams.js';
+import transRoute from '../../api/routes/trans.js';
 import { context, LoggerFactory } from '../../core/index.js';
 import { Config } from '../../types/index.js';
 import { NodeAvServer } from './NodeAvServer.js';
@@ -85,6 +87,8 @@ class NodeHttpServer {
             app.use('/api/streams', streamsRoute(context));
             app.use('/api/server', serverRoute(context));
             app.use('/api/relay', relayRoute(context));
+            app.use('/api/trans', transRoute(context));
+            app.use('/api/fission', fissionRoute(context));
         }
 
         app.use(Express.static(path.join(__dirname + '/../../../public')));
@@ -185,8 +189,7 @@ class NodeHttpServer {
 
         context.sessions.forEach((session, id) => {
             if (session instanceof NodeAvSession) {
-                session.req.destroy();
-                context.sessions.delete(id);
+                session.stop();
             }
         });
 

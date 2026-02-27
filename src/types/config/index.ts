@@ -33,6 +33,7 @@ export type ConfigType = {
     readonly auth?: AuthConfig;
 
     readonly logType?: LogType;
+    readonly rollingLogLength?: number;
 }
 
 export class Config {
@@ -56,9 +57,9 @@ export class Config {
         this.trans = config.trans;
         this.relay = config.relay;
         this.fission = config.fission;
-        this.fission = config.fission;
         this.cluster = config.cluster;
         this.auth = config.auth;
         this.logType = config.logType;
+        this.rollingLogLength = config.rollingLogLength;
     }
 }

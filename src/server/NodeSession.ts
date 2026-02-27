@@ -40,7 +40,14 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
         this.remoteIp = remoteIp;
         this.TAG = tag;
         this.logger = LoggerFactory.getLogger(`${this.TAG} ${this.id}`);
+        context.sessions.set(this.id, this);
+        context.idlePlayers.add(this.id);
         context.nodeEvent.emit('preConnect', this);
+    }
+
+    public cleanup() {
+        context.sessions.delete(this.id);
+        context.idlePlayers.delete(this.id);
     }
 
     public getConfig<C extends T[keyof T] | A[keyof A]>(key: keyof T | keyof A = null): C | undefined {

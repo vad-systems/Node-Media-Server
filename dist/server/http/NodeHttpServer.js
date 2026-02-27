@@ -22,9 +22,11 @@ const http2_express_1 = __importDefault(require("http2-express"));
 const https_1 = __importDefault(require("https"));
 const path_1 = __importDefault(require("path"));
 const ws_1 = __importDefault(require("ws"));
+const fission_js_1 = __importDefault(require("../../api/routes/fission.js"));
 const relay_js_1 = __importDefault(require("../../api/routes/relay.js"));
 const server_js_1 = __importDefault(require("../../api/routes/server.js"));
 const streams_js_1 = __importDefault(require("../../api/routes/streams.js"));
+const trans_js_1 = __importDefault(require("../../api/routes/trans.js"));
 const index_js_1 = require("../../core/index.js");
 const NodeAvServer_js_1 = require("./NodeAvServer.js");
 const NodeAvSession_js_1 = require("./NodeAvSession.js");
@@ -72,6 +74,8 @@ class NodeHttpServer {
             app.use('/api/streams', (0, streams_js_1.default)(index_js_1.context));
             app.use('/api/server', (0, server_js_1.default)(index_js_1.context));
             app.use('/api/relay', (0, relay_js_1.default)(index_js_1.context));
+            app.use('/api/trans', (0, trans_js_1.default)(index_js_1.context));
+            app.use('/api/fission', (0, fission_js_1.default)(index_js_1.context));
         }
         app.use(express_1.default.static(path_1.default.join(__dirname + '/../../../public')));
         app.use(express_1.default.static(this.mediaroot.toString()));
@@ -155,8 +159,7 @@ class NodeHttpServer {
         }
         index_js_1.context.sessions.forEach((session, id) => {
             if (session instanceof NodeAvSession_js_1.NodeAvSession) {
-                session.req.destroy();
-                index_js_1.context.sessions.delete(id);
+                session.stop();
             }
         });
         this.logger.log(`Node Media Http Server stopped.`);

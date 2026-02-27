@@ -23,6 +23,7 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
         let argumentList = argv.filter(Boolean);
         this.ffmpeg_exec = spawn(this.conf.ffmpeg, argumentList);
         this.startTime = Date.now();
+        context.idlePlayers.delete(this.id);
         this.ffmpeg_exec.on('error', (e: any) => {
             this.logger.ffdebug(`[ffmpeg error] ${e}`);
         });
@@ -39,6 +40,7 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
             this.logger.log(`[ffmpeg end]`);
             this.emit('end', this.id);
             context.nodeEvent.emit('doneConnect', this);
+            this.cleanup();
         });
         context.nodeEvent.emit('postConnect', this);
     }

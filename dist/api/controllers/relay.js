@@ -4,7 +4,7 @@ const lodash_1 = require("lodash");
 function getStreams(req, res, next) {
     let stats = {};
     this.sessions.forEach(function (session, id) {
-        if (session.constructor.name !== 'NodeRelaySession') {
+        if (session.TAG !== 'relay') {
             return;
         }
         let { app, name } = session.conf;
@@ -26,7 +26,7 @@ function getStreams(req, res, next) {
     res.json(stats);
 }
 function getStreamByID(req, res, next) {
-    const relaySession = Array.from(this.sessions.values()).filter((session) => session.constructor.name === 'NodeRelaySession' &&
+    const relaySession = Array.from(this.sessions.values()).filter((session) => session.TAG === 'relay' &&
         req.params.id === session.id);
     const relays = relaySession.map((item) => ({
         app: item.conf.app,
@@ -40,7 +40,7 @@ function getStreamByID(req, res, next) {
     res.json(relays);
 }
 function getStreamByName(req, res, next) {
-    const relaySession = Array.from(this.sessions.values()).filter((session) => session.constructor.name === 'NodeRelaySession' &&
+    const relaySession = Array.from(this.sessions.values()).filter((session) => session.TAG === 'relay' &&
         req.params.app === session.conf.app &&
         req.params.name === session.conf.name);
     const relays = relaySession.map((item) => ({

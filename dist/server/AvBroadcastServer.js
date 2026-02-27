@@ -41,7 +41,8 @@ class AvBroadcastServer extends BroadcastServer_js_1.default {
     postPlay(session) {
         super.postPlay(session);
         switch (session.protocol) {
-            case Protocol_js_1.Protocol.FLV:
+            case Protocol_js_1.Protocol.HTTP_FLV:
+            case Protocol_js_1.Protocol.WS_FLV:
                 session.sendBuffer(this.flvHeader);
                 if (this.flvMetaData !== null) {
                     session.sendBuffer(this.flvMetaData);
@@ -110,6 +111,7 @@ class AvBroadcastServer extends BroadcastServer_js_1.default {
                 this.rtmpVideoHeader = node_buffer_1.Buffer.from(rtmpMessage);
                 let videoInfo = (0, av_js_1.readAVCSpecificConfig)(packet.data);
                 this.publisher.videoProfile = (0, av_js_1.getAVCProfileName)(videoInfo);
+                this.publisher.videoLevel = videoInfo.level;
                 break;
             case 3:
                 (_c = this.flvGopCache) === null || _c === void 0 ? void 0 : _c.clear();
@@ -139,7 +141,8 @@ class AvBroadcastServer extends BroadcastServer_js_1.default {
                 return;
             }
             switch (v.protocol) {
-                case Protocol_js_1.Protocol.FLV:
+                case Protocol_js_1.Protocol.HTTP_FLV:
+                case Protocol_js_1.Protocol.WS_FLV:
                     v.sendBuffer(flvMessage);
                     break;
                 case Protocol_js_1.Protocol.RTMP:

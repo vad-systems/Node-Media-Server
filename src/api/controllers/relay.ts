@@ -5,7 +5,7 @@ import { Context } from '../../types/index.js';
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};
     this.sessions.forEach(function (session: any, id) {
-        if (session.constructor.name !== 'NodeRelaySession') {
+        if (session.TAG !== 'relay') {
             return;
         }
 
@@ -34,7 +34,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
 function getStreamByID(this: Context, req: Request, res: Response, next: NextFunction) {
     const relaySession = Array.from(this.sessions.values()).filter(
         (session: any) =>
-            session.constructor.name === 'NodeRelaySession' &&
+            session.TAG === 'relay' &&
             req.params.id === session.id,
     );
     const relays = relaySession.map((item: any) => (
@@ -54,7 +54,7 @@ function getStreamByID(this: Context, req: Request, res: Response, next: NextFun
 function getStreamByName(this: Context, req: Request, res: Response, next: NextFunction) {
     const relaySession = Array.from(this.sessions.values()).filter(
         (session: any) =>
-            session.constructor.name === 'NodeRelaySession' &&
+            session.TAG === 'relay' &&
             req.params.app === session.conf.app &&
             req.params.name === session.conf.name,
     );

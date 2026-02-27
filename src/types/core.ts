@@ -39,7 +39,7 @@ export enum LogType {
 
 export type Context = {
     server: NodeMediaServer | null,
-    sessions: Map<SessionID, NodeSession<any, any>>;
+    sessions: Map<SessionID, NodeSession<any, any, any>>;
     broadcasts: Map<string, BroadcastServer<any, any>>;
     idlePlayers: Set<SessionID>;
     nodeEvent: EventEmitter<NodeEventMap>;

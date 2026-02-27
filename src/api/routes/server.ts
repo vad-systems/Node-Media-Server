@@ -8,5 +8,7 @@ export default (context: Context) => {
     router.get('/status', serverController.getStatus.bind(context));
     router.get('/config', serverController.getConfig.bind(context));
     router.patch('/config', serverController.updateConfig.bind(context));
+    router.post('/:server/start', serverController.startServer.bind(context));
+    router.post('/:server/stop', serverController.stopServer.bind(context));
     return router;
 };

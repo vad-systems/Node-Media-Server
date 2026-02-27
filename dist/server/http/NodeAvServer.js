@@ -18,13 +18,12 @@ class NodeAvServer extends NodeConfigurableServer_js_1.default {
             res.sendStatus(404);
             return;
         }
-        const streamApp = req.params.splat[0];
-        const streamName = req.params.splat[1];
+        const [streamApp, streamName] = req.params.splat;
         const streamPath = '/' + streamApp + '/' + streamName;
         const streamQuery = req.query;
         const streamHost = req.hostname;
         const isPublisher = req.method === 'POST';
-        this.createSession(req, res, {
+        this.createSession(req, res, Protocol_js_1.Protocol.HTTP_FLV, {
             streamPath,
             streamQuery,
             streamApp,
@@ -49,7 +48,7 @@ class NodeAvServer extends NodeConfigurableServer_js_1.default {
         if (ws.protocol.toLowerCase() === 'post' || ws.protocol.toLowerCase() === 'publisher') {
             isPublisher = true;
         }
-        this.createSession(req, ws, {
+        this.createSession(req, ws, Protocol_js_1.Protocol.WS_FLV, {
             streamPath,
             streamQuery,
             streamApp,
@@ -58,12 +57,12 @@ class NodeAvServer extends NodeConfigurableServer_js_1.default {
             isPublisher,
         });
     }
-    createSession(req, res, info) {
+    createSession(req, res, protocol, info) {
         const sessionConf = {
             auth: lodash_1.default.cloneDeep(this.config.auth),
         };
         const remoteIp = (req.ip || req.socket.remoteAddress) + ':' + req.socket.remotePort;
-        let session = new NodeAvSession_js_1.NodeAvSession(sessionConf, remoteIp, Protocol_js_1.Protocol.FLV, info);
+        let session = new NodeAvSession_js_1.NodeAvSession(sessionConf, remoteIp, protocol, info);
         session.setTransport(req, res);
         session.run();
     }

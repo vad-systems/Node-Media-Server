@@ -62,10 +62,8 @@ class NodeRelayServer extends NodeTaskServer {
         }
 
         this.logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-        context.sessions.set(id, session);
         session.on('end', (id) => {
             this.logger.log('[relay dynamic push] ended', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-            context.sessions.delete(id);
             if (session.broadcast) {
                 session.broadcast.subscribers.delete(id);
             }
@@ -79,7 +77,8 @@ class NodeRelayServer extends NodeTaskServer {
                         'to',
                         conf.ouPath,
                     );
-                    this.handleTaskMatching(session.broadcast.publisher as BaseAvSession<any, any>, '', '');
+                    const [app, name] = session.broadcast.publisher.streamPath.split('/').slice(1);
+                    this.handleTaskMatching(session.broadcast.publisher as BaseAvSession<any, any>, app, name);
                 }
             }, 1000);
         });
@@ -146,6 +145,7 @@ class NodeRelayServer extends NodeTaskServer {
             ouPath: taskConf.appendName === false ? edge : (
                 hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`
             ),
+            name: stream,
         };
 
         if (Object.keys(args).length > 0) {

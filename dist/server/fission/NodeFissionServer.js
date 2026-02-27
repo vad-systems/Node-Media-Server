@@ -116,10 +116,8 @@ class NodeFissionServer extends NodeTaskServer_js_1.default {
                 session.broadcast.subscribers.set(sess.id, sess);
             }
             this.logger.log('[fission] start', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-            index_js_1.context.sessions.set(id, sess);
             sess.on('end', (id) => {
                 this.logger.log('[fission] ended', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-                index_js_1.context.sessions.delete(id);
                 if (sess.broadcast) {
                     sess.broadcast.subscribers.delete(id);
                 }

@@ -65,17 +65,16 @@ class NodeRelayServer extends NodeTaskServer_js_1.default {
             broadcast.subscribers.set(id, session);
         }
         this.logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-        index_js_1.context.sessions.set(id, session);
         session.on('end', (id) => {
             this.logger.log('[relay dynamic push] ended', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-            index_js_1.context.sessions.delete(id);
             if (session.broadcast) {
                 session.broadcast.subscribers.delete(id);
             }
             setTimeout(() => {
                 if (session.broadcast && session.broadcast.publisher) {
                     this.logger.log('[relay dynamic push] restart', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-                    this.handleTaskMatching(session.broadcast.publisher, '', '');
+                    const [app, name] = session.broadcast.publisher.streamPath.split('/').slice(1);
+                    this.handleTaskMatching(session.broadcast.publisher, app, name);
                 }
             }, 1000);
         });
@@ -105,7 +104,7 @@ class NodeRelayServer extends NodeTaskServer_js_1.default {
             return;
         }
         let hasApp = edge.match(/rtmp:\/\/([^\/]+)\/([^\/]+)/);
-        let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg: this.config.relay.ffmpeg, inPath: `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`, ouPath: taskConf.appendName === false ? edge : (hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`) });
+        let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg: this.config.relay.ffmpeg, inPath: `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`, ouPath: taskConf.appendName === false ? edge : (hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`), name: stream });
         if (Object.keys(args).length > 0) {
             sessionConf.ouPath += '?';
             sessionConf.ouPath += querystring_1.default.encode(args);
