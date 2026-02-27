@@ -423,10 +423,8 @@ function readAV1SpecificConfig(av1SequenceHeader) {
     return info;
 }
 function readAVCSpecificConfig(avcSequenceHeader) {
-    console.log(avcSequenceHeader);
     let codec_id = avcSequenceHeader[0] & 0x0f;
-    console.log(codec_id);
-    if (codec_id == flv_js_1.FlvVideoCodec.H264 || codec_id == flv_js_1.FlvVideoCodec.MPEG4) {
+    if (codec_id == flv_js_1.FlvVideoCodec.H264) {
         return readH264SpecificConfig(avcSequenceHeader);
     }
     else if (codec_id == flv_js_1.FlvVideoCodec.H265 || codec_id == flv_js_1.FlvVideoCodec.HEVC) { // TODO: H265?

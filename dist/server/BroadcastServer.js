@@ -150,6 +150,8 @@ class BroadcastServer {
                 case 0:
                     this.flvAudioHeader = node_buffer_1.Buffer.from(flvMessage);
                     this.rtmpAudioHeader = node_buffer_1.Buffer.from(rtmpMessage);
+                    let audioInfo = (0, av_js_1.readAACSpecificConfig)(packet.data);
+                    this.publisher.audioProfile = (0, av_js_1.getAACProfileName)(audioInfo);
                     break;
                 case 1:
                     (_a = this.flvGopCache) === null || _a === void 0 ? void 0 : _a.add(flvMessage);
@@ -158,6 +160,8 @@ class BroadcastServer {
                 case 2:
                     this.flvVideoHeader = node_buffer_1.Buffer.from(flvMessage);
                     this.rtmpVideoHeader = node_buffer_1.Buffer.from(rtmpMessage);
+                    let videoInfo = (0, av_js_1.readAVCSpecificConfig)(packet.data);
+                    this.publisher.videoProfile = (0, av_js_1.getAVCProfileName)(videoInfo);
                     break;
                 case 3:
                     (_c = this.flvGopCache) === null || _c === void 0 ? void 0 : _c.clear();
@@ -181,12 +185,6 @@ class BroadcastServer {
             }
             if (this.rtmpGopCache && this.rtmpGopCache.size > 4096) {
                 this.rtmpGopCache.clear();
-            }
-            if (this.flvAudioHeader) {
-                console.log('AUDIO: ', (0, av_js_1.readAACSpecificConfig)(this.flvAudioHeader));
-            }
-            if (this.flvVideoHeader) {
-                console.log('VIDEO: ', (0, av_js_1.readAVCSpecificConfig)(this.flvVideoHeader));
             }
             this._subscribers.forEach((v, k) => {
                 switch (v.protocol) {

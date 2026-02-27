@@ -3,7 +3,7 @@ import { Buffer } from 'node:buffer';
 import crypto from 'node:crypto';
 import context from '../core/context.js';
 import { decodeAmf0Data } from '../core/protocol/amf.js';
-import { readAACSpecificConfig, readAVCSpecificConfig } from '../core/protocol/av.js';
+import { getAACProfileName, getAVCProfileName, readAACSpecificConfig, readAVCSpecificConfig } from '../core/protocol/av.js';
 import AVPacket from '../core/protocol/AVPacket.js';
 import Flv from '../core/protocol/flv.js';
 import Rtmp from '../core/protocol/rtmp.js';
@@ -190,6 +190,7 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
                 this._publisher.videoDatarate = metadata.dataObj.videodatarate;
             }
         }
+
         const flvMessage = Flv.createMessage(packet);
         const rtmpMessage = Rtmp.createMessage(packet);
 
@@ -197,6 +198,8 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
             case 0:
                 this.flvAudioHeader = Buffer.from(flvMessage);
                 this.rtmpAudioHeader = Buffer.from(rtmpMessage);
+                let audioInfo = readAACSpecificConfig(packet.data);
+                this.publisher.audioProfile = getAACProfileName(audioInfo);
                 break;
             case 1:
                 this.flvGopCache?.add(flvMessage);
@@ -205,6 +208,8 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
             case 2:
                 this.flvVideoHeader = Buffer.from(flvMessage);
                 this.rtmpVideoHeader = Buffer.from(rtmpMessage);
+                let videoInfo = readAVCSpecificConfig(packet.data);
+                this.publisher.videoProfile = getAVCProfileName(videoInfo);
                 break;
             case 3:
                 this.flvGopCache?.clear();
@@ -230,15 +235,6 @@ class BroadcastServer<C, S extends NodeAvSession<C, SessionConfig<C>>> {
 
         if (this.rtmpGopCache && this.rtmpGopCache.size > 4096) {
             this.rtmpGopCache.clear();
-        }
-
-        if (this.flvAudioHeader) {
-            console.log('AUDIO: ', readAACSpecificConfig(this.flvAudioHeader));
-        }
-
-
-        if (this.flvVideoHeader) {
-            console.log('VIDEO: ', readAVCSpecificConfig(this.flvVideoHeader));
         }
 
         this._subscribers.forEach((v, k) => {

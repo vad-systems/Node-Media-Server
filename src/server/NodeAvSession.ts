@@ -15,10 +15,12 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     private _streamQuery: ParsedUrlQuery | null = null;
 
     private _audioCodec: FlvAudioCodec = null;
+    private _audioProfile: string = null;
     private _audioChannels: number = null;
     private _audioSamplerate: number = null;
     private _audioDatarate: number = null;
     private _videoCodec: FlvVideoCodec = null;
+    private _videoProfile: string = null;
     private _videoWidth: number = null;
     private _videoHeight: number = null;
     private _videoFramerate: number = null;
@@ -53,6 +55,13 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
         return this._audioCodec;
     }
 
+    public set audioProfile(profile: string) {
+        this._audioProfile = profile;
+    }
+    public get audioProfile() {
+        return this._audioProfile;
+    }
+
     public set audioChannels(channels: number) {
         this._audioChannels = channels;
     }
@@ -79,6 +88,13 @@ abstract class NodeAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     }
     public get videoCodec() {
         return this._videoCodec;
+    }
+
+    public set videoProfile(profile: string) {
+        this._videoProfile = profile;
+    }
+    public get videoProfile() {
+        return this._videoProfile;
     }
 
     public set videoWidth(width: number) {

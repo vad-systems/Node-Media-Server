@@ -13,10 +13,12 @@ class NodeAvSession extends NodeSession_js_1.NodeSession {
         this._streamPath = null;
         this._streamQuery = null;
         this._audioCodec = null;
+        this._audioProfile = null;
         this._audioChannels = null;
         this._audioSamplerate = null;
         this._audioDatarate = null;
         this._videoCodec = null;
+        this._videoProfile = null;
         this._videoWidth = null;
         this._videoHeight = null;
         this._videoFramerate = null;
@@ -43,6 +45,12 @@ class NodeAvSession extends NodeSession_js_1.NodeSession {
     get audioCodec() {
         return this._audioCodec;
     }
+    set audioProfile(profile) {
+        this._audioProfile = profile;
+    }
+    get audioProfile() {
+        return this._audioProfile;
+    }
     set audioChannels(channels) {
         this._audioChannels = channels;
     }
@@ -66,6 +74,12 @@ class NodeAvSession extends NodeSession_js_1.NodeSession {
     }
     get videoCodec() {
         return this._videoCodec;
+    }
+    set videoProfile(profile) {
+        this._videoProfile = profile;
+    }
+    get videoProfile() {
+        return this._videoProfile;
     }
     set videoWidth(width) {
         this._videoWidth = width;
