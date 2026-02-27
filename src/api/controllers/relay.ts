@@ -1,19 +1,18 @@
-const {get, set} = require('lodash');
+import { get, set } from 'lodash';
+import { NextFunction, Request, Response } from 'express';
+import { Context } from '../../types/index.js';
 
 /**
  * get all relay tasks
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @param {*} next
  */
-function getStreams(req, res, next) {
-    let stats = {};
-    this.sessions.forEach(function (session, id) {
+function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
+    let stats: any = {};
+    this.sessions.forEach(function (session: any, id) {
         if (session.constructor.name !== 'NodeRelaySession') {
             return;
         }
 
-        let {app, name} = session.conf;
+        let { app, name } = session.conf;
 
         if (!get(stats, [app, name])) {
             set(stats, [app, name], {
@@ -37,17 +36,14 @@ function getStreams(req, res, next) {
 
 /**
  * get relay task by id
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @param {*} next
  */
-function getStreamByID(req, res, next) {
+function getStreamByID(this: Context, req: Request, res: Response, next: NextFunction) {
     const relaySession = Array.from(this.sessions.values()).filter(
-        (session) =>
+        (session: any) =>
             session.constructor.name === 'NodeRelaySession' &&
             req.params.id === session.id
     );
-    const relays = relaySession.map((item) => ({
+    const relays = relaySession.map((item: any) => ({
         app: item.conf.app,
         name: item.conf.name,
         path: item.conf.inPath,
@@ -61,18 +57,15 @@ function getStreamByID(req, res, next) {
 
 /**
  * get relay task by name
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @param {*} next
  */
-function getStreamByName(req, res, next) {
+function getStreamByName(this: Context, req: Request, res: Response, next: NextFunction) {
     const relaySession = Array.from(this.sessions.values()).filter(
-        (session) =>
+        (session: any) =>
             session.constructor.name === 'NodeRelaySession' &&
             req.params.app === session.conf.app &&
             req.params.name === session.conf.name
     );
-    const relays = relaySession.map((item) => ({
+    const relays = relaySession.map((item: any) => ({
         app: item.conf.app,
         name: item.conf.name,
         url: item.conf.ouPath,
@@ -85,12 +78,9 @@ function getStreamByName(req, res, next) {
 
 /**
  * delete relay task
- * @param {Express.Request} req
- * @param {Express.Response} res
- * @param {*} next
  */
-function delStream(req, res, next) {
-    let relaySession = this.sessions.get(req.params.id);
+function delStream(this: Context, req: Request, res: Response, next: NextFunction) {
+    let relaySession: any = this.sessions.get(req.params.id as string);
     if (relaySession) {
         relaySession.end();
         res.sendStatus(200);
@@ -99,7 +89,7 @@ function delStream(req, res, next) {
     }
 }
 
-module.exports = {
+export default {
     getStreams,
     getStreamByID,
     getStreamByName,

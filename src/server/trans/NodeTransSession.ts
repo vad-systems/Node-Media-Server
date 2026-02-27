@@ -102,10 +102,6 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
         super.run(argv);
     }
 
-    end() {
-        this.ffmpeg_exec.kill();
-    }
-
     deleteHlsFiles(ouPath: PathLike) {
         if ((
             !ouPath && !this.getConfig('hls')

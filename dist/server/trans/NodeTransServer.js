@@ -50,6 +50,7 @@ const fs_1 = __importDefault(require("fs"));
 const lodash_1 = __importDefault(require("lodash"));
 const mkdirp = __importStar(require("mkdirp"));
 const index_js_1 = require("../../core/index.js");
+const NodeAvSession_js_1 = require("../NodeAvSession.js");
 const NodeConfigurableServer_js_1 = __importDefault(require("../NodeConfigurableServer.js"));
 const NodeTransSession_js_1 = require("./NodeTransSession.js");
 const checkSelectiveTask_js_1 = __importDefault(require("../../util/checkSelectiveTask.js"));
@@ -101,39 +102,50 @@ class NodeTransServer extends NodeConfigurableServer_js_1.default {
             index_js_1.Logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
         });
     }
-    onPostPublish(id, streamPath, args) {
-        const regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
-        const [app, name] = lodash_1.default.slice(regRes, 1);
-        const { tasks, ffmpeg } = this.config.trans;
-        let i = tasks.length;
-        const mediaroot = this.config.http.mediaroot;
-        while (i--) {
-            let taskConfig = lodash_1.default.cloneDeep(tasks[i]);
-            let sessionConfig = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConfig)), { ffmpeg, mediaroot: mediaroot, rtmpPort: this.config.rtmp.port, streamPath: streamPath, streamApp: app, streamName: name });
-            sessionConfig.args = args;
-            if (!(0, checkSelectiveTask_js_1.default)(taskConfig, app, streamPath)) {
-                continue;
+    onPostPublish(session) {
+        if (session instanceof NodeAvSession_js_1.NodeAvSession) {
+            const regRes = /\/(.*)\/(.*)/gi.exec(session.streamPath);
+            const [app, name] = lodash_1.default.slice(regRes, 1);
+            const { tasks, ffmpeg } = this.config.trans;
+            let i = tasks.length;
+            const mediaroot = this.config.http.mediaroot;
+            while (i--) {
+                let taskConfig = lodash_1.default.cloneDeep(tasks[i]);
+                let sessionConfig = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConfig)), { ffmpeg, mediaroot: mediaroot, rtmpPort: this.config.rtmp.port, streamPath: session.streamPath, streamApp: app, streamName: name });
+                sessionConfig.args = session.streamQuery;
+                if (!(0, checkSelectiveTask_js_1.default)(taskConfig, app, session.streamPath)) {
+                    continue;
+                }
+                let sess = new NodeTransSession_js_1.NodeTransSession(sessionConfig);
+                let sessions = this.transSessions.get(session.id);
+                if (!sessions) {
+                    sessions = new Map();
+                    this.transSessions.set(sess.id, sessions);
+                }
+                sessions.set(sess.id, sess);
+                sess.on('end', () => {
+                    sessions.delete(sess.id);
+                });
+                sess.run();
             }
-            let session = new NodeTransSession_js_1.NodeTransSession(sessionConfig);
-            this.transSessions.set(id, session);
-            session.on('end', (id) => {
-                this.transSessions.delete(id);
-            });
-            session.run();
         }
     }
-    onDonePublish(id, streamPath, args) {
-        const session = this.transSessions.get(id);
-        if (session) {
-            session.end();
+    onDonePublish(session) {
+        const sessions = this.transSessions.get(session.id);
+        if (sessions) {
+            for (let [_, sess] of sessions) {
+                sess.end();
+            }
         }
     }
     stop() {
         super.stop();
         index_js_1.context.nodeEvent.off('postPublish', this.onPostPublish);
         index_js_1.context.nodeEvent.off('donePublish', this.onDonePublish);
-        for (let [id, session] of this.transSessions) {
-            session.end();
+        for (let [id, sessions] of this.transSessions) {
+            for (let [_, session] of sessions) {
+                session.end();
+            }
         }
         index_js_1.Logger.log(`Node Media Trans Server stopped.`);
     }

@@ -1,7 +1,8 @@
-import * as amf from './amf.js';
+import * as amf from './protocol/amf.js';
 import * as av from './av.js';
 import context from './context.js';
-export * from './bitop.js';
+import Bitop from './bitop.js';
+export { Bitop };
 export * from './logger.js';
 export * as NodeCoreUtils from './utils.js';
 

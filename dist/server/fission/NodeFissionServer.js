@@ -50,6 +50,7 @@ const fs_1 = __importDefault(require("fs"));
 const lodash_1 = __importDefault(require("lodash"));
 const mkdirp = __importStar(require("mkdirp"));
 const index_js_1 = require("../../core/index.js");
+const NodeAvSession_js_1 = require("../NodeAvSession.js");
 const NodeConfigurableServer_js_1 = __importDefault(require("../NodeConfigurableServer.js"));
 const NodeFissionSession_js_1 = require("./NodeFissionSession.js");
 const NodeRelaySession_js_1 = require("../relay/NodeRelaySession.js");
@@ -93,57 +94,69 @@ class NodeFissionServer extends NodeConfigurableServer_js_1.default {
             index_js_1.Logger.log(`Node Media Fission Server started, MediaRoot: ${this.config.http.mediaroot}, ffmpeg version: ${version}`);
         });
     }
-    onPostPublish(srcId, streamPath, args) {
-        index_js_1.Logger.log('[fission postPublish] Check for fission tasks', `id=${srcId}`, `streamPath=${streamPath}`);
-        let regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
-        let [app, name] = lodash_1.default.slice(regRes, 1);
-        for (let task of this.config.fission.tasks) {
-            if (!(0, checkSelectiveTask_js_1.default)(task, app, streamPath)) {
-                index_js_1.Logger.debug('[fission] pattern check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${streamPath}`, task);
-                continue;
-            }
-            let s = index_js_1.context.sessions.get(srcId);
-            const nameSegments = name.split('_');
-            if (s.isLocal() && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
-                index_js_1.Logger.debug('[fission] duplication check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${streamPath}`, task);
-                continue;
-            }
-            let taskConf = lodash_1.default.cloneDeep(task);
-            let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg: this.config.fission.ffmpeg, mediaroot: this.config.http.mediaroot, rtmpPort: this.config.rtmp.port, streamPath: streamPath, streamApp: app, streamName: name });
-            sessionConf.args = args;
-            let session = new NodeFissionSession_js_1.NodeFissionSession(sessionConf);
-            const id = session.id;
-            index_js_1.Logger.log('[fission] start', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-            index_js_1.context.sessions.set(id, session);
-            session.on('end', (id) => {
-                this.fissionSessions.delete(id);
-                index_js_1.Logger.log('[fission] ended', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-                index_js_1.context.sessions.delete(id);
+    onPostPublish(session) {
+        const srcId = session.id;
+        if (session instanceof NodeAvSession_js_1.NodeAvSession) {
+            index_js_1.Logger.log('[fission postPublish] Check for fission tasks', `id=${srcId}`, `streamPath=${session.streamPath}`);
+            let regRes = /\/(.*)\/(.*)/gi.exec(session.streamPath);
+            let [app, name] = lodash_1.default.slice(regRes, 1);
+            for (let task of this.config.fission.tasks) {
+                if (!(0, checkSelectiveTask_js_1.default)(task, app, session.streamPath)) {
+                    index_js_1.Logger.debug('[fission] pattern check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${session.streamPath}`, task);
+                    continue;
+                }
+                const broadcast = [...index_js_1.context.broadcasts.values()]
+                    .find((broadcast) => { var _a; return ((_a = broadcast.publisher) === null || _a === void 0 ? void 0 : _a.id) === srcId; });
+                const nameSegments = name.split('_');
+                if (!broadcast) {
+                    index_js_1.Logger.warn("No broadcast found", srcId, [...index_js_1.context.broadcasts.values()].map((b) => b.publisher));
+                    continue;
+                }
+                if (broadcast.publisher.isLocal() && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
+                    index_js_1.Logger.debug('[fission] duplication check failed, skip', `pattern=${task.pattern}`, `srcid=${srcId}`, `app=${app}`, `streamPath=${session.streamPath}`, task);
+                    continue;
+                }
+                let taskConf = lodash_1.default.cloneDeep(task);
+                let sessionConf = Object.assign(Object.assign({}, lodash_1.default.cloneDeep(taskConf)), { ffmpeg: this.config.fission.ffmpeg, mediaroot: this.config.http.mediaroot, rtmpPort: this.config.rtmp.port, streamPath: session.streamPath, streamApp: app, streamName: name });
+                sessionConf.args = session.streamQuery;
+                let sess = new NodeFissionSession_js_1.NodeFissionSession(sessionConf);
+                const id = sess.id;
+                index_js_1.Logger.log('[fission] start', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                index_js_1.context.sessions.set(id, sess);
+                sess.on('end', (id) => {
+                    index_js_1.Logger.log('[fission] ended', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                    index_js_1.context.sessions.delete(id);
+                    const fissionSessionsForSrc = this.fissionSessions.get(srcId);
+                    if (fissionSessionsForSrc) {
+                        fissionSessionsForSrc.delete(id);
+                    }
+                    setTimeout(() => {
+                        if (!!srcId) {
+                            const [_x, broadcast] = [...index_js_1.context.broadcasts.entries()]
+                                .find(([_x, broadcast]) => { var _a; return ((_a = broadcast.publisher) === null || _a === void 0 ? void 0 : _a.id) === srcId; });
+                            if (!!broadcast) {
+                                index_js_1.Logger.log('[fission] restart', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
+                                this.onPostPublish(broadcast.publisher);
+                            }
+                        }
+                    }, 1000);
+                });
                 const fissionSessionsForSrc = this.fissionSessions.get(srcId);
                 if (fissionSessionsForSrc) {
-                    fissionSessionsForSrc.delete(id);
+                    fissionSessionsForSrc.set(id, sess);
                 }
-                setTimeout(() => {
-                    if (!!srcId && !!index_js_1.context.sessions.get(srcId)) {
-                        index_js_1.Logger.log('[fission] restart', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
-                        this.onPostPublish(srcId, streamPath, args);
-                    }
-                }, 1000);
-            });
-            const fissionSessionsForSrc = this.fissionSessions.get(srcId);
-            if (fissionSessionsForSrc) {
-                fissionSessionsForSrc.set(id, session);
+                else {
+                    const newMap = new Map();
+                    newMap.set(id, session);
+                    this.fissionSessions.set(srcId, newMap);
+                }
+                sess.run();
+                index_js_1.Logger.log('[fission] started', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
             }
-            else {
-                const newMap = new Map();
-                newMap.set(id, session);
-                this.fissionSessions.set(srcId, newMap);
-            }
-            session.run();
-            index_js_1.Logger.log('[fission] started', `srcid=${srcId}`, `id=${id}`, sessionConf.streamPath, `x${taskConf.model.length}`);
         }
     }
-    onDonePublish(id, streamPath, args) {
+    onDonePublish(session) {
+        const id = session.id;
         for (let [srcId, sessions] of this.fissionSessions) {
             if (id === srcId) {
                 for (let [_, session] of sessions) {
@@ -172,7 +185,7 @@ class NodeFissionServer extends NodeConfigurableServer_js_1.default {
                 session.end();
             }
             let session = index_js_1.context.sessions.get(srcId);
-            if (session && session instanceof NodeRelaySession_js_1.NodeRelaySession) {
+            if (session && session instanceof NodeFissionSession_js_1.NodeFissionSession) {
                 session.end();
             }
         }

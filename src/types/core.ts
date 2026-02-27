@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import ConfigProvider from '../core/config.js';
 import NodeMediaServer from '../NodeMediaServer.js';
+import BroadcastServer from '../server/BroadcastServer.js';
 import { NodeSession } from '../server/NodeSession.js';
 
 export type SessionID = string;
@@ -10,18 +11,19 @@ export type Arguments = {
 };
 
 export type NodeEventMap = {
-    preConnect: [SessionID, any];
-    postConnect: [SessionID, any];
-    prePlay: [SessionID, string, Arguments];
-    postPlay: [SessionID, string, Arguments];
-    donePlay: [SessionID, string, Arguments];
-    doneConnect: [SessionID, any];
-    prePublish: [SessionID, string, Arguments];
-    postPublish: [SessionID, string, Arguments];
-    donePublish: [SessionID, string, Arguments];
+    preConnect: [NodeSession<any, any>];
+    postConnect: [NodeSession<any, any>];
+    prePlay: [NodeSession<any, any>];
+    postPlay: [NodeSession<any, any>];
+    donePlay: [NodeSession<any, any>];
+    doneConnect: [NodeSession<any, any>];
+    prePublish: [NodeSession<any, any>];
+    postPublish: [NodeSession<any, any>];
+    donePublish: [NodeSession<any, any>];
     configChanged: [];
     logMessage: any[];
     errorMessage: any[];
+    warnMessage: any[];
     debugMessage: any[];
     ffDebugMessage: any[];
 };
@@ -38,6 +40,7 @@ export type Context = {
     server: NodeMediaServer | null,
     sessions: Map<SessionID, NodeSession<any, any>>;
     publishers: Map<string, SessionID>;
+    broadcasts: Map<string, BroadcastServer<any, any>>;
     idlePlayers: Set<SessionID>;
     nodeEvent: EventEmitter<NodeEventMap>;
     stat: {

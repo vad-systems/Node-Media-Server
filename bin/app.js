@@ -67,7 +67,8 @@ const relayTasks = [
  */
 const fissionTasks = [
     {
-        pattern: "live/.*",
+        app: "live",
+        pattern: "/live/.*",
         model: [
             {
                 ab: "64k",

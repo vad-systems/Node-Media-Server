@@ -1,5 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.createAMF3Context = createAMF3Context;
+exports.createAMF0Context = createAMF0Context;
 exports.decodeAmf3Cmd = decodeAMF3Cmd;
 exports.encodeAmf3Cmd = encodeAMF3Cmd;
 exports.decodeAmf0Cmd = decodeAMF0Cmd;
@@ -72,7 +74,19 @@ exports.amf3encUI29 = amf3encUI29;
 exports.amf3encUndefined = amf3encUndefined;
 exports.amf3encXml = amf3encXml;
 exports.amf3encXmlDoc = amf3encXmlDoc;
-const logger_js_1 = require("./logger.js");
+const logger_js_1 = require("../logger.js");
+function createAMF3Context() {
+    return {
+        strings: [],
+        objects: [],
+        traits: []
+    };
+}
+function createAMF0Context() {
+    return {
+        objects: []
+    };
+}
 const amf3dRules = {
     0x00: amf3decUndefined,
     0x01: amf3decNull,
@@ -94,6 +108,7 @@ const amf3eRules = {
     'double': amf3encDouble,
     'xml': amf3encXmlDoc,
     'object': amf3encObject,
+    'typed_object': amf3encObject,
     'array': amf3encArray,
     'sarray': amf3encArray,
     'binary': amf3encByteArray,
@@ -124,6 +139,7 @@ const amf0eRules = {
     'double': amf0encNumber,
     'xml': amf0encXmlDoc,
     'object': amf0encObject,
+    'typed_object': amf0encTypedObj,
     'array': amf0encArray,
     'sarray': amf0encSArray,
     'binary': amf0encString,
@@ -153,6 +169,8 @@ function amfType(o) {
                 return 'sarray';
             return 'array';
         }
+        if (o.__className__)
+            return 'typed_object';
         return 'object';
     }
     throw new Error('Unsupported type!');
@@ -241,60 +259,98 @@ function amf3encInteger(num) {
     buf.writeUInt8(0x4, 0);
     return Buffer.concat([buf, amf3encUI29(num & 0x3FFFFFFF)]);
 }
-function amf3decString(buf) {
+function amf3decString(buf, ctx = createAMF3Context()) {
+    let res = amf3decUString(buf.slice(1), ctx);
+    return { len: res.len + 1, value: res.value };
+}
+function amf3decUString(buf, ctx = createAMF3Context()) {
+    let sLen = amf3decUI29(buf);
+    let isRef = (sLen.value & 1) === 0;
+    let val = sLen.value >> 1;
+    if (isRef) {
+        return { len: sLen.len, value: ctx.strings[val] };
+    }
+    else {
+        if (val === 0) {
+            return { len: sLen.len, value: "" };
+        }
+        let str = buf.slice(sLen.len, sLen.len + val).toString('utf8');
+        ctx.strings.push(str);
+        return { len: val + sLen.len, value: str };
+    }
+}
+function amf3encString(str, ctx = createAMF3Context()) {
+    let buf = Buffer.alloc(1);
+    buf.writeUInt8(0x06, 0);
+    return Buffer.concat([buf, amf3encUString(str, ctx)]);
+}
+function amf3encUString(str, ctx = createAMF3Context()) {
+    if (str === "") {
+        return amf3encUI29(1);
+    }
+    let idx = ctx.strings.indexOf(str);
+    if (idx !== -1) {
+        return amf3encUI29(idx << 1);
+    }
+    ctx.strings.push(str);
+    let strBuf = Buffer.from(str, 'utf8');
+    let sLen = amf3encUI29((strBuf.length << 1) | 1);
+    return Buffer.concat([sLen, strBuf]);
+}
+function amf3decXmlDoc(buf, ctx = createAMF3Context()) {
     let sLen = amf3decUI29(buf.slice(1));
-    let s = sLen.value & 1;
-    sLen.value = sLen.value >> 1;
-    if (s)
-        return { len: sLen.value + sLen.len + 1, value: buf.slice(sLen.len + 1, sLen.len + sLen.value + 1).toString('utf8') };
-    throw new Error('Error, we have a need to decode a String that is a Reference');
+    let isRef = (sLen.value & 1) === 0;
+    let val = sLen.value >> 1;
+    if (isRef) {
+        return { len: sLen.len + 1, value: ctx.objects[val] };
+    }
+    else {
+        let str = buf.slice(sLen.len + 1, sLen.len + val + 1).toString('utf8');
+        ctx.objects.push(str);
+        return { len: val + sLen.len + 1, value: str };
+    }
 }
-function amf3encString(str) {
+function amf3encXmlDoc(str, ctx = createAMF3Context()) {
     let strBuf = Buffer.from(str, 'utf8');
     let sLen = amf3encUI29((strBuf.length << 1) | 1);
     let buf = Buffer.alloc(1);
-    buf.writeUInt8(0x6, 0);
+    buf.writeUInt8(0x07, 0);
     return Buffer.concat([buf, sLen, strBuf]);
 }
-function amf3decXmlDoc(buf) {
-    let sLen = amf3decUI29(buf);
-    let s = sLen.value & 1;
-    sLen.value = sLen.value >> 1;
-    if (s)
-        return { len: sLen.value + sLen.len, value: buf.slice(sLen.len, sLen.len + sLen.value).toString('utf8') };
-    throw new Error('Error, we have a need to decode a String that is a Reference');
+function amf3decXml(buf, ctx = createAMF3Context()) {
+    let sLen = amf3decUI29(buf.slice(1));
+    let isRef = (sLen.value & 1) === 0;
+    let val = sLen.value >> 1;
+    if (isRef) {
+        return { len: sLen.len + 1, value: ctx.objects[val] };
+    }
+    else {
+        let str = buf.slice(sLen.len + 1, sLen.len + val + 1).toString('utf8');
+        ctx.objects.push(str);
+        return { len: val + sLen.len + 1, value: str };
+    }
 }
-function amf3encXmlDoc(str) {
-    let strBuf = Buffer.from(str, 'utf8');
-    let sLen = amf3encUI29((strBuf.length << 1) | 1);
-    let buf = Buffer.alloc(1);
-    buf.writeUInt8(0x7, 0);
-    return Buffer.concat([buf, sLen, strBuf]);
-}
-function amf3decXml(buf) {
-    let sLen = amf3decUI29(buf);
-    let s = sLen.value & 1;
-    sLen.value = sLen.value >> 1;
-    if (s)
-        return { len: sLen.value + sLen.len, value: buf.slice(sLen.len, sLen.len + sLen.value).toString('utf8') };
-    throw new Error('Error, we have a need to decode a String that is a Reference');
-}
-function amf3encXml(str) {
+function amf3encXml(str, ctx = createAMF3Context()) {
     let strBuf = Buffer.from(str, 'utf8');
     let sLen = amf3encUI29((strBuf.length << 1) | 1);
     let buf = Buffer.alloc(1);
     buf.writeUInt8(0x0B, 0);
     return Buffer.concat([buf, sLen, strBuf]);
 }
-function amf3decByteArray(buf) {
+function amf3decByteArray(buf, ctx = createAMF3Context()) {
     let sLen = amf3decUI29(buf.slice(1));
-    let s = sLen.value & 1;
-    sLen.value = sLen.value >> 1;
-    if (s)
-        return { len: sLen.value + sLen.len + 1, value: buf.slice(sLen.len + 1, sLen.len + sLen.value + 1) };
-    throw new Error('Error, we have a need to decode a String that is a Reference');
+    let isRef = (sLen.value & 1) === 0;
+    let val = sLen.value >> 1;
+    if (isRef) {
+        return { len: sLen.len + 1, value: ctx.objects[val] };
+    }
+    else {
+        let data = buf.slice(sLen.len + 1, sLen.len + val + 1);
+        ctx.objects.push(data);
+        return { len: val + sLen.len + 1, value: data };
+    }
 }
-function amf3encByteArray(str) {
+function amf3encByteArray(str, ctx = createAMF3Context()) {
     let data = (typeof str == 'string') ? Buffer.from(str, 'binary') : str;
     let sLen = amf3encUI29((data.length << 1) | 1);
     let buf = Buffer.alloc(1);
@@ -310,34 +366,146 @@ function amf3encDouble(num) {
     buf.writeDoubleBE(num, 1);
     return buf;
 }
-function amf3decDate(buf) {
-    let uTz = amf3decUI29(buf.slice(1));
-    let ts = buf.readDoubleBE(uTz.len + 1);
-    return { len: uTz.len + 9, value: ts };
+function amf3decDate(buf, ctx = createAMF3Context()) {
+    let sLen = amf3decUI29(buf.slice(1));
+    let isRef = (sLen.value & 1) === 0;
+    if (isRef) {
+        return { len: sLen.len + 1, value: ctx.objects[sLen.value >> 1] };
+    }
+    let ts = buf.readDoubleBE(sLen.len + 1);
+    let date = new Date(ts);
+    ctx.objects.push(date);
+    return { len: sLen.len + 9, value: date };
 }
-function amf3encDate(ts) {
+function amf3encDate(ts, ctx = createAMF3Context()) {
     let buf = Buffer.alloc(1);
-    buf.writeUInt8(0x8, 0);
+    buf.writeUInt8(0x08, 0);
     let tsBuf = Buffer.alloc(8);
     tsBuf.writeDoubleBE(ts, 0);
     return Buffer.concat([buf, amf3encUI29(1), tsBuf]);
 }
-function amf3decArray(buf) {
-    let count = amf3decUI29(buf.slice(1));
-    let obj = amf3decObject(buf.slice(count.len + 1));
-    if (count.value & 1)
-        throw new Error('This is a reference to another array, which currently we don\'t support!');
-    return { len: count.len + obj.len + 1, value: obj.value };
+function amf3decArray(buf, ctx = createAMF3Context()) {
+    let sLen = amf3decUI29(buf.slice(1));
+    let isRef = (sLen.value & 1) === 0;
+    let count = sLen.value >> 1;
+    if (isRef) {
+        return { len: sLen.len + 1, value: ctx.objects[count] };
+    }
+    let arr = [];
+    ctx.objects.push(arr);
+    let len = sLen.len + 1;
+    // Associative part
+    while (true) {
+        let key = amf3decUString(buf.slice(len), ctx);
+        len += key.len;
+        if (key.value === "")
+            break;
+        let val = amf3DecodeOne(buf.slice(len), ctx);
+        len += val.len;
+        arr[key.value] = val.value;
+    }
+    // Dense part
+    for (let i = 0; i < count; i++) {
+        let val = amf3DecodeOne(buf.slice(len), ctx);
+        len += val.len;
+        arr.push(val.value);
+    }
+    return { len, value: arr };
 }
-function amf3encArray(a) {
-    throw new Error('Encoding arrays is not supported yet!');
+function amf3encArray(a, ctx = createAMF3Context()) {
+    let idx = ctx.objects.indexOf(a);
+    if (idx !== -1) {
+        return Buffer.concat([Buffer.from([0x09]), amf3encUI29(idx << 1)]);
+    }
+    ctx.objects.push(a);
+    let buf = Buffer.from([0x09]);
+    let sLen = amf3encUI29((a.length << 1) | 1);
+    buf = Buffer.concat([buf, sLen]);
+    // Associative part
+    for (let key in a) {
+        if (isNaN(parseInt(key))) {
+            buf = Buffer.concat([buf, amf3encUString(key, ctx), amf3EncodeOne(a[key], ctx)]);
+        }
+    }
+    buf = Buffer.concat([buf, amf3encUString("", ctx)]);
+    // Dense part
+    for (let i = 0; i < a.length; i++) {
+        buf = Buffer.concat([buf, amf3EncodeOne(a[i], ctx)]);
+    }
+    return buf;
 }
-function amf3decObject(buf) {
+function amf3decObject(buf, ctx = createAMF3Context()) {
+    let sLen = amf3decUI29(buf.slice(1));
+    let isRef = (sLen.value & 1) === 0;
+    if (isRef) {
+        return { len: sLen.len + 1, value: ctx.objects[sLen.value >> 1] };
+    }
+    let isTraitsRef = (sLen.value & 2) === 0;
+    let traits;
+    let len = sLen.len + 1;
+    if (isTraitsRef) {
+        traits = ctx.traits[sLen.value >> 2];
+    }
+    else {
+        traits = {
+            externalizable: (sLen.value & 4) !== 0,
+            dynamic: (sLen.value & 8) !== 0,
+            count: sLen.value >> 4,
+            className: null,
+            properties: []
+        };
+        let clsName = amf3decUString(buf.slice(len), ctx);
+        traits.className = clsName.value;
+        len += clsName.len;
+        for (let i = 0; i < traits.count; i++) {
+            let propName = amf3decUString(buf.slice(len), ctx);
+            traits.properties.push(propName.value);
+            len += propName.len;
+        }
+        ctx.traits.push(traits);
+    }
     let obj = {};
-    return { len: 1, value: obj };
+    ctx.objects.push(obj);
+    if (traits.className)
+        obj.__className__ = traits.className;
+    if (traits.externalizable) {
+        throw new Error("Externalizable traits not supported yet");
+    }
+    for (let i = 0; i < traits.count; i++) {
+        let val = amf3DecodeOne(buf.slice(len), ctx);
+        obj[traits.properties[i]] = val.value;
+        len += val.len;
+    }
+    if (traits.dynamic) {
+        while (true) {
+            let key = amf3decUString(buf.slice(len), ctx);
+            len += key.len;
+            if (key.value === "")
+                break;
+            let val = amf3DecodeOne(buf.slice(len), ctx);
+            obj[key.value] = val.value;
+            len += val.len;
+        }
+    }
+    return { len, value: obj };
 }
-function amf3encObject(o) {
-    return Buffer.from([0x0A, 0x0B, 0x01, 0x01]);
+function amf3encObject(o, ctx = createAMF3Context()) {
+    let idx = ctx.objects.indexOf(o);
+    if (idx !== -1) {
+        return Buffer.concat([Buffer.from([0x0A]), amf3encUI29(idx << 1)]);
+    }
+    ctx.objects.push(o);
+    let className = o.__className__ || "";
+    // Simplified: always dynamic with no static properties
+    let buf = Buffer.from([0x0A, 0x0B]); // 0x0B = new traits, not externalizable, dynamic, 0 static props.
+    buf = Buffer.concat([buf, amf3encUString(className, ctx)]);
+    for (let key in o) {
+        if (key === '__className__')
+            continue;
+        buf = Buffer.concat([buf, amf3encUString(key, ctx), amf3EncodeOne(o[key], ctx)]);
+    }
+    buf = Buffer.concat([buf, amf3encUString("", ctx)]);
+    return buf;
 }
 // AMF0 Implementation
 function amf0decNumber(buf) {
@@ -385,14 +553,15 @@ function amf0encDate(ts) {
     buf.writeDoubleBE(ts, 3);
     return buf;
 }
-function amf0decObject(buf) {
+function amf0decObject(buf, ctx = createAMF0Context()) {
     let obj = {};
+    ctx.objects.push(obj);
     let iBuf = buf.slice(1);
     let len = 1;
     while (iBuf.readUInt8(0) != 0x09) {
         let prop = amf0decUString(iBuf);
         len += prop.len;
-        if (iBuf.length < prop.len) {
+        if (iBuf.length <= prop.len) {
             break;
         }
         if (iBuf.slice(prop.len).readUInt8(0) == 0x09) {
@@ -401,29 +570,51 @@ function amf0decObject(buf) {
         }
         if (prop.value == '')
             break;
-        let val = amf0DecodeOne(iBuf.slice(prop.len));
+        let val = amf0DecodeOne(iBuf.slice(prop.len), ctx);
         obj[prop.value] = val.value;
         len += val.len;
         iBuf = iBuf.slice(prop.len + val.len);
     }
     return { len: len, value: obj };
 }
-function amf0encObject(o) {
+function amf0encObject(o, ctx = createAMF0Context()) {
     if (typeof o !== 'object')
         return Buffer.alloc(0);
+    let idx = ctx.objects.indexOf(o);
+    if (idx !== -1) {
+        return amf0encRef(idx);
+    }
+    ctx.objects.push(o);
     let data = Buffer.alloc(1);
     data.writeUInt8(0x03, 0);
+    return Buffer.concat([data, amf0encUObject(o, ctx)]);
+}
+function amf0encUObject(o, ctx) {
+    let data = Buffer.alloc(0);
     let k;
     for (k in o) {
-        data = Buffer.concat([data, amf0encUString(k), amf0EncodeOne(o[k])]);
+        if (k === '__className__')
+            continue;
+        data = Buffer.concat([data, amf0encUString(k), amf0EncodeOne(o[k], ctx)]);
     }
     let termCode = Buffer.alloc(1);
     termCode.writeUInt8(0x09, 0);
     return Buffer.concat([data, amf0encUString(''), termCode]);
 }
-function amf0decRef(buf) {
+function amf0encTypedObj(o, ctx = createAMF0Context()) {
+    let idx = ctx.objects.indexOf(o);
+    if (idx !== -1) {
+        return amf0encRef(idx);
+    }
+    ctx.objects.push(o);
+    let data = Buffer.alloc(1);
+    data.writeUInt8(0x10, 0); // Type Typed Object
+    data = Buffer.concat([data, amf0encUString(o.__className__), amf0encUObject(o, ctx)]);
+    return data;
+}
+function amf0decRef(buf, ctx = createAMF0Context()) {
     let index = buf.readUInt16BE(1);
-    return { len: 3, value: 'ref' + index };
+    return { len: 3, value: ctx.objects[index] };
 }
 function amf0encRef(index) {
     let buf = Buffer.alloc(3);
@@ -463,11 +654,16 @@ function amf0encLongString(str) {
     buf.writeUInt32BE(strBuf.length, 1);
     return Buffer.concat([buf, strBuf]);
 }
-function amf0decArray(buf) {
-    let obj = amf0decObject(buf.slice(4));
+function amf0decArray(buf, ctx = createAMF0Context()) {
+    let obj = amf0decObject(buf.slice(4), ctx);
     return { len: 4 + obj.len, value: obj.value };
 }
-function amf0encArray(a) {
+function amf0encArray(a, ctx = createAMF0Context()) {
+    let idx = ctx.objects.indexOf(a);
+    if (idx !== -1) {
+        return amf0encRef(idx);
+    }
+    ctx.objects.push(a);
     let l = 0;
     if (a instanceof Array)
         l = a.length;
@@ -477,8 +673,7 @@ function amf0encArray(a) {
     let buf = Buffer.alloc(5);
     buf.writeUInt8(8, 0);
     buf.writeUInt32BE(l, 1);
-    let data = amf0encObject(a);
-    return Buffer.concat([buf, data.slice(1)]);
+    return Buffer.concat([buf, amf0encUObject(a, ctx)]);
 }
 function amf0cnletray2Object(aData) {
     let buf = Buffer.alloc(1);
@@ -488,7 +683,7 @@ function amf0cnletray2Object(aData) {
 function amf0cnvObject2Array(oData) {
     let buf = Buffer.alloc(5);
     buf.writeUInt8(0x08, 0);
-    let o = amf0decObject(oData);
+    let o = amf0decObject(oData, createAMF0Context());
     let l = Object.keys(o.value).length;
     buf.writeUInt32BE(l, 1);
     return Buffer.concat([buf, oData.slice(1)]);
@@ -504,25 +699,31 @@ function amf0encXmlDoc(str) {
     buf.writeUInt16BE(strBuf.length, 1);
     return Buffer.concat([buf, strBuf]);
 }
-function amf0decSArray(buf) {
+function amf0decSArray(buf, ctx = createAMF0Context()) {
     let a = [];
+    ctx.objects.push(a);
     let len = 5;
     let ret;
     for (let count = buf.readUInt32BE(1); count; count--) {
-        ret = amf0DecodeOne(buf.slice(len));
+        ret = amf0DecodeOne(buf.slice(len), ctx);
         a.push(ret.value);
         len += ret.len;
     }
     return { len: len, value: amf0markSArray(a) };
 }
-function amf0encSArray(a) {
+function amf0encSArray(a, ctx = createAMF0Context()) {
+    let idx = ctx.objects.indexOf(a);
+    if (idx !== -1) {
+        return amf0encRef(idx);
+    }
+    ctx.objects.push(a);
     logger_js_1.Logger.debug('Do strict array!');
     let buf = Buffer.alloc(5);
     buf.writeUInt8(0x0A, 0);
     buf.writeUInt32BE(a.length, 1);
     let i;
     for (i = 0; i < a.length; i++) {
-        buf = Buffer.concat([buf, amf0EncodeOne(a[i])]);
+        buf = Buffer.concat([buf, amf0EncodeOne(a[i], ctx)]);
     }
     return buf;
 }
@@ -530,71 +731,70 @@ function amf0markSArray(a) {
     Object.defineProperty(a, 'sarray', { value: true });
     return a;
 }
-function amf0decTypedObj(buf) {
+function amf0decTypedObj(buf, ctx = createAMF0Context()) {
     let className = amf0decString(buf);
-    let obj = amf0decObject(buf.slice(className.len - 1));
+    let obj = amf0decObject(buf.slice(className.len - 1), ctx);
     obj.value.__className__ = className.value;
     return { len: className.len + obj.len - 1, value: obj.value };
 }
 function amf0decSwitchAmf3(buf) {
-    let r = amf3DecodeOne(buf.slice(1));
+    let r = amf3DecodeOne(buf.slice(1), createAMF3Context());
     return r;
 }
-function amf0encTypedObj() {
-    throw new Error('Error: Typed Object encoding is not yet implemented!');
-}
-function amfXDecodeOne(rules, buffer) {
+function amfXDecodeOne(rules, buffer, ctx) {
     if (!rules[buffer.readUInt8(0)]) {
         logger_js_1.Logger.error('Unknown field', buffer.readUInt8(0));
         return null;
     }
-    return rules[buffer.readUInt8(0)](buffer);
+    return rules[buffer.readUInt8(0)](buffer, ctx);
 }
-function amf0DecodeOne(buffer) {
-    return amfXDecodeOne(amf0dRules, buffer);
+function amf0DecodeOne(buffer, ctx = createAMF0Context()) {
+    return amfXDecodeOne(amf0dRules, buffer, ctx);
 }
-function amf3DecodeOne(buffer) {
-    return amfXDecodeOne(amf3dRules, buffer);
+function amf3DecodeOne(buffer, ctx = createAMF3Context()) {
+    return amfXDecodeOne(amf3dRules, buffer, ctx);
 }
-function amfXDecode(rules, buffer) {
+function amfXDecode(rules, buffer, ctx) {
     let resp = [];
     let res;
     for (let i = 0; i < buffer.length;) {
-        res = amfXDecodeOne(rules, buffer.slice(i));
+        res = amfXDecodeOne(rules, buffer.slice(i), ctx);
         i += res.len;
         resp.push(res.value);
     }
     return resp;
 }
 function amf3Decode(buffer) {
-    return amfXDecode(amf3dRules, buffer);
+    return amfXDecode(amf3dRules, buffer, createAMF3Context());
 }
 function amf0Decode(buffer) {
-    return amfXDecode(amf0dRules, buffer);
+    return amfXDecode(amf0dRules, buffer, createAMF0Context());
 }
-function amfXEncodeOne(rules, o) {
+function amfXEncodeOne(rules, o, ctx) {
     let f = rules[amfType(o)];
     if (f)
-        return f(o);
+        return f(o, ctx);
     throw new Error('Unsupported type for encoding!');
 }
-function amf0EncodeOne(o) {
-    return amfXEncodeOne(amf0eRules, o);
+function amf0EncodeOne(o, ctx = createAMF0Context()) {
+    return amfXEncodeOne(amf0eRules, o, ctx);
 }
-function amf3EncodeOne(o) {
-    return amfXEncodeOne(amf3eRules, o);
+function amf3EncodeOne(o, ctx = createAMF3Context()) {
+    return amfXEncodeOne(amf3eRules, o, ctx);
 }
 function amf3Encode(a) {
+    let ctx = createAMF3Context();
     let buf = Buffer.alloc(0);
     a.forEach(function (o) {
-        buf = Buffer.concat([buf, amf3EncodeOne(o)]);
+        buf = Buffer.concat([buf, amf3EncodeOne(o, ctx)]);
     });
     return buf;
 }
 function amf0Encode(a) {
+    let ctx = createAMF0Context();
     let buf = Buffer.alloc(0);
     a.forEach(function (o) {
-        buf = Buffer.concat([buf, amf0EncodeOne(o)]);
+        buf = Buffer.concat([buf, amf0EncodeOne(o, ctx)]);
     });
     return buf;
 }
@@ -632,14 +832,15 @@ const rtmpDataCode = {
 function decodeAmf0Data(dbuf) {
     let buffer = dbuf;
     let resp = {};
-    let cmd = amf0DecodeOne(buffer);
+    let ctx = createAMF0Context();
+    let cmd = amf0DecodeOne(buffer, ctx);
     if (cmd) {
         resp.cmd = cmd.value;
         buffer = buffer.slice(cmd.len);
         if (rtmpDataCode[cmd.value]) {
             rtmpDataCode[cmd.value].forEach(function (n) {
                 if (buffer.length > 0) {
-                    let r = amf0DecodeOne(buffer);
+                    let r = amf0DecodeOne(buffer, ctx);
                     if (r) {
                         buffer = buffer.slice(r.len);
                         resp[n] = r.value;
@@ -656,13 +857,14 @@ function decodeAmf0Data(dbuf) {
 function decodeAMF0Cmd(dbuf) {
     let buffer = dbuf;
     let resp = {};
-    let cmd = amf0DecodeOne(buffer);
+    let ctx = createAMF0Context();
+    let cmd = amf0DecodeOne(buffer, ctx);
     resp.cmd = cmd.value;
     buffer = buffer.slice(cmd.len);
     if (rtmpCmdCode[cmd.value]) {
         rtmpCmdCode[cmd.value].forEach(function (n) {
             if (buffer.length > 0) {
-                let r = amf0DecodeOne(buffer);
+                let r = amf0DecodeOne(buffer, ctx);
                 buffer = buffer.slice(r.len);
                 resp[n] = r.value;
             }
@@ -674,11 +876,12 @@ function decodeAMF0Cmd(dbuf) {
     return resp;
 }
 function encodeAMF0Cmd(opt) {
-    let data = amf0EncodeOne(opt.cmd);
+    let ctx = createAMF0Context();
+    let data = amf0EncodeOne(opt.cmd, ctx);
     if (rtmpCmdCode[opt.cmd]) {
         rtmpCmdCode[opt.cmd].forEach(function (n) {
             if (opt.hasOwnProperty(n))
-                data = Buffer.concat([data, amf0EncodeOne(opt[n])]);
+                data = Buffer.concat([data, amf0EncodeOne(opt[n], ctx)]);
         });
     }
     else {
@@ -687,11 +890,12 @@ function encodeAMF0Cmd(opt) {
     return data;
 }
 function encodeAMF0Data(opt) {
-    let data = amf0EncodeOne(opt.cmd);
+    let ctx = createAMF0Context();
+    let data = amf0EncodeOne(opt.cmd, ctx);
     if (rtmpDataCode[opt.cmd]) {
         rtmpDataCode[opt.cmd].forEach(function (n) {
             if (opt.hasOwnProperty(n))
-                data = Buffer.concat([data, amf0EncodeOne(opt[n])]);
+                data = Buffer.concat([data, amf0EncodeOne(opt[n], ctx)]);
         });
     }
     else {
@@ -702,13 +906,14 @@ function encodeAMF0Data(opt) {
 function decodeAMF3Cmd(dbuf) {
     let buffer = dbuf;
     let resp = {};
-    let cmd = amf3DecodeOne(buffer);
+    let ctx = createAMF3Context();
+    let cmd = amf3DecodeOne(buffer, ctx);
     resp.cmd = cmd.value;
     buffer = buffer.slice(cmd.len);
     if (rtmpCmdCode[cmd.value]) {
         rtmpCmdCode[cmd.value].forEach(function (n) {
             if (buffer.length > 0) {
-                let r = amf3DecodeOne(buffer);
+                let r = amf3DecodeOne(buffer, ctx);
                 buffer = buffer.slice(r.len);
                 resp[n] = r.value;
             }
@@ -720,11 +925,12 @@ function decodeAMF3Cmd(dbuf) {
     return resp;
 }
 function encodeAMF3Cmd(opt) {
-    let data = amf3EncodeOne(opt.cmd);
+    let ctx = createAMF3Context();
+    let data = amf3EncodeOne(opt.cmd, ctx);
     if (rtmpCmdCode[opt.cmd]) {
         rtmpCmdCode[opt.cmd].forEach(function (n) {
             if (opt.hasOwnProperty(n))
-                data = Buffer.concat([data, amf3EncodeOne(opt[n])]);
+                data = Buffer.concat([data, amf3EncodeOne(opt[n], ctx)]);
         });
     }
     else {

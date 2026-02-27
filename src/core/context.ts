@@ -1,10 +1,12 @@
 import EventEmitter from 'events';
+import BroadcastServer from '../server/BroadcastServer.js';
 import { NodeSession } from '../server/NodeSession.js';
 import { Context, NodeEventMap, SessionID } from '../types/index.js';
 import ConfigProvider from './config.js';
 
 let sessions: Map<SessionID, NodeSession<any, any>> = new Map();
 let publishers: Map<string, SessionID> = new Map();
+let broadcasts: Map<SessionID, BroadcastServer<any, any>> = new Map();
 let idlePlayers: Set<SessionID> = new Set();
 
 let nodeEvent = new EventEmitter<NodeEventMap>();
@@ -21,6 +23,7 @@ const context: Context = {
     server: null,
     sessions,
     publishers,
+    broadcasts,
     idlePlayers,
     nodeEvent,
     stat,

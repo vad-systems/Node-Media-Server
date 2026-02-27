@@ -29,9 +29,9 @@ class NodeSession extends events_1.default {
         return this.conf[key];
     }
     isLocal() {
-        return this.remoteIp === '127.0.0.1'
-            || this.remoteIp === '::1'
-            || this.remoteIp === '::ffff:127.0.0.1';
+        return this.remoteIp.startsWith('127.0.0.1')
+            || this.remoteIp.startsWith('::1')
+            || this.remoteIp.startsWith('::ffff:127.0.0.1');
     }
 }
 exports.NodeSession = NodeSession;

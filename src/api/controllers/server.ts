@@ -1,48 +1,39 @@
-const OS = require("os");
+import OS from 'os';
+import { NextFunction, Request, Response } from 'express';
+import { Context } from '../../types/index.js';
+
 const Package = require("../../../package.json");
 
 function cpuAverage() {
-
-    //Initialise sum of idle and time of cores and fetch CPU info
     let totalIdle = 0, totalTick = 0;
     let cpus = OS.cpus();
 
-    //Loop through CPU cores
     for (let i = 0, len = cpus.length; i < len; i++) {
-
-        //Select CPU core
         let cpu = cpus[i];
-
-        //Total up the time in the cores tick
-        for (type in cpu.times) {
-            totalTick += cpu.times[type];
+        for (let type in cpu.times) {
+            totalTick += (cpu.times as any)[type];
         }
-
-        //Total up the idle time of the core
         totalIdle += cpu.times.idle;
     }
 
-    //Return the average Idle and Tick times
     return { idle: totalIdle / cpus.length, total: totalTick / cpus.length };
 }
 
-function percentageCPU() {
-    return new Promise(function (resolve, reject) {
+function percentageCPU(): Promise<number> {
+    return new Promise(function (resolve) {
         let startMeasure = cpuAverage();
         setTimeout(() => {
             let endMeasure = cpuAverage();
-            //Calculate the difference in idle and total time between the measures
             let idleDifference = endMeasure.idle - startMeasure.idle;
             let totalDifference = endMeasure.total - startMeasure.total;
 
-            //Calculate the average percentage CPU usage
             let percentageCPU = 100 - ~~(100 * idleDifference / totalDifference);
             resolve(percentageCPU);
         }, 100);
     });
 }
 
-function getSessionsInfo(sessions) {
+function getSessionsInfo(sessions: Context['sessions']) {
     let info = {
         inbytes: 0,
         outbytes: 0,
@@ -58,7 +49,7 @@ function getSessionsInfo(sessions) {
         if (session.TAG === "fission") {
             continue;
         }
-        let socket = session.TAG === "rtmp" ? session.socket : session.req.socket;
+        let socket = session.TAG === "rtmp" ? (session as any).socket : (session as any).req.socket;
         info.inbytes += socket.bytesRead;
         info.outbytes += socket.bytesWritten;
         info.rtmp += session.TAG === "rtmp" ? 1 : 0;
@@ -69,30 +60,31 @@ function getSessionsInfo(sessions) {
     return info;
 }
 
-function getConfig(req, res, next) {
+function getConfig(this: Context, req: Request, res: Response, next: NextFunction) {
+    const config = this.configProvider.getConfig();
     const {
         http, https,
         rtmp,
         trans,
         relay,
         fission
-    } = this.configProvider.getConfig();
+    } = config;
 
     const response = {
         http: {
-            mediaroot: http.mediaroot,
-            port: http.port,
-            allow_origin: http.allow_origin,
+            mediaroot: http?.mediaroot,
+            port: http?.port,
+            allow_origin: http?.allow_origin,
         },
         https: {
-            port: https.port,
+            port: https?.port,
         },
         rtmp: {
-            port: rtmp.port,
-            chunk_size: rtmp.chunk_size,
-            ping: rtmp.ping,
-            ping_timeout: rtmp.ping_timeout,
-            gop_cache: rtmp.gop_cache,
+            port: rtmp?.port,
+            chunk_size: rtmp?.chunk_size,
+            ping: rtmp?.ping,
+            ping_timeout: rtmp?.ping_timeout,
+            gop_cache: rtmp?.gop_cache,
         },
         trans,
         relay,
@@ -102,33 +94,33 @@ function getConfig(req, res, next) {
     res.json(response);
 }
 
-function updateConfig(req, res, next) {
+function updateConfig(this: Context, req: Request, res: Response, next: NextFunction) {
     throw new Error("Not implemented");
 }
 
-function getStatus(req, res, next) {
+function getStatus(this: Context, req: Request, res: Response, next: NextFunction) {
     const response = {
         fission: {
-            running: this.server.fissionServer.isRunning(),
+            running: this.server.fissionServer?.isRunning() || false,
         },
         http: {
-            running: this.server.httpServer.isRunning(),
+            running: this.server.httpServer?.isRunning() || false,
         },
         relay: {
-            running: this.server.relayServer.isRunning(),
+            running: this.server.relayServer?.isRunning() || false,
         },
         rtmp: {
-            running: this.server.rtmpServer.isRunning(),
+            running: this.server.rtmpServer?.isRunning() || false,
         },
         trans: {
-            running: this.server.transServer.isRunning(),
+            running: this.server.transServer?.isRunning() || false,
         },
     };
 
     res.json(response);
 }
 
-function getInfo(req, res, next) {
+function getInfo(this: Context, req: Request, res: Response, next: NextFunction) {
     let s = this.sessions;
     percentageCPU().then((cpuload) => {
         let sinfo = getSessionsInfo(s);
@@ -171,7 +163,7 @@ function getInfo(req, res, next) {
     });
 }
 
-module.exports = {
+export default {
     getInfo,
     getStatus,
     getConfig,

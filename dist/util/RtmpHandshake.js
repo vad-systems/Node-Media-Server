@@ -1,4 +1,9 @@
-const Crypto = require("crypto");
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const crypto_1 = __importDefault(require("crypto"));
 const MESSAGE_FORMAT_0 = 0;
 const MESSAGE_FORMAT_1 = 1;
 const MESSAGE_FORMAT_2 = 2;
@@ -13,9 +18,8 @@ const RandomCrud = Buffer.from([
 const GenuineFMSConst = "Genuine Adobe Flash Media Server 001";
 const GenuineFMSConstCrud = Buffer.concat([Buffer.from(GenuineFMSConst, "utf8"), RandomCrud]);
 const GenuineFPConst = "Genuine Adobe Flash Player 001";
-const GenuineFPConstCrud = Buffer.concat([Buffer.from(GenuineFPConst, "utf8"), RandomCrud]);
 function calcHmac(data, key) {
-    let hmac = Crypto.createHmac("sha256", key);
+    let hmac = crypto_1.default.createHmac("sha256", key);
     hmac.update(data);
     return hmac.digest();
 }
@@ -48,7 +52,7 @@ function detectClientMessageFormat(clientsig) {
     return MESSAGE_FORMAT_0;
 }
 function generateS1(messageFormat) {
-    let randomBytes = Crypto.randomBytes(RTMP_SIG_SIZE - 8);
+    let randomBytes = crypto_1.default.randomBytes(RTMP_SIG_SIZE - 8);
     let handshakeBytes = Buffer.concat([Buffer.from([0, 0, 0, 0, 1, 2, 3, 4]), randomBytes], RTMP_SIG_SIZE);
     let serverDigestOffset;
     if (messageFormat === 1) {
@@ -65,8 +69,8 @@ function generateS1(messageFormat) {
     hash.copy(handshakeBytes, serverDigestOffset, 0, 32);
     return handshakeBytes;
 }
-function generateS2(messageFormat, clientsig, callback) {
-    let randomBytes = Crypto.randomBytes(RTMP_SIG_SIZE - 32);
+function generateS2(messageFormat, clientsig) {
+    let randomBytes = crypto_1.default.randomBytes(RTMP_SIG_SIZE - 32);
     let challengeKeyOffset;
     if (messageFormat === 1) {
         challengeKeyOffset = GetClientGenuineConstDigestOffset(clientsig.slice(8, 12));
@@ -85,13 +89,11 @@ function generateS0S1S2(clientsig) {
     let messageFormat = detectClientMessageFormat(clientsig);
     let allBytes;
     if (messageFormat === MESSAGE_FORMAT_0) {
-        //    Logger.debug('[rtmp handshake] using simple handshake.');
         allBytes = Buffer.concat([clientType, clientsig, clientsig]);
     }
     else {
-        //    Logger.debug('[rtmp handshake] using complex handshake.');
         allBytes = Buffer.concat([clientType, generateS1(messageFormat), generateS2(messageFormat, clientsig)]);
     }
     return allBytes;
 }
-module.exports = { generateS0S1S2 };
+exports.default = { generateS0S1S2 };

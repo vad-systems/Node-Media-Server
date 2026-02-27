@@ -1,4 +1,4 @@
-const { default: Bitop } = require('./bitop.js');
+import Bitop from './bitop.js';
 
 const AAC_SAMPLE_RATE = [
     96000, 88200, 64000, 48000,
@@ -52,7 +52,7 @@ const VIDEO_CODEC_NAME = [
     'AV1',
 ];
 
-function getObjectType(bitop) {
+function getObjectType(bitop: Bitop): number {
     let audioObjectType = bitop.read(5);
     if (audioObjectType === 31) {
         audioObjectType = bitop.read(6) + 32;
@@ -60,13 +60,13 @@ function getObjectType(bitop) {
     return audioObjectType;
 }
 
-function getSampleRate(bitop, info) {
+function getSampleRate(bitop: Bitop, info: any): number {
     info.sampling_index = bitop.read(4);
     return info.sampling_index == 0x0f ? bitop.read(24) : AAC_SAMPLE_RATE[info.sampling_index];
 }
 
-function readAACSpecificConfig(aacSequenceHeader) {
-    let info = {};
+function readAACSpecificConfig(aacSequenceHeader: Buffer): any {
+    let info: any = {};
     let bitop = new Bitop(aacSequenceHeader);
     bitop.read(16);
     info.object_type = getObjectType(bitop);
@@ -90,7 +90,7 @@ function readAACSpecificConfig(aacSequenceHeader) {
     return info;
 }
 
-function getAACProfileName(info) {
+function getAACProfileName(info: any): string {
     switch (info.object_type) {
         case 1:
             return 'Main';
@@ -113,8 +113,8 @@ function getAACProfileName(info) {
     }
 }
 
-function readH264SpecificConfig(avcSequenceHeader) {
-    let info = {};
+function readH264SpecificConfig(avcSequenceHeader: Buffer): any {
+    let info: any = {};
     let profile_idc, width, height, crop_left, crop_right,
         crop_top, crop_bottom, frame_mbs_only, n, cf_idc,
         num_ref_frames;
@@ -269,8 +269,8 @@ function readH264SpecificConfig(avcSequenceHeader) {
     return info;
 }
 
-function HEVCParsePtl(bitop, hevc, max_sub_layers_minus1) {
-    let general_ptl = {};
+function HEVCParsePtl(bitop: Bitop, hevc: any, max_sub_layers_minus1: number): any {
+    let general_ptl: any = {};
 
     general_ptl.profile_space = bitop.read(2);
     general_ptl.tier_flag = bitop.read(1);
@@ -317,7 +317,7 @@ function HEVCParsePtl(bitop, hevc, max_sub_layers_minus1) {
             general_ptl.sub_layer_progressive_source_flag[i] = bitop.read(1);
             general_ptl.sub_layer_interlaced_source_flag[i] = bitop.read(1);
             general_ptl.sub_layer_non_packed_constraint_flag[i] = bitop.read(1);
-            general_ptl.sub_layer_frame_only_constraint_flag[i] = bitop.read(1);
+            general_ptl.general_frame_only_constraint_flag[i] = bitop.read(1);
             bitop.read(32);
             bitop.read(12);
         }
@@ -330,11 +330,10 @@ function HEVCParsePtl(bitop, hevc, max_sub_layers_minus1) {
     return general_ptl;
 }
 
-function HEVCParseSPS(SPS, hevc) {
-    let psps = {};
+function HEVCParseSPS(SPS: Buffer, hevc: any): any {
+    let psps: any = {};
     let NumBytesInNALunit = SPS.length;
-    let NumBytesInRBSP = 0;
-    let rbsp_array = [];
+    let rbsp_array: number[] = [];
     let bitop = new Bitop(SPS);
 
     bitop.read(1);//forbidden_zero_bit
@@ -347,7 +346,7 @@ function HEVCParseSPS(SPS, hevc) {
             rbsp_array.push(bitop.read(8));
             rbsp_array.push(bitop.read(8));
             i += 2;
-            let emulation_prevention_three_byte = bitop.read(8); /* equal to 0x03 */
+            bitop.read(8); /* emulation_prevention_three_byte equal to 0x03 */
         } else {
             rbsp_array.push(bitop.read(8));
         }
@@ -373,29 +372,26 @@ function HEVCParseSPS(SPS, hevc) {
     psps.conf_win_top_offset = 0;
     psps.conf_win_bottom_offset = 0;
     if (psps.conformance_window_flag) {
-        let vert_mult = 1 + (psps.chroma_format_idc < 2);
-        let horiz_mult = 1 + (psps.chroma_format_idc < 3);
+        let vert_mult = 1 + (psps.chroma_format_idc < 2 ? 1 : 0);
+        let horiz_mult = 1 + (psps.chroma_format_idc < 3 ? 1 : 0);
         psps.conf_win_left_offset = rbspBitop.read_golomb() * horiz_mult;
         psps.conf_win_right_offset = rbspBitop.read_golomb() * horiz_mult;
         psps.conf_win_top_offset = rbspBitop.read_golomb() * vert_mult;
         psps.conf_win_bottom_offset = rbspBitop.read_golomb() * vert_mult;
     }
-    // Logger.debug(psps);
     return psps;
 }
 
-function readHEVCSpecificConfig(hevcSequenceHeader) {
-    let info = {};
+function readHEVCSpecificConfig(hevcSequenceHeader: Buffer): any {
+    let info: any = {};
     info.width = 0;
     info.height = 0;
     info.profile = 0;
     info.level = 0;
-    // let bitop = new Bitop(hevcSequenceHeader);
-    // bitop.read(48);
     hevcSequenceHeader = hevcSequenceHeader.slice(5);
 
     do {
-        let hevc = {};
+        let hevc: any = {};
         if (hevcSequenceHeader.length < 23) {
             break;
         }
@@ -425,18 +421,16 @@ function readHEVCSpecificConfig(hevcSequenceHeader) {
         let p = hevcSequenceHeader.slice(23);
         for (let i = 0; i < numOfArrays; i++) {
             if (p.length < 3) {
-                brak;
+                break;
             }
             let nalutype = p[0];
             let n = (p[1]) << 8 | p[2];
-            // Logger.debug(nalutype, n);
             p = p.slice(3);
             for (let j = 0; j < n; j++) {
                 if (p.length < 2) {
                     break;
                 }
                 let k = (p[0] << 8) | p[1];
-                // Logger.debug('k', k);
                 if (p.length < 2 + k) {
                     break;
                 }
@@ -445,7 +439,6 @@ function readHEVCSpecificConfig(hevcSequenceHeader) {
                     //SPS
                     let sps = Buffer.alloc(k);
                     p.copy(sps, 0, 0, k);
-                    // Logger.debug(sps, sps.length);
                     hevc.psps = HEVCParseSPS(sps, hevc);
                     info.profile = hevc.general_profile_idc;
                     info.level = hevc.general_level_idc / 30.0;
@@ -460,17 +453,29 @@ function readHEVCSpecificConfig(hevcSequenceHeader) {
     return info;
 }
 
-// TODO
-function readAV1SpecificConfig(av1SequenceHeader) {
-    let info = {};
+function readAV1SpecificConfig(av1SequenceHeader: Buffer): any {
+    let info: any = {};
     info.width = 0;
     info.height = 0;
     info.profile = 0;
     info.level = 0;
+
+    if (av1SequenceHeader.length < 6) {
+        return info;
+    }
+
+    let bitop = new Bitop(av1SequenceHeader);
+    bitop.read(40); // 5 bytes: VideoTagHeader (1) + AV1PacketType (1) + CompositionTime (3)
+
+    bitop.read(1); // marker
+    bitop.read(7); // version
+    info.profile = bitop.read(3);
+    info.level = bitop.read(5);
+
     return info;
 }
 
-function readAVCSpecificConfig(avcSequenceHeader) {
+function readAVCSpecificConfig(avcSequenceHeader: Buffer): any {
     let codec_id = avcSequenceHeader[0] & 0x0f;
     if (codec_id == 7) {
         return readH264SpecificConfig(avcSequenceHeader);
@@ -481,8 +486,7 @@ function readAVCSpecificConfig(avcSequenceHeader) {
     }
 }
 
-
-function getAVCProfileName(info) {
+function getAVCProfileName(info: any): string {
     switch (info.profile) {
         case 1:
             return 'Main';
@@ -501,7 +505,7 @@ function getAVCProfileName(info) {
     }
 }
 
-module.exports = {
+export {
     AUDIO_SOUND_RATE,
     AUDIO_CODEC_NAME,
     VIDEO_CODEC_NAME,

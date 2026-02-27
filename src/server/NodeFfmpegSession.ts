@@ -1,10 +1,11 @@
 import { ChildProcess, spawn } from 'child_process';
+import { Buffer } from 'node:buffer';
 import { Logger } from '../core/index.js';
 import { NodeSession } from './NodeSession.js';
 import { FfmpegSessionConfig } from '../types/index.js';
 
 abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends NodeSession<A, T> {
-    ffmpeg_exec: ChildProcess = null;
+    private ffmpeg_exec: ChildProcess = null;
 
     protected constructor(conf: T, remoteIp: string, tag: string) {
         super(conf, remoteIp, tag);
@@ -37,6 +38,9 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
 
     stop() {
         this.end();
+    }
+
+    public sendBuffer(buffer: Buffer) {
     }
 }
 

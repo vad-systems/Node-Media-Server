@@ -1,21 +1,51 @@
-const _ = require('lodash');
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const lodash_1 = __importDefault(require("lodash"));
 function getStreams(req, res, next) {
     let stats = {};
+    this.broadcasts.forEach((broadcast, key) => {
+        var _a;
+        const [k, app, name] = key.split("/");
+        lodash_1.default.setWith(stats, [app, name], {
+            key,
+            app,
+            name,
+            publisher: broadcast.publisher ? {
+                id: broadcast.publisher.id,
+                ip: broadcast.publisher.ip,
+                protocol: broadcast.publisher.protocol,
+                createTime: broadcast.publisher.createTime,
+                videoCodec: broadcast.publisher.videoCodec,
+                videoWidth: broadcast.publisher.videoWidth,
+                videoHeight: broadcast.publisher.videoHeight,
+                videoFramerate: broadcast.publisher.videoFramerate,
+                audioCodec: broadcast.publisher.audioCodec,
+                audioChannels: broadcast.publisher.audioChannels,
+                audioSamplerate: broadcast.publisher.audioSamplerate,
+                inBytes: broadcast.publisher.inBytes,
+            } : null,
+            subscribers: ((_a = broadcast.subscribers) === null || _a === void 0 ? void 0 : _a.size) || 0
+        });
+    });
     this.sessions.forEach(function (session, id) {
         if (session.isStarting) {
             let regRes = /\/(.*)\/(.*)/gi.exec(session.publishStreamPath || session.playStreamPath);
-            if (regRes === null)
+            if (regRes === null) {
                 return;
-            let [app, stream] = _.slice(regRes, 1);
-            if (!_.get(stats, [app, stream])) {
-                _.setWith(stats, [app, stream], {
+            }
+            let [app, stream] = lodash_1.default.slice(regRes, 1);
+            if (!lodash_1.default.get(stats, [app, stream])) {
+                lodash_1.default.setWith(stats, [app, stream], {
                     publisher: null,
                     subscribers: [],
                 }, Object);
             }
             switch (true) {
                 case session.isPublishing: {
-                    _.setWith(stats, [app, stream, 'publisher'], {
+                    lodash_1.default.setWith(stats, [app, stream, 'publisher'], {
                         app: app,
                         stream: stream,
                         clientId: session.id,
@@ -80,12 +110,12 @@ function getStream(req, res, next) {
         duration: 0,
         bitrate: 0,
         startTime: null,
-        arguments: {}
+        arguments: {},
     };
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
     let publisherSession = this.sessions.get(this.publishers.get(publishStreamPath));
     streamStats.isLive = !!publisherSession;
-    streamStats.viewers = _.filter(Array.from(this.sessions.values()), session => {
+    streamStats.viewers = lodash_1.default.filter(Array.from(this.sessions.values()), (session) => {
         return session.playStreamPath === publishStreamPath;
     }).length;
     streamStats.duration = streamStats.isLive
@@ -107,10 +137,10 @@ function delStream(req, res, next) {
         res.json('ok');
     }
     else {
-        res.json({ error: 'stream not found' }, 404);
+        res.status(404).json({ error: 'stream not found' });
     }
 }
-module.exports = {
+exports.default = {
     delStream,
     getStreams,
     getStream,

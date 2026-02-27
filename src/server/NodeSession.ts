@@ -7,11 +7,12 @@ type SessionEventMap = {
     end: [SessionID],
 };
 
+
 abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof E, any[]> = SessionEventMap> extends EventEmitter<E> {
-    conf: T;
-    id: SessionID = null;
-    remoteIp: string;
-    TAG: string;
+    protected conf: T;
+    public readonly id: SessionID = null;
+    public readonly remoteIp: string;
+    public readonly TAG: string;
 
     protected constructor(conf: T, remoteIp: string, tag: string) {
         super();
@@ -21,7 +22,7 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
         this.TAG = tag;
     }
 
-    getConfig<C extends T[keyof T] | A[keyof A]>(key: keyof T | keyof A = null): C | undefined {
+    public getConfig<C extends T[keyof T] | A[keyof A]>(key: keyof T | keyof A = null): C | undefined {
         if (!key) {
             return;
         }
@@ -35,12 +36,14 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
     }
 
     isLocal() {
-        return this.remoteIp === '127.0.0.1'
-            || this.remoteIp === '::1'
-            || this.remoteIp === '::ffff:127.0.0.1';
+        return this.remoteIp.startsWith('127.0.0.1')
+            || this.remoteIp.startsWith('::1')
+            || this.remoteIp.startsWith('::ffff:127.0.0.1');
     }
 
     abstract stop(): void;
+
+    abstract sendBuffer(buffer: Buffer): void;
 }
 
 export { NodeSession };
