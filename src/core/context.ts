@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import { NodeSession } from '../node_session.js';
+import { NodeSession } from '../server/NodeSession.js';
 import { Context, NodeEventMap, SessionID } from '../types/index.js';
 import ConfigProvider from './config.js';
 
@@ -18,12 +18,14 @@ let stat = {
 const configProvider = new ConfigProvider();
 
 const context: Context = {
+    server: null,
     sessions,
     publishers,
     idlePlayers,
     nodeEvent,
     stat,
     configProvider,
+    rollingLog: [],
 };
 
 export default context;

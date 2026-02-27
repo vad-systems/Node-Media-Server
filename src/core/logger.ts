@@ -3,6 +3,7 @@ import context from './context.js';
 import { LogType } from '../types/index.js';
 
 let logType = LogType.NORMAL;
+let rollingLogLength = 20;
 
 const setLogType = (type: LogType) => {
     if (Object.values(LogType).indexOf(type) === -1) {
@@ -12,7 +13,19 @@ const setLogType = (type: LogType) => {
     logType = type;
 };
 
-context.nodeEvent.on('configChanged', () => setLogType(context.configProvider.getConfig().logType));
+const setRollingLogLength = (logLength: number) => {
+    rollingLogLength = logLength;
+};
+
+const addRollingLog = (...args: any[]) => {
+    context.rollingLog.push([...args]);
+    context.rollingLog = context.rollingLog.slice(-rollingLogLength);
+};
+
+context.nodeEvent.on('configChanged', () => {
+    setLogType(context.configProvider.getConfig().logType);
+    setRollingLogLength(context.configProvider.getConfig().rollingLogLength);
+});
 
 const logTime = () => {
     let nowDate = new Date();
@@ -25,7 +38,9 @@ const log = (...args: any[]) => {
         return;
     }
 
-    console.log(logTime(), process.pid, chalk.bold.green('[INFO]'), ...args);
+    const logEntry = [logTime(), process.pid, chalk.bold.green('[INFO]'), ...args]
+    console.log(...logEntry);
+    addRollingLog(...logEntry);
 };
 
 const error = (...args: any[]) => {
@@ -34,7 +49,9 @@ const error = (...args: any[]) => {
         return;
     }
 
-    console.log(logTime(), process.pid, chalk.bold.red('[ERROR]'), ...args);
+    const logEntry = [logTime(), process.pid, chalk.bold.red('[ERROR]'), ...args]
+    console.log(...logEntry);
+    addRollingLog(...logEntry);
 };
 
 const debug = (...args: any[]) => {
@@ -43,7 +60,9 @@ const debug = (...args: any[]) => {
         return;
     }
 
-    console.log(logTime(), process.pid, chalk.bold.blue('[DEBUG]'), ...args);
+    const logEntry = [logTime(), process.pid, chalk.bold.blue('[DEBUG]'), ...args]
+    console.log(...logEntry);
+    addRollingLog(...logEntry);
 };
 
 const ffdebug = (...args: any[]) => {
@@ -52,11 +71,13 @@ const ffdebug = (...args: any[]) => {
         return;
     }
 
-    console.log(logTime(), process.pid, chalk.bold.blue('[FFDEBUG]'), ...args);
+    const logEntry = [logTime(), process.pid, chalk.bold.blue('[FFDEBUG]'), ...args]
+    console.log(...logEntry);
+    addRollingLog(...logEntry);
 };
 
 const Logger = {
-    setLogType,
+    setLogType, setRollingLogLength,
 
     log, error, debug, ffdebug,
 };

@@ -47,6 +47,7 @@ export class Config {
     readonly auth?: AuthConfig;
 
     readonly logType?: LogType;
+    readonly rollingLogLength?: number;
 
     constructor(config: ConfigType) {
         this.http = config.http;
