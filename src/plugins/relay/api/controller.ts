@@ -1,11 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import { get, set } from 'lodash';
 import { Context } from '@vad-systems/nms-shared';
+import { NodeRelaySession } from '@vad-systems/nms-plugin-relay';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};
-    this.sessions.forEach(function (session: any, id) {
-        if (session.TAG !== 'relay') {
+    this.sessions.forEach(function (session, id) {
+        if (!(
+            session instanceof NodeRelaySession
+        )) {
             return;
         }
 
@@ -33,12 +36,12 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
 
 function getStreamByID(this: Context, req: Request, res: Response, next: NextFunction) {
     const relaySession = Array.from(this.sessions.values()).filter(
-        (session: any) =>
-            session.TAG === 'relay' &&
+        (session) =>
+            session instanceof NodeRelaySession &&
             req.params.id === session.id,
-    );
+    ) as NodeRelaySession[];
 
-    const relays = relaySession.map((item: any) => (
+    const relays = relaySession.map((item) => (
         {
             app: item.conf.app,
             name: item.conf.name,
@@ -55,13 +58,13 @@ function getStreamByID(this: Context, req: Request, res: Response, next: NextFun
 
 function getStreamByName(this: Context, req: Request, res: Response, next: NextFunction) {
     const relaySession = Array.from(this.sessions.values()).filter(
-        (session: any) =>
-            session.TAG === 'relay' &&
+        (session) =>
+            session instanceof NodeRelaySession &&
             req.params.app === session.conf.app &&
             req.params.name === session.conf.name,
-    );
+    ) as NodeRelaySession[];
 
-    const relays = relaySession.map((item: any) => (
+    const relays = relaySession.map((item) => (
         {
             app: item.conf.app,
             name: item.conf.name,
@@ -76,8 +79,8 @@ function getStreamByName(this: Context, req: Request, res: Response, next: NextF
 }
 
 function delStream(this: Context, req: Request, res: Response, next: NextFunction) {
-    let relaySession: any = this.sessions.get(req.params.id as string);
-    if (relaySession) {
+    let relaySession = this.sessions.get(req.params.id as string);
+    if (relaySession instanceof NodeRelaySession) {
         relaySession.stop();
         res.sendStatus(200);
     } else {

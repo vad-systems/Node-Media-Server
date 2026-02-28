@@ -1,4 +1,6 @@
 import EventEmitter from 'events';
+import type Http from 'http';
+import type WebSocket from 'ws';
 import type { ConfigProvider } from '@vad-systems/nms-core';
 import type NodeMediaServer from '../../NodeMediaServer.js';
 import type { BroadcastServer, NodeSession } from '@vad-systems/nms-server';
@@ -20,12 +22,12 @@ export type NodeEventMap = {
     postPublish: [NodeSession<any, any, any>];
     donePublish: [NodeSession<any, any, any>];
     configChanged: [];
-    wsConnection: [any, any];
-    logMessage: any[];
-    errorMessage: any[];
-    warnMessage: any[];
-    debugMessage: any[];
-    ffDebugMessage: any[];
+    wsConnection: [WebSocket, Http.IncomingMessage];
+    logMessage: string[];
+    errorMessage: string[];
+    warnMessage: string[];
+    debugMessage: string[];
+    ffDebugMessage: string[];
 };
 
 export enum LogType {

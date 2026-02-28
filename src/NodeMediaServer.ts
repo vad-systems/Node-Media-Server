@@ -111,8 +111,8 @@ class NodeMediaServer {
         await Promise.allSettled(processorsRunning);
     }
 
-    public on(eventName: keyof NodeEventMap, listener: (...args: any[]) => void) {
-        context.nodeEvent.on(eventName, listener);
+    public on<K extends keyof NodeEventMap>(eventName: K, listener: (...args: NodeEventMap[K]) => void) {
+        context.nodeEvent.on(eventName, listener as any);
     }
 
     public stop() {

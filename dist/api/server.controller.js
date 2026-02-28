@@ -86,11 +86,11 @@ function updateConfig(req, res, next) {
 async function startServer(req, res, next) {
     const serverName = req.params.server;
     const servers = {
-        rtmp: this.server.rtmpServer,
-        av: this.server.avServer,
-        trans: this.server.transServer,
-        relay: this.server.relayServer,
-        fission: this.server.fissionServer,
+        rtmp: this.server?.rtmpServer,
+        av: this.server?.avServer,
+        trans: this.server?.transServer,
+        relay: this.server?.relayServer,
+        fission: this.server?.fissionServer,
     };
     const server = servers[serverName];
     if (server) {
@@ -109,11 +109,11 @@ async function startServer(req, res, next) {
 function stopServer(req, res, next) {
     const serverName = req.params.server;
     const servers = {
-        rtmp: this.server.rtmpServer,
-        av: this.server.avServer,
-        trans: this.server.transServer,
-        relay: this.server.relayServer,
-        fission: this.server.fissionServer,
+        rtmp: this.server?.rtmpServer,
+        av: this.server?.avServer,
+        trans: this.server?.transServer,
+        relay: this.server?.relayServer,
+        fission: this.server?.fissionServer,
     };
     const server = servers[serverName];
     if (server) {

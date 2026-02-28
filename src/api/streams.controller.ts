@@ -2,13 +2,14 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import { FlvAudioCodec, FlvVideoCodec } from '@vad-systems/nms-protocol';
 import { Context } from '@vad-systems/nms-shared';
+import { BaseAvSession } from '@vad-systems/nms-server';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};
 
     this.broadcasts.forEach((broadcast, key) => {
         const [k, app, name] = key.split('/');
-        const publisher = broadcast.publisher as any;
+        const publisher = broadcast.publisher as BaseAvSession<any, any>;
         _.setWith(stats, [app, name], {
             key,
             app,
@@ -100,9 +101,9 @@ function getStream(this: Context, req: Request, res: Response, next: NextFunctio
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
     let broadcast = this.broadcasts.get(publishStreamPath);
 
-    let publisherSession: any = this.sessions.get(
+    let publisherSession = this.sessions.get(
         broadcast?.publisher?.id,
-    );
+    ) as BaseAvSession<any, any>;
 
     streamStats.isLive = !!publisherSession;
     streamStats.viewers = broadcast?.subscribers?.size || 0;

@@ -39,19 +39,20 @@ class NodeAvServer extends nms_server_1.NodeConfigurableServer {
             isPublisher,
         });
     }
-    handleWsRequest(req, ws) {
+    handleWsRequest(ws, req) {
         if (!this.isRunning()) {
             ws.close();
             return;
         }
         const urlInfo = url_1.default.parse(req.url, true);
         const streamHost = req.headers.host?.split(':')[0];
-        const streamPath = urlInfo.pathname.split('.')[0];
+        const pathname = urlInfo.pathname || '';
+        const streamPath = pathname.split('.')[0];
         const streamApp = streamPath.split('/')[1];
         const streamName = streamPath.split('/')[2];
         const streamQuery = urlInfo.query;
         let isPublisher = false;
-        if (ws.protocol.toLowerCase() === 'post' || ws.protocol.toLowerCase() === 'publisher') {
+        if (ws.protocol && (ws.protocol.toLowerCase() === 'post' || ws.protocol.toLowerCase() === 'publisher')) {
             isPublisher = true;
         }
         this.createSession(req, ws, nms_server_1.Protocol.WS_FLV, {

@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = require("lodash");
+const nms_plugin_trans_1 = require("..");
 function getStreams(req, res, next) {
     let stats = {};
     this.sessions.forEach(function (session, id) {
-        if (session.TAG !== 'trans') {
+        if (!(session instanceof nms_plugin_trans_1.NodeTransSession)) {
             return;
         }
         let { streamApp: app, streamName: name } = session.conf;
@@ -26,7 +27,7 @@ function getStreams(req, res, next) {
 }
 function delStream(req, res, next) {
     let transSession = this.sessions.get(req.params.id);
-    if (transSession && transSession.TAG === 'trans') {
+    if (transSession instanceof nms_plugin_trans_1.NodeTransSession) {
         transSession.stop();
         res.sendStatus(200);
     }

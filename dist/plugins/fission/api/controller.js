@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = require("lodash");
+const nms_plugin_fission_1 = require("..");
 function getStreams(req, res, next) {
     let stats = {};
     this.sessions.forEach(function (session, id) {
-        if (session.TAG !== 'fission') {
+        if (!(session instanceof nms_plugin_fission_1.NodeFissionSession)) {
             return;
         }
         let { streamApp: app, streamName: name } = session.conf;
@@ -26,7 +27,7 @@ function getStreams(req, res, next) {
 }
 function delStream(req, res, next) {
     let fissionSession = this.sessions.get(req.params.id);
-    if (fissionSession && fissionSession.TAG === 'fission') {
+    if (fissionSession instanceof nms_plugin_fission_1.NodeFissionSession) {
         fissionSession.stop();
         res.sendStatus(200);
     }

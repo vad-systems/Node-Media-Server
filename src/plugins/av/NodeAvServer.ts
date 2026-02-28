@@ -1,8 +1,11 @@
 import _ from 'lodash';
 import url from 'url';
+import express from 'express';
+import WebSocket from 'ws';
+import Http from 'http';
 import { context } from '@vad-systems/nms-core';
 import { AvSessionConfig } from '@vad-systems/nms-shared';
-import { NodeConfigurableServer, Protocol } from '@vad-systems/nms-server';
+import { NodeConfigurableServer, Protocol, NodeHttpServer } from '@vad-systems/nms-server';
 import { NodeAvSession } from '@vad-systems/nms-plugin-av';
 
 class NodeAvServer extends NodeConfigurableServer {
@@ -11,14 +14,14 @@ class NodeAvServer extends NodeConfigurableServer {
         this.handleWsRequest = this.handleWsRequest.bind(this);
     }
 
-    public attachHttpServer(httpServer: any) {
-        httpServer.app.all('/{*splat}.flv', (req: any, res: any) => {
+    public attachHttpServer(httpServer: NodeHttpServer) {
+        httpServer.app.all('/{*splat}.flv', (req: express.Request, res: express.Response) => {
             this.handleHttpRequest(req, res);
         });
         context.nodeEvent.on('wsConnection', this.handleWsRequest);
     }
 
-    public handleHttpRequest(req: any, res: any) {
+    public handleHttpRequest(req: express.Request, res: express.Response) {
         if (!this.isRunning()) {
             res.sendStatus(404);
             return;
@@ -40,7 +43,7 @@ class NodeAvServer extends NodeConfigurableServer {
         });
     }
 
-    public handleWsRequest(req: any, ws: any) {
+    public handleWsRequest(ws: WebSocket, req: Http.IncomingMessage) {
         if (!this.isRunning()) {
             ws.close();
             return;
@@ -48,12 +51,15 @@ class NodeAvServer extends NodeConfigurableServer {
 
         const urlInfo = url.parse(req.url, true);
         const streamHost = req.headers.host?.split(':')[0];
-        const streamPath = urlInfo.pathname.split('.')[0];
+        const pathname = urlInfo.pathname || '';
+        const streamPath = pathname.split('.')[0];
         const streamApp = streamPath.split('/')[1];
         const streamName = streamPath.split('/')[2];
         const streamQuery = urlInfo.query as any;
         let isPublisher = false;
-        if (ws.protocol.toLowerCase() === 'post' || ws.protocol.toLowerCase() === 'publisher') {
+        if (ws.protocol && (
+            ws.protocol.toLowerCase() === 'post' || ws.protocol.toLowerCase() === 'publisher'
+        )) {
             isPublisher = true;
         }
 
@@ -67,13 +73,15 @@ class NodeAvServer extends NodeConfigurableServer {
         });
     }
 
-    private createSession(req: any, res: any, protocol: Protocol, info: any) {
+    private createSession(req: Http.IncomingMessage | express.Request, res: WebSocket | express.Response, protocol: Protocol, info: any) {
         const sessionConf: AvSessionConfig = {
             auth: _.cloneDeep(this.config.auth),
         };
 
         const remoteIp = (
-            req.ip || req.socket.remoteAddress
+            (
+                req as any
+            ).ip || req.socket.remoteAddress
         ) + ':' + req.socket.remotePort;
         let session = new NodeAvSession(sessionConf, remoteIp, protocol, info);
         session.setTransport(req, res);

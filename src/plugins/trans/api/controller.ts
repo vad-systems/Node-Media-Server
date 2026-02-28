@@ -1,11 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import { get, set } from 'lodash';
 import { Context } from '@vad-systems/nms-shared';
+import { NodeTransSession } from '@vad-systems/nms-plugin-trans';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};
-    this.sessions.forEach(function (session: any, id) {
-        if (session.TAG !== 'trans') {
+    this.sessions.forEach(function (session, id) {
+        if (!(
+            session instanceof NodeTransSession
+        )) {
             return;
         }
 
@@ -31,8 +34,8 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
 }
 
 function delStream(this: Context, req: Request, res: Response, next: NextFunction) {
-    let transSession: any = this.sessions.get(req.params.id as string);
-    if (transSession && transSession.TAG === 'trans') {
+    let transSession = this.sessions.get(req.params.id as string);
+    if (transSession instanceof NodeTransSession) {
         transSession.stop();
         res.sendStatus(200);
     } else {

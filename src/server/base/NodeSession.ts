@@ -11,7 +11,7 @@ type SessionEventMap = {
 
 
 abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof E, any[]> = SessionEventMap> extends EventEmitter<E> {
-    protected conf: T;
+    public conf: T;
     public readonly id: SessionID = null;
     public readonly remoteIp: string;
     public readonly TAG: string;

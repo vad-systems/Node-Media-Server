@@ -1,13 +1,15 @@
 import { ParsedUrlQuery } from 'node:querystring';
 import WebSocket from 'ws';
+import Http from 'http';
+import express from 'express';
 import { context } from '@vad-systems/nms-core';
 import { Flv } from '@vad-systems/nms-protocol';
 import { AvSessionConfig } from '@vad-systems/nms-shared';
 import { BaseAvSession, Protocol } from '@vad-systems/nms-server';
 
 class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
-    public req: any;
-    public res: any;
+    public req: Http.IncomingMessage | express.Request;
+    public res: WebSocket | express.Response;
 
     private flv: Flv;
 
@@ -36,7 +38,7 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
         }
     }
 
-    setTransport(req: any, res: any) {
+    setTransport(req: Http.IncomingMessage | express.Request, res: WebSocket | express.Response) {
         this.req = req;
         this.res = res;
     }
@@ -94,7 +96,9 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
         if (this.res instanceof WebSocket) {
             this.res.close();
         } else {
-            this.res.end();
+            (
+                this.res as express.Response
+            ).end();
         }
     };
 }

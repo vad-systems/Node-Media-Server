@@ -1,11 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import { get, set } from 'lodash';
 import { Context } from '@vad-systems/nms-shared';
+import { NodeFissionSession } from '@vad-systems/nms-plugin-fission';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};
-    this.sessions.forEach(function (session: any, id) {
-        if (session.TAG !== 'fission') {
+    this.sessions.forEach(function (session, id) {
+        if (!(
+            session instanceof NodeFissionSession
+        )) {
             return;
         }
 
@@ -31,8 +34,8 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
 }
 
 function delStream(this: Context, req: Request, res: Response, next: NextFunction) {
-    let fissionSession: any = this.sessions.get(req.params.id as string);
-    if (fissionSession && fissionSession.TAG === 'fission') {
+    let fissionSession = this.sessions.get(req.params.id as string);
+    if (fissionSession instanceof NodeFissionSession) {
         fissionSession.stop();
         res.sendStatus(200);
     } else {

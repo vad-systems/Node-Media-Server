@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import OS from 'os';
 import { Config, Context } from '@vad-systems/nms-shared';
+import { NodeConfigurableServer } from '@vad-systems/nms-server';
 
 const Package = require('../../package.json');
 
@@ -13,7 +14,7 @@ function cpuAverage() {
         let cpu = cpus[i];
         for (let type in cpu.times) {
             totalTick += (
-                cpu.times as any
+                cpu.times as Record<string, number>
             )[type];
         }
         totalIdle += cpu.times.idle;
@@ -105,12 +106,12 @@ function updateConfig(this: Context, req: Request, res: Response, next: NextFunc
 
 async function startServer(this: Context, req: Request, res: Response, next: NextFunction) {
     const serverName = req.params.server as string;
-    const servers: any = {
-        rtmp: this.server.rtmpServer,
-        av: this.server.avServer,
-        trans: this.server.transServer,
-        relay: this.server.relayServer,
-        fission: this.server.fissionServer,
+    const servers: Record<string, NodeConfigurableServer | undefined> = {
+        rtmp: this.server?.rtmpServer,
+        av: this.server?.avServer,
+        trans: this.server?.transServer,
+        relay: this.server?.relayServer,
+        fission: this.server?.fissionServer,
     };
 
     const server = servers[serverName];
@@ -129,12 +130,12 @@ async function startServer(this: Context, req: Request, res: Response, next: Nex
 
 function stopServer(this: Context, req: Request, res: Response, next: NextFunction) {
     const serverName = req.params.server as string;
-    const servers: any = {
-        rtmp: this.server.rtmpServer,
-        av: this.server.avServer,
-        trans: this.server.transServer,
-        relay: this.server.relayServer,
-        fission: this.server.fissionServer,
+    const servers: Record<string, NodeConfigurableServer | undefined> = {
+        rtmp: this.server?.rtmpServer,
+        av: this.server?.avServer,
+        trans: this.server?.transServer,
+        relay: this.server?.relayServer,
+        fission: this.server?.fissionServer,
     };
 
     const server = servers[serverName];
