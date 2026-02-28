@@ -105,7 +105,9 @@ Node-Media-Server features a plugin-based architecture for extended functionalit
 
 ## REST API
 
-The server provides a comprehensive REST API for management. Key endpoints include:
+The server provides a comprehensive REST API for management. You can find the full OpenAPI specification in [openapi.yaml](./openapi.yaml).
+
+Key endpoints include:
 
 - `GET /api/server/info`: General server statistics and system information.
 - `GET /api/server/status`: Status of running server components.
