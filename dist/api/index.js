@@ -4,15 +4,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.setupRoutes = setupRoutes;
-const fission_js_1 = __importDefault(require("./routes/fission.js"));
-const relay_js_1 = __importDefault(require("./routes/relay.js"));
-const server_js_1 = __importDefault(require("./routes/server.js"));
-const streams_js_1 = __importDefault(require("./routes/streams.js"));
-const trans_js_1 = __importDefault(require("./routes/trans.js"));
+const server_router_js_1 = __importDefault(require("./server.router.js"));
+const streams_router_js_1 = __importDefault(require("./streams.router.js"));
+const nms_plugin_fission_1 = require("../plugins/fission");
+const nms_plugin_relay_1 = require("../plugins/relay");
+const nms_plugin_trans_1 = require("../plugins/trans");
 function setupRoutes(app, context) {
-    app.use('/api/streams', (0, streams_js_1.default)(context));
-    app.use('/api/server', (0, server_js_1.default)(context));
-    app.use('/api/relay', (0, relay_js_1.default)(context));
-    app.use('/api/trans', (0, trans_js_1.default)(context));
-    app.use('/api/fission', (0, fission_js_1.default)(context));
+    const config = context.configProvider.getConfig();
+    app.use('/api/streams', (0, streams_router_js_1.default)(context));
+    app.use('/api/server', (0, server_router_js_1.default)(context));
+    if (config.relay) {
+        app.use('/api/relay', (0, nms_plugin_relay_1.relayApi)(context));
+    }
+    if (config.trans) {
+        app.use('/api/trans', (0, nms_plugin_trans_1.transApi)(context));
+    }
+    if (config.fission) {
+        app.use('/api/fission', (0, nms_plugin_fission_1.fissionApi)(context));
+    }
 }

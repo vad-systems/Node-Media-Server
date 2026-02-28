@@ -1,44 +1,37 @@
-import { NextFunction, Request, Response } from 'express';
-import _ from 'lodash';
-import OS from 'os';
-import { Config, Context } from '@vad-systems/nms-shared';
-
-const Package = require('../../../package.json');
-
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const lodash_1 = __importDefault(require("lodash"));
+const os_1 = __importDefault(require("os"));
+const nms_shared_1 = require("../shared");
+const Package = require('../../package.json');
 function cpuAverage() {
     let totalIdle = 0, totalTick = 0;
-    let cpus = OS.cpus();
-
+    let cpus = os_1.default.cpus();
     for (let i = 0, len = cpus.length; i < len; i++) {
         let cpu = cpus[i];
         for (let type in cpu.times) {
-            totalTick += (
-                cpu.times as any
-            )[type];
+            totalTick += cpu.times[type];
         }
         totalIdle += cpu.times.idle;
     }
-
     return { idle: totalIdle / cpus.length, total: totalTick / cpus.length };
 }
-
-function percentageCPU(): Promise<number> {
+function percentageCPU() {
     return new Promise(function (resolve) {
         let startMeasure = cpuAverage();
         setTimeout(() => {
             let endMeasure = cpuAverage();
             let idleDifference = endMeasure.idle - startMeasure.idle;
             let totalDifference = endMeasure.total - startMeasure.total;
-
-            let percentageCPU = 100 - ~~(
-                100 * idleDifference / totalDifference
-            );
+            let percentageCPU = 100 - ~~(100 * idleDifference / totalDifference);
             resolve(percentageCPU);
         }, 100);
     });
 }
-
-function getSessionsInfo(sessions: Context['sessions']) {
+function getSessionsInfo(sessions) {
     let info = {
         inbytes: 0,
         outbytes: 0,
@@ -46,7 +39,6 @@ function getSessionsInfo(sessions: Context['sessions']) {
         http: 0,
         ws: 0,
     };
-
     for (let session of sessions.values()) {
         if (session.isFfmpegTask()) {
             continue;
@@ -57,20 +49,11 @@ function getSessionsInfo(sessions: Context['sessions']) {
         info.http += session.TAG === 'http-flv' ? 1 : 0;
         info.ws += session.TAG === 'websocket-flv' ? 1 : 0;
     }
-
     return info;
 }
-
-function getConfig(this: Context, req: Request, res: Response, next: NextFunction) {
+function getConfig(req, res, next) {
     const config = this.configProvider.getConfig();
-    const {
-        http, https,
-        rtmp,
-        trans,
-        relay,
-        fission,
-    } = config;
-
+    const { http, https, rtmp, trans, relay, fission, } = config;
     const response = {
         http: {
             mediaroot: http?.mediaroot,
@@ -91,67 +74,62 @@ function getConfig(this: Context, req: Request, res: Response, next: NextFunctio
         relay,
         fission,
     };
-
     res.json(response);
 }
-
-function updateConfig(this: Context, req: Request, res: Response, next: NextFunction) {
+function updateConfig(req, res, next) {
     const currentConfig = this.configProvider.getConfig();
-    const newConfigData = _.merge({}, currentConfig, req.body);
-    const newConfig = new Config(newConfigData);
+    const newConfigData = lodash_1.default.merge({}, currentConfig, req.body);
+    const newConfig = new nms_shared_1.Config(newConfigData);
     this.configProvider.setConfig(newConfig);
     res.json(this.configProvider.getConfig());
 }
-
-async function startServer(this: Context, req: Request, res: Response, next: NextFunction) {
-    const serverName = req.params.server as string;
-    const servers: any = {
+async function startServer(req, res, next) {
+    const serverName = req.params.server;
+    const servers = {
         rtmp: this.server.rtmpServer,
         av: this.server.avServer,
         trans: this.server.transServer,
         relay: this.server.relayServer,
         fission: this.server.fissionServer,
     };
-
     const server = servers[serverName];
-
     if (server) {
         if (!server.isRunning()) {
             await server.run();
             res.json({ status: 'ok' });
-        } else {
+        }
+        else {
             res.status(400).json({ error: 'Server already running' });
         }
-    } else {
+    }
+    else {
         res.status(404).json({ error: 'Server not found' });
     }
 }
-
-function stopServer(this: Context, req: Request, res: Response, next: NextFunction) {
-    const serverName = req.params.server as string;
-    const servers: any = {
+function stopServer(req, res, next) {
+    const serverName = req.params.server;
+    const servers = {
         rtmp: this.server.rtmpServer,
         av: this.server.avServer,
         trans: this.server.transServer,
         relay: this.server.relayServer,
         fission: this.server.fissionServer,
     };
-
     const server = servers[serverName];
-
     if (server) {
         if (server.isRunning()) {
             server.stop();
             res.json({ status: 'ok' });
-        } else {
+        }
+        else {
             res.status(400).json({ error: 'Server not running' });
         }
-    } else {
+    }
+    else {
         res.status(404).json({ error: 'Server not found' });
     }
 }
-
-function getStatus(this: Context, req: Request, res: Response, next: NextFunction) {
+function getStatus(req, res, next) {
     const response = {
         av: {
             running: this.server.avServer?.isRunning() || false,
@@ -172,29 +150,27 @@ function getStatus(this: Context, req: Request, res: Response, next: NextFunctio
             running: this.server.transServer?.isRunning() || false,
         },
     };
-
     res.json(response);
 }
-
-function getInfo(this: Context, req: Request, res: Response, next: NextFunction) {
+function getInfo(req, res, next) {
     let s = this.sessions;
     percentageCPU().then((cpuload) => {
         let sinfo = getSessionsInfo(s);
         let info = {
             os: {
-                arch: OS.arch(),
-                platform: OS.platform(),
-                release: OS.release(),
+                arch: os_1.default.arch(),
+                platform: os_1.default.platform(),
+                release: os_1.default.release(),
             },
             cpu: {
-                num: OS.cpus().length,
+                num: os_1.default.cpus().length,
                 load: cpuload,
-                model: OS.cpus()[0].model,
-                speed: OS.cpus()[0].speed,
+                model: os_1.default.cpus()[0].model,
+                speed: os_1.default.cpus()[0].speed,
             },
             mem: {
-                total: OS.totalmem(),
-                free: OS.freemem(),
+                total: os_1.default.totalmem(),
+                free: os_1.default.freemem(),
             },
             net: {
                 inbytes: this.stat.inbytes + sinfo.inbytes,
@@ -218,8 +194,7 @@ function getInfo(this: Context, req: Request, res: Response, next: NextFunction)
         res.json(info);
     });
 }
-
-export default {
+exports.default = {
     getInfo,
     getStatus,
     getConfig,

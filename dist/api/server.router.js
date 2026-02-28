@@ -1,0 +1,17 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const server_controller_js_1 = __importDefault(require("./server.controller.js"));
+exports.default = (context) => {
+    let router = express_1.default.Router();
+    router.get('/', server_controller_js_1.default.getInfo.bind(context));
+    router.get('/status', server_controller_js_1.default.getStatus.bind(context));
+    router.get('/config', server_controller_js_1.default.getConfig.bind(context));
+    router.patch('/config', server_controller_js_1.default.updateConfig.bind(context));
+    router.post('/:server/start', server_controller_js_1.default.startServer.bind(context));
+    router.post('/:server/stop', server_controller_js_1.default.stopServer.bind(context));
+    return router;
+};

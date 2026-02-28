@@ -28,8 +28,7 @@
       "@vad-systems/nms-plugin-relay": ["src/plugins/relay"],
       "@vad-systems/nms-plugin-trans": ["src/plugins/trans"],
       "@vad-systems/nms-plugins": ["src/plugins"],
-      "@vad-systems/nms-shared": ["src/shared"],
-      "@vad-systems/nms-api": ["src/api"]
+      "@vad-systems/nms-shared": ["src/shared"]
     }
   }
 }

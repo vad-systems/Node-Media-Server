@@ -7,7 +7,7 @@ import H2EBridge from 'http2-express';
 import Https from 'https';
 import path from 'path';
 import WebSocket from 'ws';
-import { setupRoutes } from '@vad-systems/nms-api';
+import { setupRoutes } from '../../api/index.js';
 import { context, LoggerFactory } from '@vad-systems/nms-core';
 import { Config } from '@vad-systems/nms-shared';
 import { Protocol } from '../base/Protocol.js';

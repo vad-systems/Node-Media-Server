@@ -1,6 +1,6 @@
 import express from 'express';
 import { Context } from '@vad-systems/nms-shared';
-import streamController from '../controllers/streams.js';
+import streamController from './streams.controller.js';
 
 export default (context: Context) => {
     let router = express.Router();

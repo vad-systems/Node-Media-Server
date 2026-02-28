@@ -37,6 +37,7 @@ function getStreamByID(this: Context, req: Request, res: Response, next: NextFun
             session.TAG === 'relay' &&
             req.params.id === session.id,
     );
+
     const relays = relaySession.map((item: any) => (
         {
             app: item.conf.app,
@@ -48,6 +49,7 @@ function getStreamByID(this: Context, req: Request, res: Response, next: NextFun
             id: item.id,
         }
     ));
+
     res.json(relays);
 }
 
@@ -58,6 +60,7 @@ function getStreamByName(this: Context, req: Request, res: Response, next: NextF
             req.params.app === session.conf.app &&
             req.params.name === session.conf.name,
     );
+
     const relays = relaySession.map((item: any) => (
         {
             app: item.conf.app,
@@ -68,13 +71,14 @@ function getStreamByName(this: Context, req: Request, res: Response, next: NextF
             id: item.id,
         }
     ));
+
     res.json(relays);
 }
 
 function delStream(this: Context, req: Request, res: Response, next: NextFunction) {
     let relaySession: any = this.sessions.get(req.params.id as string);
     if (relaySession) {
-        relaySession.end();
+        relaySession.stop();
         res.sendStatus(200);
     } else {
         res.sendStatus(404);

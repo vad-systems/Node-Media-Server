@@ -1,6 +1,6 @@
 import express from 'express';
 import { Context } from '@vad-systems/nms-shared';
-import fissionController from '../controllers/fission.js';
+import fissionController from './controller.js';
 
 export default (context: Context) => {
     let router = express.Router();

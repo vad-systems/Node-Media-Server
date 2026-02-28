@@ -1,6 +1,6 @@
 import express from 'express';
 import { Context } from '@vad-systems/nms-shared';
-import serverController from '../controllers/server.js';
+import serverController from './server.controller.js';
 
 export default (context: Context) => {
     let router = express.Router();

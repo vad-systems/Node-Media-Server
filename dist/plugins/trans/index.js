@@ -13,6 +13,12 @@ var __createBinding = (this && this.__createBinding) || (Object.create ? (functi
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.transApi = void 0;
 __exportStar(require("./NodeTransServer.js"), exports);
 __exportStar(require("./NodeTransSession.js"), exports);
+var index_js_1 = require("./api/index.js");
+Object.defineProperty(exports, "transApi", { enumerable: true, get: function () { return __importDefault(index_js_1).default; } });

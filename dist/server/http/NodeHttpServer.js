@@ -13,7 +13,7 @@ const http2_express_1 = __importDefault(require("http2-express"));
 const https_1 = __importDefault(require("https"));
 const path_1 = __importDefault(require("path"));
 const ws_1 = __importDefault(require("ws"));
-const nms_api_1 = require("../../api");
+const index_js_1 = require("../../api/index.js");
 const nms_core_1 = require("../../core");
 const Protocol_js_1 = require("../base/Protocol.js");
 const BaseAvSession_js_1 = require("../base/BaseAvSession.js");
@@ -63,7 +63,7 @@ class NodeHttpServer {
             if (this.config.auth && this.config.auth.api) {
                 this.app.use(['/api/*splat', '/static/*splat', '/admin/*splat'], (0, basic_auth_connect_1.default)(this.config.auth.api_user, this.config.auth.api_pass));
             }
-            (0, nms_api_1.setupRoutes)(this.app, nms_core_1.context);
+            (0, index_js_1.setupRoutes)(this.app, nms_core_1.context);
         }
         this.app.use(express_1.default.static(path_1.default.join(__dirname + '/../../../public')));
         this.app.use(express_1.default.static(this.mediaroot.toString()));
