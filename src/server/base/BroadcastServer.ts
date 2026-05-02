@@ -1,14 +1,19 @@
+import { context, LoggerFactory, LoggerInstance } from '@vad-systems/nms-core';
+import { SessionConfig, SessionID } from '@vad-systems/nms-shared';
 import { parseInt } from 'lodash';
 import crypto from 'node:crypto';
-import { context } from '@vad-systems/nms-core';
-import { SessionConfig } from '@vad-systems/nms-shared';
+import { generateNewSessionID } from '../../core/utils.js';
 import { NodeSession } from './NodeSession.js';
 
 class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
+    public readonly id: SessionID = null;
+    public readonly logger: LoggerInstance;
     private _publisher: S | null;
     private _subscribers: Map<string, NodeSession<any, any>>;
 
     constructor() {
+        this.id = generateNewSessionID();
+        this.logger = LoggerFactory.getLogger(`BroadcastServer ${this.id}`);
         this._publisher = null;
         this._subscribers = new Map();
     }
@@ -19,6 +24,11 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
 
     public set publisher(value: S | null) {
         this._publisher = value;
+        if (value) {
+            this.logger.log(`[publisher] set: ${this._publisher.id}`);
+        } else {
+            this.logger.log(`[publisher] remove`);
+        }
     }
 
     public get subscribers(): Map<string, NodeSession<any, any>> {

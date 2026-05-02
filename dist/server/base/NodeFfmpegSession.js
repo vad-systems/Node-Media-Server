@@ -30,7 +30,7 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
             this.logger.ffdebug(`[ffmpeg stderr] ${data}`);
         });
         this.ffmpeg_exec.on('close', (code) => {
-            this.logger.log(`[ffmpeg end]`);
+            this.logger.log(`[ffmpeg end] terminated with code`, code);
             this.emit('end', this.id);
             nms_core_1.context.nodeEvent.emit('doneConnect', this);
             this.cleanup();
@@ -38,9 +38,14 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
         nms_core_1.context.nodeEvent.emit('postConnect', this);
     }
     end() {
-        this.ffmpeg_exec.kill();
+        this.logger.log("[ffmpeg end] ffmpeg kill:SIGTERM", this.id);
+        if (!this.ffmpeg_exec.kill("SIGTERM")) {
+            this.logger.warn("[ffmpeg end] ffmpeg kill:SIGKILL", this.id);
+            this.ffmpeg_exec.kill("SIGKILL");
+        }
     }
     stop() {
+        this.logger.log("[ffmpeg stop] session stop", this.id);
         this.isStop = true;
         this.end();
     }

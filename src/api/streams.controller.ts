@@ -1,8 +1,8 @@
+import { FlvAudioCodec, FlvVideoCodec } from '@vad-systems/nms-protocol';
+import { BaseAvSession } from '@vad-systems/nms-server';
+import { Context } from '@vad-systems/nms-shared';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
-import { FlvAudioCodec, FlvVideoCodec } from '@vad-systems/nms-protocol';
-import { Context } from '@vad-systems/nms-shared';
-import { BaseAvSession } from '@vad-systems/nms-server';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
     let stats: any = {};
@@ -101,22 +101,20 @@ function getStream(this: Context, req: Request, res: Response, next: NextFunctio
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
     let broadcast = this.broadcasts.get(publishStreamPath);
 
-    let publisherSession = this.sessions.get(
-        broadcast?.publisher?.id,
-    ) as BaseAvSession<any, any>;
+    let publisherSession: BaseAvSession<any, any> = broadcast?.publisher;
 
-    streamStats.isLive = !!publisherSession;
+    streamStats.isLive = !publisherSession.isStop;
     streamStats.viewers = broadcast?.subscribers?.size || 0;
     streamStats.duration = streamStats.isLive
         ? Math.ceil((
             Date.now() - publisherSession.startTime
         ) / 1000)
         : 0;
-    streamStats.bitrate = 0;
+    streamStats.bitrate = (publisherSession?.videoDatarate || 0) + (publisherSession?.audioDatarate || 0);
     streamStats.startTime = streamStats.isLive
         ? publisherSession.startTime
         : null;
-    streamStats.arguments = !!publisherSession ? publisherSession.streamQuery : {};
+    streamStats.arguments = publisherSession?.streamQuery || {};
 
     res.json(streamStats);
 }

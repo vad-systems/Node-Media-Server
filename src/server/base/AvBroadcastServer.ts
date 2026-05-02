@@ -1,6 +1,6 @@
-import { Buffer } from 'node:buffer';
 import { amf, av, AVPacket, Flv, Rtmp } from '@vad-systems/nms-protocol';
 import { SessionConfig } from '@vad-systems/nms-shared';
+import { Buffer } from 'node:buffer';
 import { BaseAvSession } from './BaseAvSession.js';
 import { BroadcastServer } from './BroadcastServer.js';
 import { Protocol } from './Protocol.js';
@@ -88,6 +88,7 @@ class AvBroadcastServer<C, S extends BaseAvSession<C, SessionConfig<C>>> extends
         if (packet.flags == 5) {
             let metadata = amf.decodeAmf0Data(packet.data);
             if (this.publisher && metadata.cmd === '@setDataFrame' && metadata.dataObj !== null) {
+                this.logger.debug('[metadata frame]', metadata);
                 this.publisher.audioCodec = metadata.dataObj.audiocodecid;
                 this.publisher.audioChannels = metadata.dataObj.stereo ? 2 : 1;
                 this.publisher.audioSamplerate = metadata.dataObj.audiosamplerate;

@@ -4,13 +4,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BroadcastServer = void 0;
+const nms_core_1 = require("../../core");
 const lodash_1 = require("lodash");
 const node_crypto_1 = __importDefault(require("node:crypto"));
-const nms_core_1 = require("../../core");
+const utils_js_1 = require("../../core/utils.js");
 class BroadcastServer {
+    id = null;
+    logger;
     _publisher;
     _subscribers;
     constructor() {
+        this.id = (0, utils_js_1.generateNewSessionID)();
+        this.logger = nms_core_1.LoggerFactory.getLogger(`BroadcastServer ${this.id}`);
         this._publisher = null;
         this._subscribers = new Map();
     }
@@ -19,6 +24,12 @@ class BroadcastServer {
     }
     set publisher(value) {
         this._publisher = value;
+        if (value) {
+            this.logger.log(`[publisher] set: ${this._publisher.id}`);
+        }
+        else {
+            this.logger.log(`[publisher] remove`);
+        }
     }
     get subscribers() {
         return this._subscribers;

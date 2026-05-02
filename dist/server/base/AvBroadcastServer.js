@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const node_buffer_1 = require("node:buffer");
 const nms_protocol_1 = require("../../protocol");
+const node_buffer_1 = require("node:buffer");
 const BaseAvSession_js_1 = require("./BaseAvSession.js");
 const BroadcastServer_js_1 = require("./BroadcastServer.js");
 const Protocol_js_1 = require("./Protocol.js");
@@ -83,6 +83,7 @@ class AvBroadcastServer extends BroadcastServer_js_1.BroadcastServer {
         if (packet.flags == 5) {
             let metadata = nms_protocol_1.amf.decodeAmf0Data(packet.data);
             if (this.publisher && metadata.cmd === '@setDataFrame' && metadata.dataObj !== null) {
+                this.logger.debug('[metadata frame]', metadata);
                 this.publisher.audioCodec = metadata.dataObj.audiocodecid;
                 this.publisher.audioChannels = metadata.dataObj.stereo ? 2 : 1;
                 this.publisher.audioSamplerate = metadata.dataObj.audiosamplerate;

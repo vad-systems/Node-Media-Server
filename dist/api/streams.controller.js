@@ -3,8 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const lodash_1 = __importDefault(require("lodash"));
 const nms_protocol_1 = require("../protocol");
+const lodash_1 = __importDefault(require("lodash"));
 function getStreams(req, res, next) {
     let stats = {};
     this.broadcasts.forEach((broadcast, key) => {
@@ -93,17 +93,17 @@ function getStream(req, res, next) {
     };
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
     let broadcast = this.broadcasts.get(publishStreamPath);
-    let publisherSession = this.sessions.get(broadcast?.publisher?.id);
-    streamStats.isLive = !!publisherSession;
+    let publisherSession = broadcast?.publisher;
+    streamStats.isLive = !publisherSession.isStop;
     streamStats.viewers = broadcast?.subscribers?.size || 0;
     streamStats.duration = streamStats.isLive
         ? Math.ceil((Date.now() - publisherSession.startTime) / 1000)
         : 0;
-    streamStats.bitrate = 0;
+    streamStats.bitrate = (publisherSession?.videoDatarate || 0) + (publisherSession?.audioDatarate || 0);
     streamStats.startTime = streamStats.isLive
         ? publisherSession.startTime
         : null;
-    streamStats.arguments = !!publisherSession ? publisherSession.streamQuery : {};
+    streamStats.arguments = publisherSession?.streamQuery || {};
     res.json(streamStats);
 }
 function delStream(req, res, next) {

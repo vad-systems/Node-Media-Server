@@ -1,0 +1,510 @@
+openapi: 3.0.3
+info:
+  title: Node-Media-Server REST API
+  description: API for managing and monitoring the Node-Media-Server.
+  version: 0.1.0-dev13
+servers:
+  - url: http://localhost:8000
+    description: Default HTTP server
+  - url: https://localhost:8443
+    description: Default HTTPS server
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  schemas:
+    ServerInfo:
+      type: object
+      properties:
+        os:
+          type: object
+          properties:
+            arch: { type: string }
+            platform: { type: string }
+            release: { type: string }
+        cpu:
+          type: object
+          properties:
+            num: { type: integer }
+            load: { type: number }
+            model: { type: string }
+            speed: { type: integer }
+        mem:
+          type: object
+          properties:
+            total: { type: integer }
+            free: { type: integer }
+        net:
+          type: object
+          properties:
+            inbytes: { type: integer }
+            outbytes: { type: integer }
+        nodejs:
+          type: object
+          properties:
+            uptime: { type: integer }
+            version: { type: string }
+            mem: { type: object }
+        clients:
+          type: object
+          properties:
+            accepted: { type: integer }
+            active: { type: integer }
+            idle: { type: integer }
+            rtmp: { type: integer }
+            http: { type: integer }
+            ws: { type: integer }
+        version: { type: string }
+
+    ServerStatus:
+      type: object
+      properties:
+        av: { $ref: '#/components/schemas/ComponentStatus' }
+        fission: { $ref: '#/components/schemas/ComponentStatus' }
+        http: { $ref: '#/components/schemas/ComponentStatus' }
+        relay: { $ref: '#/components/schemas/ComponentStatus' }
+        rtmp: { $ref: '#/components/schemas/ComponentStatus' }
+        trans: { $ref: '#/components/schemas/ComponentStatus' }
+
+    ComponentStatus:
+      type: object
+      properties:
+        running: { type: boolean }
+
+    Config:
+      type: object
+      properties:
+        http:
+          type: object
+          properties:
+            mediaroot: { type: string }
+            port: { type: integer }
+            allow_origin: { type: string }
+        https:
+          type: object
+          properties:
+            port: { type: integer }
+        rtmp:
+          type: object
+          properties:
+            port: { type: integer }
+            chunk_size: { type: integer }
+            ping: { type: integer }
+            ping_timeout: { type: integer }
+            gop_cache: { type: boolean }
+        trans: { type: object }
+        relay: { type: object }
+        fission: { type: object }
+
+    StreamStats:
+      type: object
+      additionalProperties:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            key: { type: string }
+            app: { type: string }
+            name: { type: string }
+            publisher:
+              nullable: true
+              $ref: '#/components/schemas/PublisherInfo'
+            subscribers:
+              type: array
+              items:
+                $ref: '#/components/schemas/SubscriberInfo'
+
+    PublisherInfo:
+      type: object
+      properties:
+        app: { type: string }
+        stream: { type: string }
+        clientId: { type: string }
+        ip: { type: string }
+        protocol: { type: string }
+        connectCreated: { type: integer }
+        video:
+          nullable: true
+          type: object
+          properties:
+            codec: { type: string }
+            width: { type: integer }
+            height: { type: integer }
+            profile: { type: string }
+            level: { type: integer }
+            fps: { type: number }
+        audio:
+          nullable: true
+          type: object
+          properties:
+            codec: { type: string }
+            profile: { type: string }
+            channels: { type: integer }
+            samplerate: { type: integer }
+        bytes: { type: integer }
+
+    SubscriberInfo:
+      type: object
+      properties:
+        app: { type: string }
+        stream: { type: string }
+        clientId: { type: string }
+        connectCreated: { type: integer }
+        bytes: { type: integer }
+        ip: { type: string }
+        protocol: { type: string }
+
+    SingleStreamInfo:
+      type: object
+      properties:
+        isLive: { type: boolean }
+        viewers: { type: integer }
+        duration: { type: integer }
+        bitrate: { type: integer }
+        startTime: { type: integer, nullable: true }
+        arguments: { type: object }
+
+    FissionStats:
+      type: object
+      additionalProperties:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            fission:
+              type: array
+              items:
+                type: object
+                properties:
+                  app: { type: string }
+                  name: { type: string }
+                  path: { type: string }
+                  id: { type: string }
+                  ts: { type: integer }
+                  config: { type: object }
+
+    RelayStats:
+      type: object
+      additionalProperties:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            relays:
+              type: array
+              items:
+                $ref: '#/components/schemas/RelayInfo'
+
+    RelayInfo:
+      type: object
+      properties:
+        app: { type: string }
+        name: { type: string }
+        path: { type: string }
+        url: { type: string }
+        mode: { type: string }
+        ts: { type: integer }
+        id: { type: string }
+
+    TransStats:
+      type: object
+      additionalProperties:
+        type: object
+        additionalProperties:
+          type: object
+          properties:
+            trans:
+              type: array
+              items:
+                type: object
+                properties:
+                  app: { type: string }
+                  name: { type: string }
+                  path: { type: string }
+                  id: { type: string }
+                  ts: { type: integer }
+                  config: { type: object }
+
+security:
+  - basicAuth: []
+
+paths:
+  /api/server:
+    get:
+      tags: [Server]
+      summary: Get general server information
+      responses:
+        '200':
+          description: Server information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerInfo'
+
+  /api/server/status:
+    get:
+      tags: [Server]
+      summary: Get running status of server components
+      responses:
+        '200':
+          description: Component status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerStatus'
+
+  /api/server/config:
+    get:
+      tags: [Server]
+      summary: Get current server configuration
+      responses:
+        '200':
+          description: Configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+    patch:
+      tags: [Server]
+      summary: Update server configuration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+
+  /api/server/{server}/start:
+    post:
+      tags: [Server]
+      summary: Start a specific server component
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [rtmp, av, trans, relay, fission]
+      responses:
+        '200':
+          description: Server started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+        '400':
+          description: Server already running
+        '404':
+          description: Server not found
+
+  /api/server/{server}/stop:
+    post:
+      tags: [Server]
+      summary: Stop a specific server component
+      parameters:
+        - name: server
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [rtmp, av, trans, relay, fission]
+      responses:
+        '200':
+          description: Server stopped successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+        '400':
+          description: Server not running
+        '404':
+          description: Server not found
+
+  /api/streams:
+    get:
+      tags: [Streams]
+      summary: List all active streams and subscribers
+      responses:
+        '200':
+          description: List of streams retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamStats'
+
+  /api/streams/{app}/{stream}:
+    get:
+      tags: [Streams]
+      summary: Get information about a specific stream
+      parameters:
+        - name: app
+          in: path
+          required: true
+          schema: { type: string }
+        - name: stream
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Stream information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleStreamInfo'
+    delete:
+      tags: [Streams]
+      summary: Terminate a specific stream
+      parameters:
+        - name: app
+          in: path
+          required: true
+          schema: { type: string }
+        - name: stream
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Stream terminated
+          content:
+            application/json:
+              schema:
+                type: string
+                example: ok
+        '404':
+          description: Stream not found
+
+  /api/fission:
+    get:
+      tags: [Fission]
+      summary: List active fission tasks
+      responses:
+        '200':
+          description: Fission tasks retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FissionStats'
+
+  /api/fission/{id}:
+    delete:
+      tags: [Fission]
+      summary: Delete a specific fission task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Fission task deleted
+        '404':
+          description: Fission task not found
+
+  /api/relay:
+    get:
+      tags: [Relay]
+      summary: List active relay tasks
+      responses:
+        '200':
+          description: Relay tasks retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelayStats'
+
+  /api/relay/{id}:
+    get:
+      tags: [Relay]
+      summary: Get relay task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Relay task retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RelayInfo'
+    delete:
+      tags: [Relay]
+      summary: Delete a specific relay task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Relay task deleted
+        '404':
+          description: Relay task not found
+
+  /api/relay/{app}/{name}:
+    get:
+      tags: [Relay]
+      summary: Get relay tasks by app and stream name
+      parameters:
+        - name: app
+          in: path
+          required: true
+          schema: { type: string }
+        - name: name
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Relay tasks retrieved
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RelayInfo'
+
+  /api/trans:
+    get:
+      tags: [Trans]
+      summary: List active trans tasks
+      responses:
+        '200':
+          description: Trans tasks retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransStats'
+
+  /api/trans/{id}:
+    delete:
+      tags: [Trans]
+      summary: Delete a specific trans task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Trans task deleted
+        '404':
+          description: Trans task not found

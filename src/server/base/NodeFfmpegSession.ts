@@ -37,7 +37,7 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
         });
 
         this.ffmpeg_exec.on('close', (code: any) => {
-            this.logger.log(`[ffmpeg end]`);
+            this.logger.log(`[ffmpeg end] terminated with code`, code);
             this.emit('end', this.id);
             context.nodeEvent.emit('doneConnect', this);
             this.cleanup();
@@ -46,10 +46,15 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
     }
 
     end() {
-        this.ffmpeg_exec.kill();
+        this.logger.log("[ffmpeg end] ffmpeg kill:SIGTERM", this.id);
+        if (!this.ffmpeg_exec.kill("SIGTERM")) {
+            this.logger.warn("[ffmpeg end] ffmpeg kill:SIGKILL", this.id);
+            this.ffmpeg_exec.kill("SIGKILL");
+        }
     }
 
     stop() {
+        this.logger.log("[ffmpeg stop] session stop", this.id);
         this.isStop = true;
         this.end();
     }
