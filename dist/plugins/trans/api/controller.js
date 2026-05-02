@@ -19,7 +19,7 @@ function getStreams(req, res, next) {
             name: name,
             path: session.conf.streamPath,
             id: id,
-            ts: Math.floor(session.startTime / 1000),
+            ts: session.startTime,
             config: session.conf,
         });
     });

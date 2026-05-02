@@ -25,7 +25,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
             name: name,
             path: session.conf.streamPath,
             id: id,
-            ts: Math.floor(session.startTime / 1000),
+            ts: session.startTime,
             config: session.conf,
         });
     });

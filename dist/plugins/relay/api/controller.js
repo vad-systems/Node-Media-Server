@@ -20,7 +20,7 @@ function getStreams(req, res, next) {
             path: session.conf.inPath,
             url: session.conf.ouPath,
             mode: session.conf.mode,
-            ts: Math.floor(session.startTime / 1000),
+            ts: session.startTime,
             id: id,
         });
     });
@@ -35,7 +35,7 @@ function getStreamByID(req, res, next) {
         path: item.conf.inPath,
         url: item.conf.ouPath,
         mode: item.conf.mode,
-        ts: Math.floor(item.startTime / 1000),
+        ts: item.startTime,
         id: item.id,
     }));
     res.json(relays);
@@ -49,7 +49,7 @@ function getStreamByName(req, res, next) {
         name: item.conf.name,
         url: item.conf.ouPath,
         mode: item.conf.mode,
-        ts: Math.floor(item.startTime / 1000),
+        ts: item.startTime,
         id: item.id,
     }));
     res.json(relays);

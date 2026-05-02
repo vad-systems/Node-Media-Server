@@ -26,7 +26,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
             path: session.conf.inPath,
             url: session.conf.ouPath,
             mode: session.conf.mode,
-            ts: Math.floor(session.startTime / 1000),
+            ts: session.startTime,
             id: id,
         });
     });
@@ -48,7 +48,7 @@ function getStreamByID(this: Context, req: Request, res: Response, next: NextFun
             path: item.conf.inPath,
             url: item.conf.ouPath,
             mode: item.conf.mode,
-            ts: Math.floor(item.startTime / 1000),
+            ts: item.startTime,
             id: item.id,
         }
     ));
@@ -70,7 +70,7 @@ function getStreamByName(this: Context, req: Request, res: Response, next: NextF
             name: item.conf.name,
             url: item.conf.ouPath,
             mode: item.conf.mode,
-            ts: Math.floor(item.startTime / 1000),
+            ts: item.startTime,
             id: item.id,
         }
     ));
