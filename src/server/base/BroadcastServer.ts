@@ -70,6 +70,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
             }
         }
 
+        this.logger.log("[play] session play", session.id);
         context.nodeEvent.emit('postPlay', session);
 
         session.startTime = Date.now();
@@ -78,6 +79,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
     }
 
     public donePlay(session: S) {
+        this.logger.log("[play] session stop play", session.id);
         session.endTime = Date.now();
         context.idlePlayers.add(session.id);
         context.nodeEvent.emit('donePlay', session);
@@ -95,6 +97,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
             }
         }
 
+        this.logger.log("[publish] session publish", session.id);
         if (this.publisher == null) {
             session.startTime = Date.now();
             this.publisher = session;
@@ -107,6 +110,8 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
 
     public donePublish(session: S) {
         if (session === this.publisher) {
+            this.logger.log("[publish] session stop publish", session.id);
+
             session.endTime = Date.now();
             context.idlePlayers.add(session.id);
             context.nodeEvent.emit('donePublish', session);

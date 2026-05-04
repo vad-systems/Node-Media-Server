@@ -609,7 +609,6 @@ class Rtmp {
         }
     }
 
-
     packetParse = () => {
         let fmt = this.parserBuffer[0] >> 6;
         let cid = 0;

@@ -1,8 +1,8 @@
+import { NodeConfigurableServer } from '@vad-systems/nms-server';
+import { Config, Context } from '@vad-systems/nms-shared';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import OS from 'os';
-import { Config, Context } from '@vad-systems/nms-shared';
-import { NodeConfigurableServer } from '@vad-systems/nms-server';
 
 const Package = require('../../package.json');
 
@@ -96,7 +96,7 @@ function getConfig(this: Context, req: Request, res: Response, next: NextFunctio
     res.json(response);
 }
 
-function updateConfig(this: Context, req: Request, res: Response, next: NextFunction) {
+function updateConfig(this: Context, req: Request<{}, Config, Config>, res: Response, next: NextFunction) {
     const currentConfig = this.configProvider.getConfig();
     const newConfigData = _.merge({}, currentConfig, req.body);
     const newConfig = new Config(newConfigData);
@@ -104,8 +104,8 @@ function updateConfig(this: Context, req: Request, res: Response, next: NextFunc
     res.json(this.configProvider.getConfig());
 }
 
-async function startServer(this: Context, req: Request, res: Response, next: NextFunction) {
-    const serverName = req.params.server as string;
+async function startServer(this: Context, req: Request<{ server: string }>, res: Response, next: NextFunction) {
+    const serverName = req.params.server;
     const servers: Record<string, NodeConfigurableServer | undefined> = {
         rtmp: this.server?.rtmpServer,
         av: this.server?.avServer,
@@ -128,8 +128,8 @@ async function startServer(this: Context, req: Request, res: Response, next: Nex
     }
 }
 
-function stopServer(this: Context, req: Request, res: Response, next: NextFunction) {
-    const serverName = req.params.server as string;
+function stopServer(this: Context, req: Request<{ server: string }>, res: Response, next: NextFunction) {
+    const serverName = req.params.server;
     const servers: Record<string, NodeConfigurableServer | undefined> = {
         rtmp: this.server?.rtmpServer,
         av: this.server?.avServer,

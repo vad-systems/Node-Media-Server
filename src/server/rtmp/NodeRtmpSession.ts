@@ -35,8 +35,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     };
 
     onOutput = (buffer: Buffer) => {
-        this.outBytes += buffer.length;
-        this.socket.write(buffer);
+        this.sendBuffer(buffer);
     };
 
     onData = (data: Buffer) => {
@@ -45,7 +44,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
             this.rtmp.parserData(data);
         } catch (err: any) {
             this.logger.warn(`${this.remoteIp} parserData error, ${err}`);
-            this.socket.end();
+            this.stop();
         }
     };
 
@@ -56,6 +55,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
 
     stop = () => {
         this.isStop = true;
+        this.endTime = Date.now();
         this.socket.end();
     };
 }

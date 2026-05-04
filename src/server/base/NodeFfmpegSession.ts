@@ -56,6 +56,7 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
     stop() {
         this.logger.log("[ffmpeg stop] session stop", this.id);
         this.isStop = true;
+        this.endTime = Date.now();
         this.end();
     }
 
