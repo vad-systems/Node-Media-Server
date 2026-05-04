@@ -1,6 +1,6 @@
 {
   "name": "@vad-systems/node-media-server",
-  "version": "0.1.0-dev19",
+  "version": "0.1.0-dev20",
   "description": "A Node.js implementation of RTMP Server based on @illuspas/Node-Media-Server",
   "bin": "bin/app.js",
   "main": "dist/NodeMediaServer.js",
