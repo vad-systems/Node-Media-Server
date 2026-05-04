@@ -78,6 +78,7 @@ class NodeAvSession extends nms_server_1.BaseAvSession {
     };
     stop = () => {
         this.isStop = true;
+        this.endTime = Date.now();
         if (this.res instanceof ws_1.default) {
             this.res.close();
         }

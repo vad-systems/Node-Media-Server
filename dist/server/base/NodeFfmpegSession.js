@@ -47,6 +47,7 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
     stop() {
         this.logger.log("[ffmpeg stop] session stop", this.id);
         this.isStop = true;
+        this.endTime = Date.now();
         this.end();
     }
     sendBuffer(buffer) {

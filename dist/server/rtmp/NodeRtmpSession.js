@@ -31,8 +31,7 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         this.streamQuery = req.query;
     };
     onOutput = (buffer) => {
-        this.outBytes += buffer.length;
-        this.socket.write(buffer);
+        this.sendBuffer(buffer);
     };
     onData = (data) => {
         this.inBytes += data.length;
@@ -41,7 +40,7 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         }
         catch (err) {
             this.logger.warn(`${this.remoteIp} parserData error, ${err}`);
-            this.socket.end();
+            this.stop();
         }
     };
     sendBuffer = (buffer) => {
@@ -50,6 +49,7 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
     };
     stop = () => {
         this.isStop = true;
+        this.endTime = Date.now();
         this.socket.end();
     };
 }

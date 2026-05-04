@@ -65,12 +65,14 @@ class BroadcastServer {
                 throw new Error(`play stream ${session.streamPath} authentication verification failed`);
             }
         }
+        this.logger.log("[play] session play", session.id);
         nms_core_1.context.nodeEvent.emit('postPlay', session);
         session.startTime = Date.now();
         this.subscribers.set(session.id, session);
         nms_core_1.context.idlePlayers.delete(session.id);
     }
     donePlay(session) {
+        this.logger.log("[play] session stop play", session.id);
         session.endTime = Date.now();
         nms_core_1.context.idlePlayers.add(session.id);
         nms_core_1.context.nodeEvent.emit('donePlay', session);
@@ -84,6 +86,7 @@ class BroadcastServer {
                 throw new Error(`publish stream ${session.streamPath} authentication verification failed`);
             }
         }
+        this.logger.log("[publish] session publish", session.id);
         if (this.publisher == null) {
             session.startTime = Date.now();
             this.publisher = session;
@@ -96,6 +99,7 @@ class BroadcastServer {
     }
     donePublish(session) {
         if (session === this.publisher) {
+            this.logger.log("[publish] session stop publish", session.id);
             session.endTime = Date.now();
             nms_core_1.context.idlePlayers.add(session.id);
             nms_core_1.context.nodeEvent.emit('donePublish', session);

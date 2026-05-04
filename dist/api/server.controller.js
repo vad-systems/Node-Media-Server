@@ -3,9 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const nms_shared_1 = require("../shared");
 const lodash_1 = __importDefault(require("lodash"));
 const os_1 = __importDefault(require("os"));
-const nms_shared_1 = require("../shared");
 const Package = require('../../package.json');
 function cpuAverage() {
     let totalIdle = 0, totalTick = 0;
