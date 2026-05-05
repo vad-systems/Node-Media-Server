@@ -63,37 +63,7 @@ function getSessionsInfo(sessions: Context['sessions']) {
 }
 
 function getConfig(this: Context, req: Request, res: Response, next: NextFunction) {
-    const config = this.configProvider.getConfig();
-    const {
-        http, https,
-        rtmp,
-        trans,
-        relay,
-        fission,
-    } = config;
-
-    const response = {
-        http: {
-            mediaroot: http?.mediaroot,
-            port: http?.port,
-            allow_origin: http?.allow_origin,
-        },
-        https: {
-            port: https?.port,
-        },
-        rtmp: {
-            port: rtmp?.port,
-            chunk_size: rtmp?.chunk_size,
-            ping: rtmp?.ping,
-            ping_timeout: rtmp?.ping_timeout,
-            gop_cache: rtmp?.gop_cache,
-        },
-        trans,
-        relay,
-        fission,
-    };
-
-    res.json(response);
+    res.json(this.configProvider.getConfig());
 }
 
 function updateConfig(this: Context, req: Request<{}, Config, Config>, res: Response, next: NextFunction) {

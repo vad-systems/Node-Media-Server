@@ -78,28 +78,188 @@ components:
     Config:
       type: object
       properties:
-        http:
+        http: { $ref: '#/components/schemas/HttpConfig' }
+        https: { $ref: '#/components/schemas/HttpsConfig' }
+        rtmp: { $ref: '#/components/schemas/RtmpConfig' }
+        trans: { $ref: '#/components/schemas/TransConfig' }
+        relay: { $ref: '#/components/schemas/RelayConfig' }
+        fission: { $ref: '#/components/schemas/FissionConfig' }
+        av: { $ref: '#/components/schemas/AvConfig' }
+        switch: { $ref: '#/components/schemas/SwitchConfig' }
+        cluster: { $ref: '#/components/schemas/ClusterConfig' }
+        auth: { $ref: '#/components/schemas/AuthConfig' }
+        logType: { $ref: '#/components/schemas/LogType' }
+        rollingLogLength: { type: integer }
+
+    HttpConfig:
+      type: object
+      properties:
+        mediaroot: { type: string }
+        port: { type: integer }
+        allow_origin: { type: string }
+        api: { type: boolean }
+        webroot: { type: string }
+
+    HttpsConfig:
+      type: object
+      properties:
+        port: { type: integer }
+        key: { type: string }
+        cert: { type: string }
+        passphrase: { type: string }
+
+    RtmpConfig:
+      type: object
+      properties:
+        port: { type: integer }
+        ssl:
           type: object
           properties:
-            mediaroot: { type: string }
             port: { type: integer }
-            allow_origin: { type: string }
-        https:
-          type: object
+            key: { type: string }
+            cert: { type: string }
+        chunk_size: { type: integer }
+        ping: { type: integer }
+        ping_timeout: { type: integer }
+        gop_cache: { type: boolean }
+
+    TransConfig:
+      type: object
+      properties:
+        ffmpeg: { type: string }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/TransTaskConfig' }
+
+    TransTaskConfig:
+      type: object
+      properties:
+        app: { type: string }
+        pattern: { type: string }
+        rtmp: { type: boolean }
+        rtmpApp: { type: string }
+        mp4: { type: boolean }
+        mp4Flags: { type: string }
+        hls: { type: boolean }
+        hlsFlags: { type: string }
+        hlsKeep: { type: boolean }
+        dash: { type: boolean }
+        dashFlags: { type: string }
+        dashKeep: { type: boolean }
+        vc: { type: string }
+        vcParam: { type: array, items: { type: string } }
+        ac: { type: string }
+        acParam: { type: array, items: { type: string } }
+
+    RelayConfig:
+      type: object
+      properties:
+        ffmpeg: { type: string }
+        tasks:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/RelayPullTaskConfig'
+              - $ref: '#/components/schemas/RelayPushTaskConfig'
+
+    RelayPullTaskConfig:
+      allOf:
+        - $ref: '#/components/schemas/RelayTaskConfig'
+        - type: object
           properties:
-            port: { type: integer }
-        rtmp:
-          type: object
+            app: { type: string }
+            mode: { type: string, enum: [pull] }
+
+    RelayPushTaskConfig:
+      allOf:
+        - $ref: '#/components/schemas/RelayTaskConfig'
+        - type: object
           properties:
-            port: { type: integer }
-            chunk_size: { type: integer }
-            ping: { type: integer }
-            ping_timeout: { type: integer }
-            gop_cache: { type: boolean }
-        trans: { type: object }
-        relay: { type: object }
-        fission: { type: object }
-        switch: { type: object }
+            app: { type: string }
+            pattern: { type: string }
+            mode: { type: string, enum: [push] }
+
+    RelayTaskConfig:
+      type: object
+      properties:
+        mode: { $ref: '#/components/schemas/RelayMode' }
+        edge: { type: string }
+        rescale: { type: string }
+        rtsp_transport: { $ref: '#/components/schemas/RtspTransport' }
+        appendName: { type: boolean }
+
+    RelayMode:
+      type: string
+      enum: [push, pull]
+
+    RtspTransport:
+      type: string
+      enum: [udp, tcp, udp_multicast, http]
+
+    FissionConfig:
+      type: object
+      properties:
+        ffmpeg: { type: string }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/FissionTaskConfig' }
+
+    FissionTaskConfig:
+      type: object
+      properties:
+        app: { type: string }
+        pattern: { type: string }
+        model:
+          type: array
+          items: { $ref: '#/components/schemas/FissionModelConfig' }
+
+    FissionModelConfig:
+      type: object
+      properties:
+        vb: { type: string }
+        vf: { type: string }
+        vs: { type: string }
+        ab: { type: string }
+
+    AvConfig:
+      type: object
+
+    ClusterConfig:
+      type: object
+
+    SwitchConfig:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/SwitchTaskConfig' }
+
+    SwitchTaskConfig:
+      type: object
+      properties:
+        app: { type: string }
+        name: { type: string }
+        sources:
+          type: array
+          items: { type: string }
+        defaultSource: { type: string }
+        switchTimeout: { type: number }
+        slatePath: { type: string }
+
+    AuthConfig:
+      type: object
+      properties:
+        api: { type: boolean }
+        api_user: { type: string }
+        api_pass: { type: string }
+        play: { type: boolean }
+        publish: { type: boolean }
+        secret: { type: string }
+
+    LogType:
+      type: integer
+      enum: [0, 1, 2, 3, 4, 5]
+      description: "0: NONE, 1: ERROR, 2: WARN, 3: NORMAL, 4: DEBUG, 5: FFDEBUG"
 
     StreamStats:
       type: object

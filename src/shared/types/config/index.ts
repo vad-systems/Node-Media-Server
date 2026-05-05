@@ -7,15 +7,14 @@ export * from './task.js';
 export * from './av.js';
 export * from './switch.js';
 
-import { PathLike } from 'fs';
 import { LogType } from '../core.js';
+import { AvConfig } from './av.js';
 import { FissionConfig } from './fission.js';
 import { HttpConfig, HttpsConfig } from './http.js';
 import { RelayConfig } from './relay.js';
 import { RtmpConfig } from './rtmp.js';
-import { TransConfig } from './trans.js';
-import { AvConfig } from './av.js';
 import { SwitchConfig } from './switch.js';
+import { TransConfig } from './trans.js';
 
 export type ClusterConfig = {}
 

@@ -52,29 +52,7 @@ function getSessionsInfo(sessions) {
     return info;
 }
 function getConfig(req, res, next) {
-    const config = this.configProvider.getConfig();
-    const { http, https, rtmp, trans, relay, fission, } = config;
-    const response = {
-        http: {
-            mediaroot: http?.mediaroot,
-            port: http?.port,
-            allow_origin: http?.allow_origin,
-        },
-        https: {
-            port: https?.port,
-        },
-        rtmp: {
-            port: rtmp?.port,
-            chunk_size: rtmp?.chunk_size,
-            ping: rtmp?.ping,
-            ping_timeout: rtmp?.ping_timeout,
-            gop_cache: rtmp?.gop_cache,
-        },
-        trans,
-        relay,
-        fission,
-    };
-    res.json(response);
+    res.json(this.configProvider.getConfig());
 }
 function updateConfig(req, res, next) {
     const currentConfig = this.configProvider.getConfig();
