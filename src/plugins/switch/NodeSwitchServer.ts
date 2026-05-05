@@ -38,12 +38,14 @@ class NodeSwitchServer extends NodeTaskServer {
     }
 
     async run() {
+        if (!this.config.switch || !this.config.switch.tasks) {
+            this.logger.error(`Node Media Switch Server startup failed. Config switch is missing or has no tasks.`);
+            return;
+        }
+
         await super.run();
 
         const config = this.config.switch;
-        if (!config || !config.tasks) {
-            return;
-        }
 
         for (const task of config.tasks) {
             const broadcast = new SwitchableBroadcastServer();
@@ -140,11 +142,17 @@ class NodeSwitchServer extends NodeTaskServer {
         return this.doSwitch(fullPath, newSourcePath, true);
     }
 
-    private doSwitch(fullPath: string, newSourcePath: string, isManual: boolean): boolean {
+    private doSwitch(fullPath: string, newSourcePath: string | null, isManual: boolean): boolean {
         const broadcast = this.switchBroadcasts.get(fullPath);
         if (!broadcast) {
             this.logger.warn(`Switch failed: output path ${fullPath} not found`);
             return false;
+        }
+
+        if (newSourcePath === null) {
+            broadcast.switchSource(null, 0, isManual);
+            this.updateBroadcastLiveness(broadcast);
+            return true;
         }
 
         if (newSourcePath === fullPath) {
@@ -253,6 +261,9 @@ class NodeSwitchServer extends NodeTaskServer {
         if (targetSource) {
             this.logger.log(`Triggering fallback for ${fullPath} to: ${targetSource}`);
             this.doSwitch(fullPath, targetSource, false);
+        } else if (!task.slatePath) {
+            this.logger.log(`No active fallback source and no slate declared for ${fullPath}. Terminating broadcast.`);
+            this.doSwitch(fullPath, null, false);
         }
     }
 
@@ -270,7 +281,7 @@ class NodeSwitchServer extends NodeTaskServer {
                 broadcast.publisher = session;
                 this.logger.log(`Switchable broadcast ${fullPath} is now LIVE`);
             } else if (!active && wasActive) {
-                session.isStop = true;
+                session.stop();
                 broadcast.publisher = null;
                 this.logger.log(`Switchable broadcast ${fullPath} is now OFFLINE`);
             }

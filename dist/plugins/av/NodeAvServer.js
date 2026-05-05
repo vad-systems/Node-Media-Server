@@ -14,11 +14,23 @@ class NodeAvServer extends nms_server_1.NodeConfigurableServer {
         super();
         this.handleWsRequest = this.handleWsRequest.bind(this);
     }
+    isAttached = false;
     attachHttpServer(httpServer) {
+        if (this.isAttached) {
+            return;
+        }
         httpServer.app.all('/{*splat}.flv', (req, res) => {
             this.handleHttpRequest(req, res);
         });
         nms_core_1.context.nodeEvent.on('wsConnection', this.handleWsRequest);
+        this.isAttached = true;
+    }
+    async run() {
+        await super.run();
+        const server = nms_core_1.context.server;
+        if (server?.httpServer?.isRunning()) {
+            this.attachHttpServer(server.httpServer);
+        }
     }
     handleHttpRequest(req, res) {
         if (!this.isRunning()) {

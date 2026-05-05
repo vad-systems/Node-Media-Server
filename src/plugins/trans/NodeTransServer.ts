@@ -14,6 +14,11 @@ class NodeTransServer extends NodeTaskServer {
     }
 
     async run() {
+        if (!this.config.trans) {
+            this.logger.error(`Node Media Trans Server startup failed. Config trans is missing.`);
+            return;
+        }
+
         await super.run();
 
         const mediaroot = this.config.http.mediaroot;

@@ -23,6 +23,10 @@ class NodeRtmpServer extends nms_server_1.NodeConfigurableServer {
         super();
     }
     initServer() {
+        if (!this.config.rtmp) {
+            this.logger.error(`Node Media Rtmp Server startup failed. Config rtmp is missing.`);
+            return;
+        }
         const sessionConfig = {
             rtmp: lodash_1.default.cloneDeep(this.config.rtmp),
             auth: lodash_1.default.cloneDeep(this.config.auth),
@@ -51,7 +55,11 @@ class NodeRtmpServer extends nms_server_1.NodeConfigurableServer {
     }
     async run() {
         await super.run();
+        if (!this.isRunning())
+            return;
         this.initServer();
+        if (!this.tcpServer)
+            return;
         this.tcpServer.listen(this.port, () => {
             this.logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
         });

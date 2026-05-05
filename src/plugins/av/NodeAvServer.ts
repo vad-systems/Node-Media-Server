@@ -14,11 +14,25 @@ class NodeAvServer extends NodeConfigurableServer {
         this.handleWsRequest = this.handleWsRequest.bind(this);
     }
 
+    private isAttached = false;
+
     public attachHttpServer(httpServer: NodeHttpServer) {
+        if (this.isAttached) {
+            return;
+        }
         httpServer.app.all('/{*splat}.flv', (req: express.Request, res: express.Response) => {
             this.handleHttpRequest(req, res);
         });
         context.nodeEvent.on('wsConnection', this.handleWsRequest);
+        this.isAttached = true;
+    }
+
+    public async run() {
+        await super.run();
+        const server = context.server as any;
+        if (server?.httpServer?.isRunning()) {
+            this.attachHttpServer(server.httpServer);
+        }
     }
 
     public handleHttpRequest(req: express.Request, res: express.Response) {

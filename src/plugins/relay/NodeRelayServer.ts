@@ -14,6 +14,11 @@ class NodeRelayServer extends NodeTaskServer {
     }
 
     async run() {
+        if (!this.config.relay) {
+            this.logger.error(`Node Media Relay Server startup failed. Config relay is missing.`);
+            return;
+        }
+
         await super.run();
 
         try {

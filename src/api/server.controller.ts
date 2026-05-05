@@ -1,5 +1,5 @@
 import { NodeConfigurableServer } from '@vad-systems/nms-server';
-import { Config, Context } from '@vad-systems/nms-shared';
+import { Config, Context, obfuscateUrl } from '@vad-systems/nms-shared';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import OS from 'os';
@@ -63,7 +63,27 @@ function getSessionsInfo(sessions: Context['sessions']) {
 }
 
 function getConfig(this: Context, req: Request, res: Response, next: NextFunction) {
-    res.json(this.configProvider.getConfig());
+    const config = _.cloneDeep(this.configProvider.getConfig());
+    if (config.relay && config.relay.tasks) {
+        for (const task of config.relay.tasks) {
+            if (task.edge) {
+                if (typeof task.edge === 'string') {
+                    (
+                        task as any
+                    ).edge = obfuscateUrl(task.edge);
+                } else if (typeof task.edge === 'object') {
+                    for (const key in task.edge) {
+                        (
+                            task.edge as any
+                        )[key] = obfuscateUrl((
+                            task.edge as any
+                        )[key]);
+                    }
+                }
+            }
+        }
+    }
+    res.json(config);
 }
 
 function updateConfig(this: Context, req: Request<{}, Config, Config>, res: Response, next: NextFunction) {
@@ -80,6 +100,7 @@ async function startServer(this: Context, req: Request<{ server: string }>, res:
         rtmp: this.server?.rtmpServer,
         av: this.server?.avServer,
         trans: this.server?.transServer,
+        task: this.server?.transServer,
         relay: this.server?.relayServer,
         fission: this.server?.fissionServer,
         switch: this.server?.switchServer,
@@ -127,25 +148,25 @@ function stopServer(this: Context, req: Request<{ server: string }>, res: Respon
 function getStatus(this: Context, req: Request, res: Response, next: NextFunction) {
     const response = {
         av: {
-            running: this.server.avServer?.isRunning() || false,
+            running: this.server?.avServer?.isRunning() || false,
         },
         fission: {
-            running: this.server.fissionServer?.isRunning() || false,
-        },
-        http: {
-            running: this.server.httpServer?.isRunning() || false,
+            running: this.server?.fissionServer?.isRunning() || false,
         },
         relay: {
-            running: this.server.relayServer?.isRunning() || false,
+            running: this.server?.relayServer?.isRunning() || false,
         },
         rtmp: {
-            running: this.server.rtmpServer?.isRunning() || false,
+            running: this.server?.rtmpServer?.isRunning() || false,
         },
         trans: {
-            running: this.server.transServer?.isRunning() || false,
+            running: this.server?.transServer?.isRunning() || false,
+        },
+        task: {
+            running: this.server?.transServer?.isRunning() || false,
         },
         switch: {
-            running: this.server.switchServer?.isRunning() || false,
+            running: this.server?.switchServer?.isRunning() || false,
         },
     };
 

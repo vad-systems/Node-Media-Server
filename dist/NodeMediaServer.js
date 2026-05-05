@@ -60,6 +60,13 @@ class NodeMediaServer {
     constructor(config) {
         this.updateConfig(config);
         nms_core_1.context.server = this;
+        this.rtmpServer = new nms_server_1.NodeRtmpServer();
+        this.httpServer = new nms_server_1.NodeHttpServer();
+        this.avServer = new nms_plugin_av_1.NodeAvServer();
+        this.transServer = new nms_plugin_trans_1.NodeTransServer();
+        this.relayServer = new nms_plugin_relay_1.NodeRelayServer();
+        this.fissionServer = new nms_plugin_fission_1.NodeFissionServer();
+        this.switchServer = new nms_plugin_switch_1.NodeSwitchServer();
         nms_core_1.context.nodeEvent.on('postPlay', (session) => {
             nms_core_1.context.stat.accepted++;
         });
@@ -87,14 +94,11 @@ class NodeMediaServer {
         nms_core_1.Logger.setLogType(config.logType);
         this.logger.log(`Node Media Server v${Package.version}`);
         if (config.rtmp) {
-            this.rtmpServer = new nms_server_1.NodeRtmpServer();
             await this.rtmpServer.run();
         }
         if (config.http) {
-            this.httpServer = new nms_server_1.NodeHttpServer();
             await this.httpServer.run();
             if (config.av) {
-                this.avServer = new nms_plugin_av_1.NodeAvServer();
                 this.avServer.attachHttpServer(this.httpServer);
                 await this.avServer.run();
             }
@@ -105,7 +109,6 @@ class NodeMediaServer {
                 this.logger.warn('NodeTransServer does not work in cluster mode');
             }
             else {
-                this.transServer = new nms_plugin_trans_1.NodeTransServer();
                 processorsRunning.push(this.transServer.run());
             }
         }
@@ -114,7 +117,6 @@ class NodeMediaServer {
                 this.logger.warn('NodeRelayServer does not work in cluster mode');
             }
             else {
-                this.relayServer = new nms_plugin_relay_1.NodeRelayServer();
                 processorsRunning.push(this.relayServer.run());
             }
         }
@@ -123,7 +125,6 @@ class NodeMediaServer {
                 this.logger.warn('NodeFissionServer does not work in cluster mode');
             }
             else {
-                this.fissionServer = new nms_plugin_fission_1.NodeFissionServer();
                 processorsRunning.push(this.fissionServer.run());
             }
         }
@@ -132,7 +133,6 @@ class NodeMediaServer {
                 this.logger.warn('NodeSwitchServer does not work in cluster mode');
             }
             else {
-                this.switchServer = new nms_plugin_switch_1.NodeSwitchServer();
                 processorsRunning.push(this.switchServer.run());
             }
         }
@@ -148,22 +148,22 @@ class NodeMediaServer {
         nms_core_1.context.nodeEvent.on(eventName, listener);
     }
     stop() {
-        if (this.rtmpServer) {
+        if (this.rtmpServer.isRunning()) {
             this.rtmpServer.stop();
         }
-        if (this.httpServer) {
+        if (this.httpServer.isRunning()) {
             this.httpServer.stop();
         }
-        if (this.relayServer) {
+        if (this.relayServer.isRunning()) {
             this.relayServer.stop();
         }
-        if (this.fissionServer) {
+        if (this.fissionServer.isRunning()) {
             this.fissionServer.stop();
         }
-        if (this.switchServer) {
+        if (this.switchServer.isRunning()) {
             this.switchServer.stop();
         }
-        if (this.transServer) {
+        if (this.transServer.isRunning()) {
             this.transServer.stop();
         }
     }

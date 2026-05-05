@@ -84,6 +84,12 @@ class SwitchableBroadcastServer extends nms_server_1.AvBroadcastServer {
             return;
         }
         this.cancelSwitch();
+        if (newSourcePath === null) {
+            this.activeSourcePath = null;
+            this.manualSwitch = false;
+            this.logger.log(`Broadcast source cleared`);
+            return;
+        }
         this.pendingSourcePath = newSourcePath;
         this.switching = true;
         this.forceSwitchNext = false;

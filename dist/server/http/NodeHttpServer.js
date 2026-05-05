@@ -41,6 +41,10 @@ class NodeHttpServer {
         return !!this.httpServer;
     }
     initServer() {
+        if (!this.config.http) {
+            this.logger.error(`Node Media Http Server startup failed. Config http is missing.`);
+            return;
+        }
         this.port = this.config.http.port || DEFAULTHTTP_PORT;
         this.mediaroot = this.config.http.mediaroot || HTTP_MEDIAROOT;
         this.app = (0, http2_express_1.default)(express_1.default);
@@ -85,6 +89,8 @@ class NodeHttpServer {
     }
     async run() {
         this.initServer();
+        if (!this.httpServer)
+            return;
         this.httpServer.listen(this.port, () => {
             this.logger.log(`Node Media Http Server started on port: ${this.port}`);
         });

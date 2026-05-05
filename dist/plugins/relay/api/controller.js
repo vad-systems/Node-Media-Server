@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = require("lodash");
+const nms_shared_1 = require("../../../shared");
 const nms_plugin_relay_1 = require("..");
 function getStreams(req, res, next) {
     let stats = {};
@@ -18,7 +19,7 @@ function getStreams(req, res, next) {
             app: app,
             name: name,
             path: session.conf.inPath,
-            url: session.conf.ouPath,
+            url: (0, nms_shared_1.obfuscateUrl)(session.conf.ouPath),
             mode: session.conf.mode,
             ts: session.startTime,
             id: id,
@@ -33,7 +34,7 @@ function getStreamByID(req, res, next) {
         app: item.conf.app,
         name: item.conf.name,
         path: item.conf.inPath,
-        url: item.conf.ouPath,
+        url: (0, nms_shared_1.obfuscateUrl)(item.conf.ouPath),
         mode: item.conf.mode,
         ts: item.startTime,
         id: item.id,
@@ -47,7 +48,7 @@ function getStreamByName(req, res, next) {
     const relays = relaySession.map((item) => ({
         app: item.conf.app,
         name: item.conf.name,
-        url: item.conf.ouPath,
+        url: (0, nms_shared_1.obfuscateUrl)(item.conf.ouPath),
         mode: item.conf.mode,
         ts: item.startTime,
         id: item.id,

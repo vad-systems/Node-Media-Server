@@ -15,7 +15,7 @@ export enum RtspTransport {
 
 type RelayTaskConfig = {
     readonly mode: RelayMode;
-    readonly edge: string;
+    readonly edge: string | Record<string, string>;
     readonly rescale?: string;
     readonly rtsp_transport?: RtspTransport;
     readonly appendName?: boolean;

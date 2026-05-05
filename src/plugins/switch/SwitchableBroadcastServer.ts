@@ -90,7 +90,7 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         return newPacket;
     }
 
-    public switchSource(newSourcePath: string, timeout: number = 0, isManual: boolean = true) {
+    public switchSource(newSourcePath: string | null, timeout: number = 0, isManual: boolean = true) {
         if (newSourcePath === this.activeSourcePath) {
             this.cancelSwitch();
             this.manualSwitch = isManual;
@@ -98,6 +98,13 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         }
 
         this.cancelSwitch();
+
+        if (newSourcePath === null) {
+            this.activeSourcePath = null;
+            this.manualSwitch = false;
+            this.logger.log(`Broadcast source cleared`);
+            return;
+        }
 
         this.pendingSourcePath = newSourcePath;
         this.switching = true;

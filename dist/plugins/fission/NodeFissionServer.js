@@ -50,6 +50,10 @@ class NodeFissionServer extends nms_server_1.NodeTaskServer {
         super();
     }
     async run() {
+        if (!this.config.fission) {
+            this.logger.error(`Node Media Fission Server startup failed. Config fission is missing.`);
+            return;
+        }
         await super.run();
         try {
             mkdirp.sync(this.config.http.mediaroot.toString());

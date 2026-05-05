@@ -50,6 +50,10 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
         super();
     }
     async run() {
+        if (!this.config.trans) {
+            this.logger.error(`Node Media Trans Server startup failed. Config trans is missing.`);
+            return;
+        }
         await super.run();
         const mediaroot = this.config.http.mediaroot;
         const ffmpeg = this.config.trans.ffmpeg;

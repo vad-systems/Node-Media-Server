@@ -17,3 +17,4 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __exportStar(require("./types"), exports);
 __exportStar(require("./util/checkSelectiveTask.js"), exports);
 __exportStar(require("./util/asRegExp.js"), exports);
+__exportStar(require("./util/obfuscate.js"), exports);

@@ -52,7 +52,22 @@ function getSessionsInfo(sessions) {
     return info;
 }
 function getConfig(req, res, next) {
-    res.json(this.configProvider.getConfig());
+    const config = lodash_1.default.cloneDeep(this.configProvider.getConfig());
+    if (config.relay && config.relay.tasks) {
+        for (const task of config.relay.tasks) {
+            if (task.edge) {
+                if (typeof task.edge === 'string') {
+                    task.edge = (0, nms_shared_1.obfuscateUrl)(task.edge);
+                }
+                else if (typeof task.edge === 'object') {
+                    for (const key in task.edge) {
+                        task.edge[key] = (0, nms_shared_1.obfuscateUrl)(task.edge[key]);
+                    }
+                }
+            }
+        }
+    }
+    res.json(config);
 }
 function updateConfig(req, res, next) {
     const currentConfig = this.configProvider.getConfig();
@@ -67,6 +82,7 @@ async function startServer(req, res, next) {
         rtmp: this.server?.rtmpServer,
         av: this.server?.avServer,
         trans: this.server?.transServer,
+        task: this.server?.transServer,
         relay: this.server?.relayServer,
         fission: this.server?.fissionServer,
         switch: this.server?.switchServer,
@@ -112,25 +128,25 @@ function stopServer(req, res, next) {
 function getStatus(req, res, next) {
     const response = {
         av: {
-            running: this.server.avServer?.isRunning() || false,
+            running: this.server?.avServer?.isRunning() || false,
         },
         fission: {
-            running: this.server.fissionServer?.isRunning() || false,
-        },
-        http: {
-            running: this.server.httpServer?.isRunning() || false,
+            running: this.server?.fissionServer?.isRunning() || false,
         },
         relay: {
-            running: this.server.relayServer?.isRunning() || false,
+            running: this.server?.relayServer?.isRunning() || false,
         },
         rtmp: {
-            running: this.server.rtmpServer?.isRunning() || false,
+            running: this.server?.rtmpServer?.isRunning() || false,
         },
         trans: {
-            running: this.server.transServer?.isRunning() || false,
+            running: this.server?.transServer?.isRunning() || false,
+        },
+        task: {
+            running: this.server?.transServer?.isRunning() || false,
         },
         switch: {
-            running: this.server.switchServer?.isRunning() || false,
+            running: this.server?.switchServer?.isRunning() || false,
         },
     };
     res.json(response);

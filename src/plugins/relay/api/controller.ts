@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { get, set } from 'lodash';
-import { Context } from '@vad-systems/nms-shared';
+import { Context, obfuscateUrl } from '@vad-systems/nms-shared';
 import { NodeRelaySession } from '@vad-systems/nms-plugin-relay';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
@@ -24,7 +24,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
             app: app,
             name: name,
             path: session.conf.inPath,
-            url: session.conf.ouPath,
+            url: obfuscateUrl(session.conf.ouPath),
             mode: session.conf.mode,
             ts: session.startTime,
             id: id,
@@ -46,7 +46,7 @@ function getStreamByID(this: Context, req: Request, res: Response, next: NextFun
             app: item.conf.app,
             name: item.conf.name,
             path: item.conf.inPath,
-            url: item.conf.ouPath,
+            url: obfuscateUrl(item.conf.ouPath),
             mode: item.conf.mode,
             ts: item.startTime,
             id: item.id,
@@ -68,7 +68,7 @@ function getStreamByName(this: Context, req: Request, res: Response, next: NextF
         {
             app: item.conf.app,
             name: item.conf.name,
-            url: item.conf.ouPath,
+            url: obfuscateUrl(item.conf.ouPath),
             mode: item.conf.mode,
             ts: item.startTime,
             id: item.id,

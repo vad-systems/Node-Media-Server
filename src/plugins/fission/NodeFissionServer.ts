@@ -14,6 +14,11 @@ class NodeFissionServer extends NodeTaskServer {
     }
 
     async run() {
+        if (!this.config.fission) {
+            this.logger.error(`Node Media Fission Server startup failed. Config fission is missing.`);
+            return;
+        }
+
         await super.run();
 
         try {

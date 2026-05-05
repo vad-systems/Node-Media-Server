@@ -17,6 +17,10 @@ class NodeRelayServer extends nms_server_1.NodeTaskServer {
         super();
     }
     async run() {
+        if (!this.config.relay) {
+            this.logger.error(`Node Media Relay Server startup failed. Config relay is missing.`);
+            return;
+        }
         await super.run();
         try {
             fs_1.default.accessSync(this.config.relay.ffmpeg, fs_1.default.constants.X_OK);

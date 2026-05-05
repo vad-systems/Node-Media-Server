@@ -21,6 +21,10 @@ class NodeRtmpServer extends NodeConfigurableServer {
     }
 
     initServer() {
+        if (!this.config.rtmp) {
+            this.logger.error(`Node Media Rtmp Server startup failed. Config rtmp is missing.`);
+            return;
+        }
         const sessionConfig = {
             rtmp: _.cloneDeep(this.config.rtmp),
             auth: _.cloneDeep(this.config.auth),
@@ -51,7 +55,10 @@ class NodeRtmpServer extends NodeConfigurableServer {
     async run() {
         await super.run();
 
+        if (!this.isRunning()) return;
+
         this.initServer();
+        if (!this.tcpServer) return;
 
         this.tcpServer.listen(this.port, () => {
             this.logger.log(`Node Media Rtmp Server started on port: ${this.port}`);

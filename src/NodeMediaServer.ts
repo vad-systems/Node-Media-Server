@@ -12,13 +12,13 @@ import { Config, ConfigType, NodeEventMap } from '@vad-systems/nms-shared';
 const Package = require('../package.json');
 
 class NodeMediaServer {
-    public rtmpServer?: NodeRtmpServer;
-    public httpServer?: NodeHttpServer;
-    public avServer?: NodeAvServer;
-    public transServer?: NodeTransServer;
-    public relayServer?: NodeRelayServer;
-    public fissionServer?: NodeFissionServer;
-    public switchServer?: NodeSwitchServer;
+    public rtmpServer: NodeRtmpServer;
+    public httpServer: NodeHttpServer;
+    public avServer: NodeAvServer;
+    public transServer: NodeTransServer;
+    public relayServer: NodeRelayServer;
+    public fissionServer: NodeFissionServer;
+    public switchServer: NodeSwitchServer;
     private logger = LoggerFactory.getLogger('Core');
 
     static types = types;
@@ -26,6 +26,14 @@ class NodeMediaServer {
     constructor(config: ConfigType) {
         this.updateConfig(config);
         context.server = this;
+
+        this.rtmpServer = new NodeRtmpServer();
+        this.httpServer = new NodeHttpServer();
+        this.avServer = new NodeAvServer();
+        this.transServer = new NodeTransServer();
+        this.relayServer = new NodeRelayServer();
+        this.fissionServer = new NodeFissionServer();
+        this.switchServer = new NodeSwitchServer();
 
         context.nodeEvent.on('postPlay', (session) => {
             context.stat.accepted++;
@@ -58,16 +66,13 @@ class NodeMediaServer {
         this.logger.log(`Node Media Server v${Package.version}`);
 
         if (config.rtmp) {
-            this.rtmpServer = new NodeRtmpServer();
             await this.rtmpServer.run();
         }
 
         if (config.http) {
-            this.httpServer = new NodeHttpServer();
             await this.httpServer.run();
 
             if (config.av) {
-                this.avServer = new NodeAvServer();
                 this.avServer.attachHttpServer(this.httpServer);
                 await this.avServer.run();
             }
@@ -79,7 +84,6 @@ class NodeMediaServer {
             if (config.cluster) {
                 this.logger.warn('NodeTransServer does not work in cluster mode');
             } else {
-                this.transServer = new NodeTransServer();
                 processorsRunning.push(this.transServer.run());
             }
         }
@@ -88,7 +92,6 @@ class NodeMediaServer {
             if (config.cluster) {
                 this.logger.warn('NodeRelayServer does not work in cluster mode');
             } else {
-                this.relayServer = new NodeRelayServer();
                 processorsRunning.push(this.relayServer.run());
             }
         }
@@ -97,7 +100,6 @@ class NodeMediaServer {
             if (config.cluster) {
                 this.logger.warn('NodeFissionServer does not work in cluster mode');
             } else {
-                this.fissionServer = new NodeFissionServer();
                 processorsRunning.push(this.fissionServer.run());
             }
         }
@@ -106,7 +108,6 @@ class NodeMediaServer {
             if (config.cluster) {
                 this.logger.warn('NodeSwitchServer does not work in cluster mode');
             } else {
-                this.switchServer = new NodeSwitchServer();
                 processorsRunning.push(this.switchServer.run());
             }
         }
@@ -127,27 +128,27 @@ class NodeMediaServer {
     }
 
     public stop() {
-        if (this.rtmpServer) {
+        if (this.rtmpServer.isRunning()) {
             this.rtmpServer.stop();
         }
 
-        if (this.httpServer) {
+        if (this.httpServer.isRunning()) {
             this.httpServer.stop();
         }
 
-        if (this.relayServer) {
+        if (this.relayServer.isRunning()) {
             this.relayServer.stop();
         }
 
-        if (this.fissionServer) {
+        if (this.fissionServer.isRunning()) {
             this.fissionServer.stop();
         }
 
-        if (this.switchServer) {
+        if (this.switchServer.isRunning()) {
             this.switchServer.stop();
         }
 
-        if (this.transServer) {
+        if (this.transServer.isRunning()) {
             this.transServer.stop();
         }
     }

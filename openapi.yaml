@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Node-Media-Server REST API
   description: API for managing and monitoring the Node-Media-Server.
-  version: 0.1.0-dev13
+  version: 0.1.0-dev23
 servers:
   - url: http://localhost:8000
     description: Default HTTP server
@@ -64,7 +64,6 @@ components:
       properties:
         av: { $ref: '#/components/schemas/ComponentStatus' }
         fission: { $ref: '#/components/schemas/ComponentStatus' }
-        http: { $ref: '#/components/schemas/ComponentStatus' }
         relay: { $ref: '#/components/schemas/ComponentStatus' }
         rtmp: { $ref: '#/components/schemas/ComponentStatus' }
         trans: { $ref: '#/components/schemas/ComponentStatus' }
@@ -482,7 +481,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [rtmp, av, trans, relay, fission, switch]
+            enum: [rtmp, http, av, trans, relay, fission, switch]
       responses:
         '200':
           description: Server started successfully
@@ -507,7 +506,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [rtmp, av, trans, relay, fission, switch]
+            enum: [rtmp, http, av, trans, task, relay, fission, switch]
       responses:
         '200':
           description: Server stopped successfully
