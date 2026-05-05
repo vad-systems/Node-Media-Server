@@ -44,8 +44,10 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         }
     };
     sendBuffer = (buffer) => {
-        this.outBytes += buffer.length;
-        this.socket.write(buffer);
+        if (Buffer.isBuffer(buffer)) {
+            this.outBytes += buffer.length;
+            this.socket.write(buffer);
+        }
     };
     stop = () => {
         this.isStop = true;

@@ -1,6 +1,7 @@
 import { ChildProcess, spawn } from 'child_process';
 import { Buffer } from 'node:buffer';
 import { context } from '@vad-systems/nms-core';
+import { AVPacket } from '@vad-systems/nms-protocol';
 import { FfmpegSessionConfig } from '@vad-systems/nms-shared';
 import { NodeSession } from './NodeSession.js';
 
@@ -60,8 +61,10 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
         this.end();
     }
 
-    public sendBuffer(buffer: Buffer) {
-        this.outBytes += buffer.length;
+    public sendBuffer(buffer: Buffer | AVPacket) {
+        if (Buffer.isBuffer(buffer)) {
+            this.outBytes += buffer.length;
+        }
     }
 }
 

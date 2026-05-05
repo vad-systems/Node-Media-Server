@@ -103,7 +103,7 @@ function getStream(this: Context, req: Request, res: Response, next: NextFunctio
 
     let publisherSession: BaseAvSession<any, any> = broadcast?.publisher;
 
-    streamStats.isLive = !publisherSession.isStop;
+    streamStats.isLive = publisherSession && !publisherSession.isStop;
     streamStats.viewers = broadcast?.subscribers?.size || 0;
     streamStats.duration = streamStats.isLive
         ? Math.ceil((

@@ -3,7 +3,7 @@ import WebSocket from 'ws';
 import Http from 'http';
 import express from 'express';
 import { context } from '@vad-systems/nms-core';
-import { Flv } from '@vad-systems/nms-protocol';
+import { AVPacket, Flv } from '@vad-systems/nms-protocol';
 import { AvSessionConfig } from '@vad-systems/nms-shared';
 import { BaseAvSession, Protocol } from '@vad-systems/nms-server';
 
@@ -76,7 +76,11 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
         }
     };
 
-    sendBuffer = (buffer: Buffer) => {
+    sendBuffer = (buffer: Buffer | AVPacket) => {
+        if (!Buffer.isBuffer(buffer)) {
+            return;
+        }
+
         if (this.res instanceof WebSocket) {
             if (this.res.readyState !== WebSocket.OPEN) {
                 return;

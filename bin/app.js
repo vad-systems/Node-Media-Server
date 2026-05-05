@@ -157,6 +157,16 @@ const config = {
             },
         ],
     },*/
+    switch: {
+        tasks: [
+            {
+                app: "live",
+                name: "test_complete",
+                sources: ["/live-in/test01", "/live-in/test02"],
+                switchTimeout: 10000,
+            },
+        ],
+    },
     auth: {
         api: true,
         api_user: "admin",

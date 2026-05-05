@@ -112,6 +112,7 @@ async function startServer(this: Context, req: Request<{ server: string }>, res:
         trans: this.server?.transServer,
         relay: this.server?.relayServer,
         fission: this.server?.fissionServer,
+        switch: this.server?.switchServer,
     };
 
     const server = servers[serverName];
@@ -136,6 +137,7 @@ function stopServer(this: Context, req: Request<{ server: string }>, res: Respon
         trans: this.server?.transServer,
         relay: this.server?.relayServer,
         fission: this.server?.fissionServer,
+        switch: this.server?.switchServer,
     };
 
     const server = servers[serverName];
@@ -171,6 +173,9 @@ function getStatus(this: Context, req: Request, res: Response, next: NextFunctio
         },
         trans: {
             running: this.server.transServer?.isRunning() || false,
+        },
+        switch: {
+            running: this.server.switchServer?.isRunning() || false,
         },
     };
 

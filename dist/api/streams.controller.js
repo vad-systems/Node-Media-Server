@@ -94,7 +94,7 @@ function getStream(req, res, next) {
     let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
     let broadcast = this.broadcasts.get(publishStreamPath);
     let publisherSession = broadcast?.publisher;
-    streamStats.isLive = !publisherSession.isStop;
+    streamStats.isLive = publisherSession && !publisherSession.isStop;
     streamStats.viewers = broadcast?.subscribers?.size || 0;
     streamStats.duration = streamStats.isLive
         ? Math.ceil((Date.now() - publisherSession.startTime) / 1000)

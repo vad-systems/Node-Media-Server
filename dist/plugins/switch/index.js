@@ -13,9 +13,11 @@ var __createBinding = (this && this.__createBinding) || (Object.create ? (functi
 var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-__exportStar(require("./relay"), exports);
-__exportStar(require("./trans"), exports);
-__exportStar(require("./fission"), exports);
-__exportStar(require("./av"), exports);
-__exportStar(require("./switch"), exports);
+exports.switchApi = void 0;
+__exportStar(require("./NodeSwitchServer.js"), exports);
+var index_js_1 = require("./api/index.js");
+Object.defineProperty(exports, "switchApi", { enumerable: true, get: function () { return __importDefault(index_js_1).default; } });

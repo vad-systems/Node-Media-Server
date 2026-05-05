@@ -91,6 +91,7 @@ async function startServer(req, res, next) {
         trans: this.server?.transServer,
         relay: this.server?.relayServer,
         fission: this.server?.fissionServer,
+        switch: this.server?.switchServer,
     };
     const server = servers[serverName];
     if (server) {
@@ -114,6 +115,7 @@ function stopServer(req, res, next) {
         trans: this.server?.transServer,
         relay: this.server?.relayServer,
         fission: this.server?.fissionServer,
+        switch: this.server?.switchServer,
     };
     const server = servers[serverName];
     if (server) {
@@ -148,6 +150,9 @@ function getStatus(req, res, next) {
         },
         trans: {
             running: this.server.transServer?.isRunning() || false,
+        },
+        switch: {
+            running: this.server.switchServer?.isRunning() || false,
         },
     };
     res.json(response);

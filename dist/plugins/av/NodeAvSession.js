@@ -62,6 +62,9 @@ class NodeAvSession extends nms_server_1.BaseAvSession {
         }
     };
     sendBuffer = (buffer) => {
+        if (!Buffer.isBuffer(buffer)) {
+            return;
+        }
         if (this.res instanceof ws_1.default) {
             if (this.res.readyState !== ws_1.default.OPEN) {
                 return;

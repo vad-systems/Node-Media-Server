@@ -1,6 +1,6 @@
 import { Socket } from 'net';
 import { context } from '@vad-systems/nms-core';
-import { Rtmp } from '@vad-systems/nms-protocol';
+import { AVPacket, Rtmp } from '@vad-systems/nms-protocol';
 import { RtmpSessionConfig } from '@vad-systems/nms-shared';
 import { BaseAvSession, Protocol } from '@vad-systems/nms-server';
 
@@ -48,9 +48,11 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
         }
     };
 
-    sendBuffer = (buffer: Buffer) => {
-        this.outBytes += buffer.length;
-        this.socket.write(buffer);
+    sendBuffer = (buffer: Buffer | AVPacket) => {
+        if (Buffer.isBuffer(buffer)) {
+            this.outBytes += buffer.length;
+            this.socket.write(buffer);
+        }
     };
 
     stop = () => {

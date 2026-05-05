@@ -5,6 +5,7 @@ export * from './http.js';
 export * from './rtmp.js';
 export * from './task.js';
 export * from './av.js';
+export * from './switch.js';
 
 import { PathLike } from 'fs';
 import { LogType } from '../core.js';
@@ -14,6 +15,7 @@ import { RelayConfig } from './relay.js';
 import { RtmpConfig } from './rtmp.js';
 import { TransConfig } from './trans.js';
 import { AvConfig } from './av.js';
+import { SwitchConfig } from './switch.js';
 
 export type ClusterConfig = {}
 
@@ -34,6 +36,7 @@ export type ConfigType = {
     readonly relay?: RelayConfig;
     readonly fission?: FissionConfig;
     readonly av?: AvConfig;
+    readonly switch?: SwitchConfig;
 
     readonly cluster?: ClusterConfig;
     readonly auth?: AuthConfig;
@@ -50,6 +53,7 @@ export class Config {
     readonly relay?: RelayConfig;
     readonly fission?: FissionConfig;
     readonly av?: AvConfig;
+    readonly switch?: SwitchConfig;
 
     readonly cluster?: ClusterConfig;
     readonly auth?: AuthConfig;
@@ -65,6 +69,7 @@ export class Config {
         this.relay = config.relay;
         this.fission = config.fission;
         this.av = config.av;
+        this.switch = config.switch;
         this.cluster = config.cluster;
         this.auth = config.auth;
         this.logType = config.logType;

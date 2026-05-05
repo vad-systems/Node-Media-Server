@@ -1,11 +1,8 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseAvSession = void 0;
 const nms_core_1 = require("../../core");
-const AvBroadcastServer_js_1 = __importDefault(require("./AvBroadcastServer.js"));
+const AvBroadcastServer_js_1 = require("./AvBroadcastServer.js");
 const NodeSession_js_1 = require("./NodeSession.js");
 class BaseAvSession extends NodeSession_js_1.NodeSession {
     protocol;
@@ -78,7 +75,7 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
     }
     initBroadcast() {
         if (!this.broadcast) {
-            this.broadcast = nms_core_1.context.broadcasts.get(this.streamPath) ?? new AvBroadcastServer_js_1.default();
+            this.broadcast = nms_core_1.context.broadcasts.get(this.streamPath) ?? new AvBroadcastServer_js_1.AvBroadcastServer();
             nms_core_1.context.broadcasts.set(this.streamPath, this.broadcast);
         }
     }

@@ -1,7 +1,7 @@
 import { context } from '@vad-systems/nms-core';
 import { AVPacket, FlvAudioCodec, FlvVideoCodec } from '@vad-systems/nms-protocol';
 import { SessionConfig } from '@vad-systems/nms-shared';
-import AvBroadcastServer from './AvBroadcastServer.js';
+import { AvBroadcastServer } from './AvBroadcastServer.js';
 import { NodeSession } from './NodeSession.js';
 import { Protocol } from './Protocol.js';
 

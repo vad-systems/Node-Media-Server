@@ -43,6 +43,7 @@ const nms_server_1 = require("./server");
 const nms_plugin_av_1 = require("./plugins/av");
 const nms_plugin_relay_1 = require("./plugins/relay");
 const nms_plugin_trans_1 = require("./plugins/trans");
+const nms_plugin_switch_1 = require("./plugins/switch");
 const types = __importStar(require("./shared"));
 const nms_shared_1 = require("./shared");
 const Package = require('../package.json');
@@ -53,6 +54,7 @@ class NodeMediaServer {
     transServer;
     relayServer;
     fissionServer;
+    switchServer;
     logger = nms_core_1.LoggerFactory.getLogger('Core');
     static types = types;
     constructor(config) {
@@ -125,6 +127,15 @@ class NodeMediaServer {
                 processorsRunning.push(this.fissionServer.run());
             }
         }
+        if (config.switch) {
+            if (config.cluster) {
+                this.logger.warn('NodeSwitchServer does not work in cluster mode');
+            }
+            else {
+                this.switchServer = new nms_plugin_switch_1.NodeSwitchServer();
+                processorsRunning.push(this.switchServer.run());
+            }
+        }
         process.on('uncaughtException', (err) => {
             this.logger.error('uncaughtException', err);
         });
@@ -148,6 +159,9 @@ class NodeMediaServer {
         }
         if (this.fissionServer) {
             this.fissionServer.stop();
+        }
+        if (this.switchServer) {
+            this.switchServer.stop();
         }
         if (this.transServer) {
             this.transServer.stop();

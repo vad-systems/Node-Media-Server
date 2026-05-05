@@ -5,16 +5,16 @@ import { BaseAvSession } from './BaseAvSession.js';
 import { BroadcastServer } from './BroadcastServer.js';
 import { Protocol } from './Protocol.js';
 
-class AvBroadcastServer<C, S extends BaseAvSession<C, SessionConfig<C>>> extends BroadcastServer<C, S> {
-    private flvHeader: Buffer;
-    private flvMetaData: Buffer | null;
-    private flvAudioHeader: Buffer | null;
-    private flvVideoHeader: Buffer | null;
-    private rtmpMetaData: Buffer | null;
-    private rtmpAudioHeader: Buffer | null;
-    private rtmpVideoHeader: Buffer | null;
-    private flvGopCache: Set<Buffer> | null;
-    private rtmpGopCache: Set<Buffer> | null;
+export class AvBroadcastServer<C, S extends BaseAvSession<C, SessionConfig<C>>> extends BroadcastServer<C, S> {
+    protected flvHeader: Buffer;
+    protected flvMetaData: Buffer | null;
+    protected flvAudioHeader: Buffer | null;
+    protected flvVideoHeader: Buffer | null;
+    protected rtmpMetaData: Buffer | null;
+    protected rtmpAudioHeader: Buffer | null;
+    protected rtmpVideoHeader: Buffer | null;
+    protected flvGopCache: Set<Buffer> | null;
+    protected rtmpGopCache: Set<Buffer> | null;
 
     constructor() {
         super();
@@ -163,9 +163,11 @@ class AvBroadcastServer<C, S extends BaseAvSession<C, SessionConfig<C>>> extends
                 case Protocol.RTMP:
                     v.sendBuffer(rtmpMessage);
                     break;
+                case Protocol.RAW:
+                    v.sendBuffer(packet);
+                    break;
             }
         });
     };
 }
 
-export default AvBroadcastServer;

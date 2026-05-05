@@ -68,6 +68,7 @@ components:
         relay: { $ref: '#/components/schemas/ComponentStatus' }
         rtmp: { $ref: '#/components/schemas/ComponentStatus' }
         trans: { $ref: '#/components/schemas/ComponentStatus' }
+        switch: { $ref: '#/components/schemas/ComponentStatus' }
 
     ComponentStatus:
       type: object
@@ -98,6 +99,7 @@ components:
         trans: { type: object }
         relay: { type: object }
         fission: { type: object }
+        switch: { type: object }
 
     StreamStats:
       type: object
@@ -228,6 +230,33 @@ components:
                   ts: { type: integer }
                   config: { type: object }
 
+    SwitchStats:
+      type: array
+      items:
+        $ref: '#/components/schemas/SwitchTaskStatus'
+
+    SwitchTaskStatus:
+      type: object
+      properties:
+        app: { type: string }
+        name: { type: string }
+        outputPath: { type: string }
+        activeSource: { type: string, nullable: true }
+        pendingSource: { type: string, nullable: true }
+        isSwitching: { type: boolean }
+        sources:
+          type: array
+          items: { type: string }
+        defaultSource: { type: string, nullable: true }
+        slatePath: { type: string, nullable: true }
+
+    SwitchRequest:
+      type: object
+      required: [path, source]
+      properties:
+        path: { type: string }
+        source: { type: string }
+
 security:
   - basicAuth: []
 
@@ -293,7 +322,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [rtmp, av, trans, relay, fission]
+            enum: [rtmp, av, trans, relay, fission, switch]
       responses:
         '200':
           description: Server started successfully
@@ -318,7 +347,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [rtmp, av, trans, relay, fission]
+            enum: [rtmp, av, trans, relay, fission, switch]
       responses:
         '200':
           description: Server stopped successfully
@@ -508,3 +537,41 @@ paths:
           description: Trans task deleted
         '404':
           description: Trans task not found
+
+  /api/switch:
+    get:
+      tags: [Switch]
+      summary: List all switch tasks and their status
+      responses:
+        '200':
+          description: Switch tasks retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwitchStats'
+        '503':
+          description: Switch server not enabled
+    post:
+      tags: [Switch]
+      summary: Trigger a source switch for a specific stream
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwitchRequest'
+      responses:
+        '202':
+          description: Switch request accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: Accepted }
+        '400':
+          description: Missing required fields
+        '404':
+          description: Output path not found or source not valid
+        '503':
+          description: Switch server not enabled

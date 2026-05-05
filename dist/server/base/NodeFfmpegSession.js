@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeFfmpegSession = void 0;
 const child_process_1 = require("child_process");
+const node_buffer_1 = require("node:buffer");
 const nms_core_1 = require("../../core");
 const NodeSession_js_1 = require("./NodeSession.js");
 class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
@@ -51,7 +52,9 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
         this.end();
     }
     sendBuffer(buffer) {
-        this.outBytes += buffer.length;
+        if (node_buffer_1.Buffer.isBuffer(buffer)) {
+            this.outBytes += buffer.length;
+        }
     }
 }
 exports.NodeFfmpegSession = NodeFfmpegSession;

@@ -5,6 +5,7 @@ import streamsRoute from './streams.router.js';
 import { fissionApi } from '@vad-systems/nms-plugin-fission';
 import { relayApi } from '@vad-systems/nms-plugin-relay';
 import { transApi } from '@vad-systems/nms-plugin-trans';
+import { switchApi } from '@vad-systems/nms-plugin-switch';
 
 export function setupRoutes(app: express.Application, context: Context) {
     const config = context.configProvider.getConfig();
@@ -20,5 +21,8 @@ export function setupRoutes(app: express.Application, context: Context) {
     }
     if (config.fission) {
         app.use('/api/fission', fissionApi(context));
+    }
+    if (config.switch) {
+        app.use('/api/switch', switchApi(context));
     }
 }

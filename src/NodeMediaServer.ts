@@ -5,6 +5,7 @@ import { NodeHttpServer, NodeRtmpServer, NodeRtmpSession } from '@vad-systems/nm
 import { NodeAvServer, NodeAvSession } from '@vad-systems/nms-plugin-av';
 import { NodeRelayServer } from '@vad-systems/nms-plugin-relay';
 import { NodeTransServer } from '@vad-systems/nms-plugin-trans';
+import { NodeSwitchServer } from '@vad-systems/nms-plugin-switch';
 import * as types from '@vad-systems/nms-shared';
 import { Config, ConfigType, NodeEventMap } from '@vad-systems/nms-shared';
 
@@ -17,6 +18,7 @@ class NodeMediaServer {
     public transServer?: NodeTransServer;
     public relayServer?: NodeRelayServer;
     public fissionServer?: NodeFissionServer;
+    public switchServer?: NodeSwitchServer;
     private logger = LoggerFactory.getLogger('Core');
 
     static types = types;
@@ -100,6 +102,15 @@ class NodeMediaServer {
             }
         }
 
+        if (config.switch) {
+            if (config.cluster) {
+                this.logger.warn('NodeSwitchServer does not work in cluster mode');
+            } else {
+                this.switchServer = new NodeSwitchServer();
+                processorsRunning.push(this.switchServer.run());
+            }
+        }
+
         process.on('uncaughtException', (err) => {
             this.logger.error('uncaughtException', err);
         });
@@ -130,6 +141,10 @@ class NodeMediaServer {
 
         if (this.fissionServer) {
             this.fissionServer.stop();
+        }
+
+        if (this.switchServer) {
+            this.switchServer.stop();
         }
 
         if (this.transServer) {

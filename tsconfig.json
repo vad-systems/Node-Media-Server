@@ -27,6 +27,7 @@
       "@vad-systems/nms-plugin-fission": ["src/plugins/fission"],
       "@vad-systems/nms-plugin-relay": ["src/plugins/relay"],
       "@vad-systems/nms-plugin-trans": ["src/plugins/trans"],
+      "@vad-systems/nms-plugin-switch": ["src/plugins/switch"],
       "@vad-systems/nms-plugins": ["src/plugins"],
       "@vad-systems/nms-shared": ["src/shared"]
     }

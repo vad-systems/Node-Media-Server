@@ -1,6 +1,7 @@
 import EventEmitter from 'events';
 import _ from 'lodash';
 import { ParsedUrlQuery } from 'querystring';
+import { AVPacket } from '@vad-systems/nms-protocol';
 import { context, LoggerFactory, LoggerInstance, NodeCoreUtils } from '@vad-systems/nms-core';
 import { SessionConfig, SessionID } from '@vad-systems/nms-shared';
 import type { BroadcastServer } from './BroadcastServer.js';
@@ -173,7 +174,7 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
 
     abstract stop(): void;
 
-    abstract sendBuffer(buffer: Buffer): void;
+    abstract sendBuffer(buffer: Buffer | AVPacket): void;
 }
 
 export { NodeSession };

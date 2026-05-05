@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.AvBroadcastServer = void 0;
 const nms_protocol_1 = require("../../protocol");
 const node_buffer_1 = require("node:buffer");
 const BaseAvSession_js_1 = require("./BaseAvSession.js");
@@ -150,9 +151,12 @@ class AvBroadcastServer extends BroadcastServer_js_1.BroadcastServer {
                 case Protocol_js_1.Protocol.RTMP:
                     v.sendBuffer(rtmpMessage);
                     break;
+                case Protocol_js_1.Protocol.RAW:
+                    v.sendBuffer(packet);
+                    break;
             }
         });
     }
     ;
 }
-exports.default = AvBroadcastServer;
+exports.AvBroadcastServer = AvBroadcastServer;

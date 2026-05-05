@@ -6,4 +6,5 @@ var Protocol;
     Protocol["RTMP"] = "rtmp";
     Protocol["HTTP_FLV"] = "http-flv";
     Protocol["WS_FLV"] = "websocket-flv";
+    Protocol["RAW"] = "raw";
 })(Protocol || (exports.Protocol = Protocol = {}));
