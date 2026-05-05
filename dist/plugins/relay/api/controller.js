@@ -64,9 +64,20 @@ function delStream(req, res, next) {
         res.sendStatus(404);
     }
 }
+function restartStream(req, res, next) {
+    let relaySession = this.sessions.get(req.params.id);
+    if (relaySession instanceof nms_plugin_relay_1.NodeRelaySession) {
+        relaySession.restart();
+        res.sendStatus(200);
+    }
+    else {
+        res.sendStatus(404);
+    }
+}
 exports.default = {
     getStreams,
     getStreamByID,
     getStreamByName,
     delStream,
+    restartStream,
 };

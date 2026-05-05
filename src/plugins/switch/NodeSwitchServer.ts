@@ -85,6 +85,41 @@ class NodeSwitchServer extends NodeTaskServer {
 
         this.logger.log(`Source stream published: ${sourcePath}, subscribing for RAW packets for: ${Array.from(matchedOutputs).join(', ')}`);
 
+        this.createRawSubscriber(session);
+
+        // Requirement 1 & 2: Automatic activation and default source priority
+        matchedOutputs.forEach(fullPath => {
+            const broadcast = this.switchBroadcasts.get(fullPath);
+            const config = this.config.switch;
+            const task = config?.tasks.find(t => `/${t.app}/${t.name}` === fullPath);
+
+            if (broadcast && task) {
+                const currentActive = this.isSourceActive(broadcast.activeSource);
+
+                if (!currentActive) {
+                    // Requirement: No active source, switch immediately
+                    this.logger.log(`Activating ${fullPath} immediately with ${sourcePath} (no current active source)`);
+                    this.doSwitch(fullPath, sourcePath, false);
+                } else if (sourcePath === task.defaultSource && !broadcast.isManualSwitch) {
+                    // Requirement: Default source returned and current source was not manual
+                    if (broadcast.activeSource !== sourcePath) {
+                        this.logger.log(`Returning ${fullPath} to default source ${sourcePath}`);
+                        this.doSwitch(fullPath, sourcePath, false);
+                    }
+                }
+
+                this.updateBroadcastLiveness(broadcast);
+            }
+        });
+    }
+
+    private createRawSubscriber(session: BaseAvSession<any, any>) {
+        const sourcePath = session.streamPath;
+        const matchedOutputs = this.sourceToOutputs.get(sourcePath);
+        if (!matchedOutputs || matchedOutputs.size === 0) return;
+
+        if (this.sourceSubscribers.has(session.id)) return;
+
         const subscriber = new RawSubscriber(sourcePath, (packet: AVPacket) => {
             matchedOutputs.forEach(fullPath => {
                 const switchBroadcast = this.switchBroadcasts.get(fullPath);
@@ -99,31 +134,6 @@ class NodeSwitchServer extends NodeTaskServer {
         });
         subscriber.play();
         this.sourceSubscribers.set(session.id, subscriber);
-
-        // Requirement 3 & 4: Automatic activation and default source priority
-        matchedOutputs.forEach(fullPath => {
-            const broadcast = this.switchBroadcasts.get(fullPath);
-            const config = this.config.switch;
-            const task = config?.tasks.find(t => `/${t.app}/${t.name}` === fullPath);
-
-            if (broadcast && task) {
-                const currentActive = this.isSourceActive(broadcast.activeSource);
-
-                if (!currentActive) {
-                    // Requirement 3: No active source, switch immediately
-                    this.logger.log(`Activating ${fullPath} immediately with ${sourcePath} (no current active source)`);
-                    this.doSwitch(fullPath, sourcePath, false);
-                } else if (sourcePath === task.defaultSource && !broadcast.isManualSwitch) {
-                    // Requirement 4: Default source returned and current source was not manual
-                    if (broadcast.activeSource !== sourcePath) {
-                        this.logger.log(`Returning ${fullPath} to default source ${sourcePath}`);
-                        this.doSwitch(fullPath, sourcePath, false);
-                    }
-                }
-
-                this.updateBroadcastLiveness(broadcast);
-            }
-        });
     }
 
     public switch(fullPath: string, newSourcePath: string): boolean {
@@ -137,16 +147,42 @@ class NodeSwitchServer extends NodeTaskServer {
             return false;
         }
 
-        const config = this.config.switch;
-        const task = config?.tasks.find(t => `/${t.app}/${t.name}` === fullPath);
-        const isSlate = task?.slatePath === newSourcePath;
-        if (!task || (!task.sources.includes(newSourcePath) && !isSlate)) {
-            this.logger.warn(`Switch failed: source ${newSourcePath} not configured for ${fullPath}`);
+        if (newSourcePath === fullPath) {
+            this.logger.warn(`Switch failed: cannot switch ${fullPath} to itself`);
             return false;
         }
 
-        broadcast.switchSource(newSourcePath, task.switchTimeout, isManual);
+        const config = this.config.switch;
+        const task = config?.tasks.find(t => `/${t.app}/${t.name}` === fullPath);
+        
+        const isLive = this.isSourceActive(newSourcePath);
+        const isConfigured = task && (task.sources.includes(newSourcePath) || task.slatePath === newSourcePath);
+
+        if (!isConfigured && (!isManual || !isLive)) {
+            this.logger.warn(`Switch failed: source ${newSourcePath} not valid or not live for ${fullPath}`);
+            return false;
+        }
+
+        if (isManual && !isConfigured) {
+            this.ensureSubscription(newSourcePath, fullPath);
+        }
+
+        broadcast.switchSource(newSourcePath, task?.switchTimeout, isManual);
         return true;
+    }
+
+    private ensureSubscription(sourcePath: string, outputPath: string) {
+        if (!this.sourceToOutputs.has(sourcePath)) {
+            this.sourceToOutputs.set(sourcePath, new Set());
+        }
+        this.sourceToOutputs.get(sourcePath)!.add(outputPath);
+
+        for (const session of context.sessions.values()) {
+            if (session instanceof BaseAvSession && session.streamPath === sourcePath && !session.isStop) {
+                this.createRawSubscriber(session);
+                break;
+            }
+        }
     }
 
     public getStatus() {
@@ -199,17 +235,24 @@ class NodeSwitchServer extends NodeTaskServer {
         const task = config?.tasks.find(t => `/${t.app}/${t.name}` === fullPath);
         if (!task) return;
 
-        let targetSource = task.defaultSource;
-        if (targetSource === failedSourcePath) {
-            targetSource = undefined;
+        let targetSource: string | undefined;
+
+        // Requirement 1: Switch over to the next available source
+        // First try return to default if it's not the one that failed and it's active
+        if (task.defaultSource && task.defaultSource !== failedSourcePath && this.isSourceActive(task.defaultSource)) {
+            targetSource = task.defaultSource;
+        } else {
+            // Try any other configured source that is active
+            targetSource = task.sources.find(s => s !== failedSourcePath && this.isSourceActive(s));
+        }
+
+        if (!targetSource && task.slatePath && task.slatePath !== failedSourcePath && this.isSourceActive(task.slatePath)) {
+            targetSource = task.slatePath;
         }
 
         if (targetSource) {
-            this.logger.log(`Triggering fallback for ${fullPath} to defaultSource: ${targetSource}`);
+            this.logger.log(`Triggering fallback for ${fullPath} to: ${targetSource}`);
             this.doSwitch(fullPath, targetSource, false);
-        } else if (task.slatePath) {
-            this.logger.log(`Triggering fallback for ${fullPath} to slatePath: ${task.slatePath}`);
-            this.doSwitch(fullPath, task.slatePath, false);
         }
     }
 

@@ -10,20 +10,13 @@ const nms_plugin_fission_1 = require("../plugins/fission");
 const nms_plugin_relay_1 = require("../plugins/relay");
 const nms_plugin_trans_1 = require("../plugins/trans");
 const nms_plugin_switch_1 = require("../plugins/switch");
+const middleware_js_1 = require("./middleware.js");
 function setupRoutes(app, context) {
     const config = context.configProvider.getConfig();
     app.use('/api/streams', (0, streams_router_js_1.default)(context));
     app.use('/api/server', (0, server_router_js_1.default)(context));
-    if (config.relay) {
-        app.use('/api/relay', (0, nms_plugin_relay_1.relayApi)(context));
-    }
-    if (config.trans) {
-        app.use('/api/trans', (0, nms_plugin_trans_1.transApi)(context));
-    }
-    if (config.fission) {
-        app.use('/api/fission', (0, nms_plugin_fission_1.fissionApi)(context));
-    }
-    if (config.switch) {
-        app.use('/api/switch', (0, nms_plugin_switch_1.switchApi)(context));
-    }
+    app.use('/api/relay', (0, middleware_js_1.pluginEnabled)('relay').bind(context), (0, nms_plugin_relay_1.relayApi)(context));
+    app.use('/api/trans', (0, middleware_js_1.pluginEnabled)('trans').bind(context), (0, nms_plugin_trans_1.transApi)(context));
+    app.use('/api/fission', (0, middleware_js_1.pluginEnabled)('fission').bind(context), (0, nms_plugin_fission_1.fissionApi)(context));
+    app.use('/api/switch', (0, middleware_js_1.pluginEnabled)('switch').bind(context), (0, nms_plugin_switch_1.switchApi)(context));
 }

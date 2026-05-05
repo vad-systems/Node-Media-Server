@@ -51,6 +51,10 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
         this.endTime = Date.now();
         this.end();
     }
+    restart() {
+        this.logger.log("[ffmpeg restart] session restart", this.id);
+        this.end();
+    }
     sendBuffer(buffer) {
         if (node_buffer_1.Buffer.isBuffer(buffer)) {
             this.outBytes += buffer.length;

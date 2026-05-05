@@ -88,9 +88,20 @@ function delStream(this: Context, req: Request, res: Response, next: NextFunctio
     }
 }
 
+function restartStream(this: Context, req: Request, res: Response, next: NextFunction) {
+    let relaySession = this.sessions.get(req.params.id as string);
+    if (relaySession instanceof NodeRelaySession) {
+        relaySession.restart();
+        res.sendStatus(200);
+    } else {
+        res.sendStatus(404);
+    }
+}
+
 export default {
     getStreams,
     getStreamByID,
     getStreamByName,
     delStream,
+    restartStream,
 };

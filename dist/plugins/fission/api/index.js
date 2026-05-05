@@ -9,5 +9,6 @@ exports.default = (context) => {
     let router = express_1.default.Router();
     router.get('/', controller_js_1.default.getStreams.bind(context));
     router.delete('/:id', controller_js_1.default.delStream.bind(context));
+    router.post('/restart/:id', controller_js_1.default.restartStream.bind(context));
     return router;
 };

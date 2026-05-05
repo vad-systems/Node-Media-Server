@@ -61,6 +61,11 @@ abstract class NodeFfmpegSession<A, T extends FfmpegSessionConfig<A>> extends No
         this.end();
     }
 
+    public restart() {
+        this.logger.log("[ffmpeg restart] session restart", this.id);
+        this.end();
+    }
+
     public sendBuffer(buffer: Buffer | AVPacket) {
         if (Buffer.isBuffer(buffer)) {
             this.outBytes += buffer.length;

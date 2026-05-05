@@ -35,7 +35,18 @@ function delStream(req, res, next) {
         res.sendStatus(404);
     }
 }
+function restartStream(req, res, next) {
+    let transSession = this.sessions.get(req.params.id);
+    if (transSession instanceof nms_plugin_trans_1.NodeTransSession) {
+        transSession.restart();
+        res.sendStatus(200);
+    }
+    else {
+        res.sendStatus(404);
+    }
+}
 exports.default = {
     getStreams,
     delStream,
+    restartStream,
 };

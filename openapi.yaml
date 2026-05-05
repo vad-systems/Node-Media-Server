@@ -604,6 +604,21 @@ paths:
         '404':
           description: Fission task not found
 
+  /api/fission/restart/{id}:
+    post:
+      tags: [Fission]
+      summary: Restart a specific fission task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Fission task restarted
+        '404':
+          description: Fission task not found
+
   /api/relay:
     get:
       tags: [Relay]
@@ -645,6 +660,21 @@ paths:
       responses:
         '200':
           description: Relay task deleted
+        '404':
+          description: Relay task not found
+
+  /api/relay/restart/{id}:
+    post:
+      tags: [Relay]
+      summary: Restart a specific relay task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Relay task restarted
         '404':
           description: Relay task not found
 
@@ -698,6 +728,21 @@ paths:
         '404':
           description: Trans task not found
 
+  /api/trans/restart/{id}:
+    post:
+      tags: [Trans]
+      summary: Restart a specific trans task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Trans task restarted
+        '404':
+          description: Trans task not found
+
   /api/switch:
     get:
       tags: [Switch]
@@ -713,7 +758,7 @@ paths:
           description: Switch server not enabled
     post:
       tags: [Switch]
-      summary: Trigger a source switch for a specific stream
+      summary: Trigger a source switch for a specific stream. Manual switches can target any live stream path.
       requestBody:
         required: true
         content:

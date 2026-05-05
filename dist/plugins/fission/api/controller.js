@@ -35,7 +35,18 @@ function delStream(req, res, next) {
         res.sendStatus(404);
     }
 }
+function restartStream(req, res, next) {
+    let fissionSession = this.sessions.get(req.params.id);
+    if (fissionSession instanceof nms_plugin_fission_1.NodeFissionSession) {
+        fissionSession.restart();
+        res.sendStatus(200);
+    }
+    else {
+        res.sendStatus(404);
+    }
+}
 exports.default = {
     getStreams,
     delStream,
+    restartStream,
 };

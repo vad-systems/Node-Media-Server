@@ -6,5 +6,6 @@ export default (context: Context) => {
     let router = express.Router();
     router.get('/', transController.getStreams.bind(context));
     router.delete('/:id', transController.delStream.bind(context));
+    router.post('/restart/:id', transController.restartStream.bind(context));
     return router;
 };

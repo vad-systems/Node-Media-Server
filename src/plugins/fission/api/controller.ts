@@ -43,7 +43,18 @@ function delStream(this: Context, req: Request, res: Response, next: NextFunctio
     }
 }
 
+function restartStream(this: Context, req: Request, res: Response, next: NextFunction) {
+    let fissionSession = this.sessions.get(req.params.id as string);
+    if (fissionSession instanceof NodeFissionSession) {
+        fissionSession.restart();
+        res.sendStatus(200);
+    } else {
+        res.sendStatus(404);
+    }
+}
+
 export default {
     getStreams,
     delStream,
+    restartStream,
 };
