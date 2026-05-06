@@ -31,10 +31,11 @@ class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig>
                 m.vs,
             ];
             let aac = ['-c:a', 'aac', '-b:a', m.ab];
+            let outPathStr = `rtmp://127.0.0.1:${this.conf.rtmpPort}/${this.conf.streamApp}/${this.conf.streamName}_${m.vs.split('x')[1]}?parentId=${this.id}`;
             let outPath = [
                 '-f',
                 'flv',
-                `rtmp://127.0.0.1:${this.conf.rtmpPort}/${this.conf.streamApp}/${this.conf.streamName}_${m.vs.split('x')[1]}`,
+                outPathStr,
             ];
             argv = [
                 ...argv,

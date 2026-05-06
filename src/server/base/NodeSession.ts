@@ -35,6 +35,7 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
     private _outBytes: number = 0;
 
     private _isStop: boolean = false;
+    private _parentId: SessionID | null = null;
 
     protected constructor(conf: T, remoteIp: string, tag: string) {
         super();
@@ -86,6 +87,9 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
 
     protected set streamQuery(query: ParsedUrlQuery) {
         this._streamQuery = query;
+        if (query?.parentId) {
+            this._parentId = query.parentId as string;
+        }
     }
 
     public get streamQuery() {
@@ -170,6 +174,14 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
 
     public set isStop(value: boolean) {
         this._isStop = value;
+    }
+
+    public get parentId(): SessionID | null {
+        return this._parentId;
+    }
+
+    public set parentId(value: SessionID | null) {
+        this._parentId = value;
     }
 
     abstract stop(): void;

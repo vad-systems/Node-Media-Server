@@ -47,6 +47,7 @@ class NodeRelayServer extends nms_server_1.NodeTaskServer {
             }
         }
         let session = new nms_plugin_relay_1.NodeRelaySession(conf);
+        session.parentId = srcId;
         const id = session.id;
         const broadcast = nms_core_1.context.broadcasts.get(streamPath);
         if (broadcast) {

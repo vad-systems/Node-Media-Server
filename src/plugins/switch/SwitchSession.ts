@@ -7,7 +7,7 @@ export class SwitchSession extends BaseAvSession<any, SessionConfig<any>> {
     constructor(conf: any, streamPath: string) {
         super(conf, '127.0.0.1', Protocol.RTMP);
         this.streamPath = streamPath;
-        const regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
+        const regRes = /\/(.*)\/(.*)/i.exec(streamPath);
         if (regRes) {
             this.streamApp = regRes[1];
             this.streamName = regRes[2];

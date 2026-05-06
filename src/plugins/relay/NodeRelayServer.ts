@@ -56,6 +56,7 @@ class NodeRelayServer extends NodeTaskServer {
         }
 
         let session = new NodeRelaySession(conf);
+        session.parentId = srcId;
         const id = session.id;
 
         const broadcast = context.broadcasts.get(streamPath);

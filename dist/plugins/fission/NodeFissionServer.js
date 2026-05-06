@@ -119,6 +119,7 @@ class NodeFissionServer extends nms_server_1.NodeTaskServer {
             };
             sessionConf.args = session.streamQuery;
             let sess = new nms_plugin_fission_1.NodeFissionSession(sessionConf);
+            sess.parentId = srcId;
             const id = sess.id;
             if (session.broadcast) {
                 sess.broadcast = session.broadcast;

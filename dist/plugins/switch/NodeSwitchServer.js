@@ -160,7 +160,7 @@ class NodeSwitchServer extends nms_server_1.NodeTaskServer {
         }
         this.sourceToOutputs.get(sourcePath).add(outputPath);
         for (const session of nms_core_1.context.sessions.values()) {
-            if (session instanceof nms_server_1.BaseAvSession && session.streamPath === sourcePath && !session.isStop) {
+            if (session.streamPath === sourcePath && !session.isStop) {
                 this.createRawSubscriber(session);
                 break;
             }
@@ -192,7 +192,7 @@ class NodeSwitchServer extends nms_server_1.NodeTaskServer {
             subscriber.stop();
             this.sourceSubscribers.delete(session.id);
         }
-        if (session instanceof nms_server_1.BaseAvSession) {
+        if (session.streamPath) {
             const sourcePath = session.streamPath;
             const fullPaths = this.sourceToOutputs.get(sourcePath);
             if (fullPaths) {
@@ -245,13 +245,13 @@ class NodeSwitchServer extends nms_server_1.NodeTaskServer {
             const wasActive = broadcast.publisher === session;
             if (active && !wasActive) {
                 session.isStop = false;
-                session.startTime = Date.now();
-                broadcast.publisher = session;
+                if (broadcast.publisher == null) {
+                    broadcast.postPublish(session);
+                }
                 this.logger.log(`Switchable broadcast ${fullPath} is now LIVE`);
             }
             else if (!active && wasActive) {
                 session.stop();
-                broadcast.publisher = null;
                 this.logger.log(`Switchable broadcast ${fullPath} is now OFFLINE`);
             }
         }

@@ -42,7 +42,9 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         if (sourceBroadcast && sourceBroadcast.publisher && !sourceBroadcast.publisher.isStop) {
             if (this.virtualPublisher) {
                 this.virtualPublisher.isStop = false;
-                this.publisher = this.virtualPublisher;
+                if (this.publisher == null) {
+                    this.postPublish(this.virtualPublisher);
+                }
             }
         } else {
             this.publisher = null;
@@ -152,7 +154,9 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         this.activeSourcePath = sourcePath;
         if (this.virtualPublisher) {
             this.virtualPublisher.isStop = false;
-            this.publisher = this.virtualPublisher;
+            if (this.publisher == null) {
+                this.postPublish(this.virtualPublisher);
+            }
         }
         this.pendingSourcePath = null;
         this.switching = false;
@@ -192,31 +196,30 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
 
         // Broadcast the new headers to all current subscribers
         this.subscribers.forEach((session) => {
-            if (!(
-                session instanceof BaseAvSession
-            )) {
+            const avSession = session as BaseAvSession<any, any>;
+            if (!avSession.protocol) {
                 return;
             }
 
-            if (session.protocol === Protocol.RTMP) {
+            if (avSession.protocol === Protocol.RTMP) {
                 if (this.rtmpMetaData) {
-                    session.sendBuffer(this.rtmpMetaData);
+                    avSession.sendBuffer(this.rtmpMetaData);
                 }
                 if (this.rtmpAudioHeader) {
-                    session.sendBuffer(this.rtmpAudioHeader);
+                    avSession.sendBuffer(this.rtmpAudioHeader);
                 }
                 if (this.rtmpVideoHeader) {
-                    session.sendBuffer(this.rtmpVideoHeader);
+                    avSession.sendBuffer(this.rtmpVideoHeader);
                 }
             } else {
                 if (this.flvMetaData) {
-                    session.sendBuffer(this.flvMetaData);
+                    avSession.sendBuffer(this.flvMetaData);
                 }
                 if (this.flvAudioHeader) {
-                    session.sendBuffer(this.flvAudioHeader);
+                    avSession.sendBuffer(this.flvAudioHeader);
                 }
                 if (this.flvVideoHeader) {
-                    session.sendBuffer(this.flvVideoHeader);
+                    avSession.sendBuffer(this.flvVideoHeader);
                 }
             }
         });

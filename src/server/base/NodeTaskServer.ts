@@ -24,11 +24,11 @@ abstract class NodeTaskServer extends NodeConfigurableServer {
     }
 
     protected onPostPublish(session: NodeSession<any, any>) {
-        if (session instanceof BaseAvSession) {
-            const regRes = /\/(.*)\/(.*)/gi.exec(session.streamPath);
+        if (session.streamPath) {
+            const regRes = /\/(.*)\/(.*)/i.exec(session.streamPath);
             if (regRes) {
                 const [app, name] = _.slice(regRes, 1);
-                this.handleTaskMatching(session, app, name);
+                this.handleTaskMatching(session as BaseAvSession<any, any>, app, name);
             }
         }
     }

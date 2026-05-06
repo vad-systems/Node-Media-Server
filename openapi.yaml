@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Node-Media-Server REST API
   description: API for managing and monitoring the Node-Media-Server.
-  version: 0.1.0-dev23
+  version: 0.1.0-dev24
 servers:
   - url: http://localhost:8000
     description: Default HTTP server
@@ -260,6 +260,35 @@ components:
       enum: [0, 1, 2, 3, 4, 5]
       description: "0: NONE, 1: ERROR, 2: WARN, 3: NORMAL, 4: DEBUG, 5: FFDEBUG"
 
+    StreamsTree:
+      type: object
+      properties:
+        broadcasts:
+          type: array
+          items: { $ref: '#/components/schemas/BroadcastTreeNode' }
+        orphans:
+          type: array
+          items: { $ref: '#/components/schemas/SessionNode' }
+
+    BroadcastTreeNode:
+      type: object
+      properties:
+        streamPath: { type: string }
+        publisher: { $ref: '#/components/schemas/SessionNode' }
+        subscribers:
+          type: array
+          items: { $ref: '#/components/schemas/SessionNode' }
+
+    SessionNode:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string }
+        status: { type: string, enum: [running, stopped] }
+        children:
+          type: array
+          items: { $ref: '#/components/schemas/SessionNode' }
+
     StreamStats:
       type: object
       additionalProperties:
@@ -481,7 +510,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [rtmp, http, av, trans, relay, fission, switch]
+            enum: [rtmp, av, trans, relay, fission, switch]
       responses:
         '200':
           description: Server started successfully
@@ -506,7 +535,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [rtmp, http, av, trans, task, relay, fission, switch]
+            enum: [rtmp, av, trans, relay, fission, switch]
       responses:
         '200':
           description: Server stopped successfully
@@ -532,6 +561,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StreamStats'
+
+  /api/streams/tree:
+    get:
+      tags: [Streams]
+      summary: List all active streams and sessions in a tree structure
+      responses:
+        '200':
+          description: A tree of streams and sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamsTree'
 
   /api/streams/{app}/{stream}:
     get:

@@ -70,7 +70,7 @@ class NodeTransSession extends nms_server_1.NodeFfmpegSession {
                     this.logger.warn('[Transmuxing RTMP] Cannot output to the same app.');
                 }
                 else {
-                    let rtmpOutput = `rtmp://127.0.0.1:${rtmpPort}/${rtmpApp}/${streamName}`;
+                    let rtmpOutput = `rtmp://127.0.0.1:${rtmpPort}/${rtmpApp}/${streamName}?parentId=${this.id}`;
                     mapStr += `[f=flv]${rtmpOutput}|`;
                     this.logger.log(`[Transmuxing RTMP] ${streamPath} to ${rtmpOutput}`);
                 }

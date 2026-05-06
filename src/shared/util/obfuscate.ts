@@ -23,17 +23,8 @@ export function obfuscateUrl(urlStr: string | undefined): string | undefined {
       return urlStr;
     }
     
-    // Obfuscate external URLs
-    let result = `${url.protocol}//***`;
-    
-    // Keep the path but remove query params
-    if (url.pathname && url.pathname !== '/') {
-        result += url.pathname;
-    } else {
-        result += '/';
-    }
-    
-    return result;
+    // Obfuscate external URLs: keep host, obfuscate path
+    return `${url.protocol}//${url.host}/***`;
   } catch (e) {
     // If it's not a standard URL, try a manual split to at least hide host and query
     if (urlStr.includes('://')) {
@@ -46,8 +37,7 @@ export function obfuscateUrl(urlStr: string | undefined): string | undefined {
             return urlStr;
         }
         
-        const path = pathParts.length > 0 ? '/' + pathParts.join('/') : '/';
-        return `${protocol}://***${path}`;
+        return `${protocol}://${hostPort}/***`;
     }
     
     return urlStr;

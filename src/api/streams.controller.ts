@@ -133,8 +133,76 @@ function delStream(this: Context, req: Request, res: Response, next: NextFunctio
     }
 }
 
+function getStreamsTree(this: Context, req: Request, res: Response, next: NextFunction) {
+    const sessionsMap = new Map<string, any>();
+    const sessionNodes = new Map<string, any>();
+
+    // 1. Create all session nodes
+    this.sessions.forEach((session) => {
+        const node = {
+            id: session.id,
+            type: session.TAG,
+            status: session.isStop ? 'stopped' : 'running',
+            children: [] as any[],
+        };
+        sessionNodes.set(session.id, node);
+        sessionsMap.set(session.id, session);
+    });
+
+    // 2. Establish parent-child relationships
+    const childrenIds = new Set<string>();
+    this.sessions.forEach((session) => {
+        if (session.parentId && sessionNodes.has(session.parentId)) {
+            const parentNode = sessionNodes.get(session.parentId);
+            const childNode = sessionNodes.get(session.id);
+            if (!parentNode.children.includes(childNode)) {
+                parentNode.children.push(childNode);
+            }
+            childrenIds.add(session.id);
+        }
+    });
+
+    // 3. Build broadcast tree
+    const broadcasts: any[] = [];
+    this.broadcasts.forEach((broadcast, streamPath) => {
+        const bNode: any = {
+            streamPath,
+            publisher: null,
+            subscribers: [] as any[],
+        };
+
+        if (broadcast.publisher) {
+            bNode.publisher = sessionNodes.get(broadcast.publisher.id);
+        }
+
+        broadcast.subscribers.forEach((subscriber) => {
+            bNode.subscribers.push(sessionNodes.get(subscriber.id));
+        });
+
+        broadcasts.push(bNode);
+    });
+
+    // 4. Identify orphaned sessions
+    // Orphaned = No parent AND not a publisher or subscriber in any broadcast
+    const sessionsInBroadcasts = new Set<string>();
+    this.broadcasts.forEach((broadcast) => {
+        if (broadcast.publisher) sessionsInBroadcasts.add(broadcast.publisher.id);
+        broadcast.subscribers.forEach((s) => sessionsInBroadcasts.add(s.id));
+    });
+
+    const orphans = Array.from(sessionNodes.values()).filter(
+        (node) => !childrenIds.has(node.id) && !sessionsInBroadcasts.has(node.id)
+    );
+
+    res.json({
+        broadcasts,
+        orphans,
+    });
+}
+
 export default {
     delStream,
     getStreams,
     getStream,
+    getStreamsTree,
 };

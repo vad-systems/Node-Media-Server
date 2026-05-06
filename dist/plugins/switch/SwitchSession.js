@@ -6,7 +6,7 @@ class SwitchSession extends nms_server_1.BaseAvSession {
     constructor(conf, streamPath) {
         super(conf, '127.0.0.1', nms_server_1.Protocol.RTMP);
         this.streamPath = streamPath;
-        const regRes = /\/(.*)\/(.*)/gi.exec(streamPath);
+        const regRes = /\/(.*)\/(.*)/i.exec(streamPath);
         if (regRes) {
             this.streamApp = regRes[1];
             this.streamName = regRes[2];

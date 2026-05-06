@@ -97,6 +97,7 @@ class NodeTransServer extends NodeTaskServer {
             }
 
             let sess = new NodeTransSession(sessionConfig);
+            sess.parentId = session.id;
 
             if (session.broadcast) {
                 sess.broadcast = session.broadcast;

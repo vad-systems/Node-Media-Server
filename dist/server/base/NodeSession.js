@@ -25,6 +25,7 @@ class NodeSession extends events_1.default {
     _inBytes = 0;
     _outBytes = 0;
     _isStop = false;
+    _parentId = null;
     constructor(conf, remoteIp, tag) {
         super();
         this.conf = lodash_1.default.cloneDeep(conf);
@@ -68,6 +69,9 @@ class NodeSession extends events_1.default {
     }
     set streamQuery(query) {
         this._streamQuery = query;
+        if (query?.parentId) {
+            this._parentId = query.parentId;
+        }
     }
     get streamQuery() {
         return this._streamQuery;
@@ -131,6 +135,12 @@ class NodeSession extends events_1.default {
     }
     set isStop(value) {
         this._isStop = value;
+    }
+    get parentId() {
+        return this._parentId;
+    }
+    set parentId(value) {
+        this._parentId = value;
     }
 }
 exports.NodeSession = NodeSession;

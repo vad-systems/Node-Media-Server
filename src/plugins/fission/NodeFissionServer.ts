@@ -112,6 +112,7 @@ class NodeFissionServer extends NodeTaskServer {
             };
             sessionConf.args = session.streamQuery;
             let sess = new NodeFissionSession(sessionConf);
+            sess.parentId = srcId;
             const id = sess.id;
 
             if (session.broadcast) {

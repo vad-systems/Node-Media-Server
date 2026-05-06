@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeTaskServer = void 0;
 const lodash_1 = __importDefault(require("lodash"));
 const nms_core_1 = require("../../core");
-const BaseAvSession_js_1 = require("./BaseAvSession.js");
 const NodeConfigurableServer_js_1 = require("./NodeConfigurableServer.js");
 class NodeTaskServer extends NodeConfigurableServer_js_1.NodeConfigurableServer {
     constructor() {
@@ -25,8 +24,8 @@ class NodeTaskServer extends NodeConfigurableServer_js_1.NodeConfigurableServer 
         nms_core_1.context.nodeEvent.off('donePublish', this.onDonePublish);
     }
     onPostPublish(session) {
-        if (session instanceof BaseAvSession_js_1.BaseAvSession) {
-            const regRes = /\/(.*)\/(.*)/gi.exec(session.streamPath);
+        if (session.streamPath) {
+            const regRes = /\/(.*)\/(.*)/i.exec(session.streamPath);
             if (regRes) {
                 const [app, name] = lodash_1.default.slice(regRes, 1);
                 this.handleTaskMatching(session, app, name);

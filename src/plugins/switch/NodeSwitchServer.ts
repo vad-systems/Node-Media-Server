@@ -186,8 +186,8 @@ class NodeSwitchServer extends NodeTaskServer {
         this.sourceToOutputs.get(sourcePath)!.add(outputPath);
 
         for (const session of context.sessions.values()) {
-            if (session instanceof BaseAvSession && session.streamPath === sourcePath && !session.isStop) {
-                this.createRawSubscriber(session);
+            if (session.streamPath === sourcePath && !session.isStop) {
+                this.createRawSubscriber(session as BaseAvSession<any, any>);
                 break;
             }
         }
@@ -221,7 +221,7 @@ class NodeSwitchServer extends NodeTaskServer {
             this.sourceSubscribers.delete(session.id);
         }
         
-        if (session instanceof BaseAvSession) {
+        if (session.streamPath) {
             const sourcePath = session.streamPath;
             const fullPaths = this.sourceToOutputs.get(sourcePath);
             if (fullPaths) {
@@ -277,12 +277,12 @@ class NodeSwitchServer extends NodeTaskServer {
             const wasActive = broadcast.publisher === session;
             if (active && !wasActive) {
                 session.isStop = false;
-                session.startTime = Date.now();
-                broadcast.publisher = session;
+                if (broadcast.publisher == null) {
+                    broadcast.postPublish(session);
+                }
                 this.logger.log(`Switchable broadcast ${fullPath} is now LIVE`);
             } else if (!active && wasActive) {
                 session.stop();
-                broadcast.publisher = null;
                 this.logger.log(`Switchable broadcast ${fullPath} is now OFFLINE`);
             }
         }

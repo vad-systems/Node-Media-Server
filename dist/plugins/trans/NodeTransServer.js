@@ -118,6 +118,7 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
                 continue;
             }
             let sess = new nms_plugin_trans_1.NodeTransSession(sessionConfig);
+            sess.parentId = session.id;
             if (session.broadcast) {
                 sess.broadcast = session.broadcast;
                 session.broadcast.subscribers.set(sess.id, sess);

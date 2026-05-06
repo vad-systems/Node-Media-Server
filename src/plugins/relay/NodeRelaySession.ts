@@ -8,6 +8,10 @@ class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
 
     run() {
         let format = this.conf.ouPath.startsWith('rtsp://') ? 'rtsp' : 'flv';
+        let ouPath = this.conf.ouPath;
+        if (ouPath.startsWith('rtmp://127.0.0.1') || ouPath.startsWith('rtmp://localhost')) {
+            ouPath += (ouPath.includes('?') ? '&' : '?') + `parentId=${this.id}`;
+        }
         let argv = [
             '-re',
             '-i', this.conf.inPath,
@@ -17,7 +21,7 @@ class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
                 this.conf.rescale ? ['-vf', `scale=${this.conf.rescale}`] : []
             ),
             '-f', format,
-            this.conf.ouPath,
+            ouPath,
         ];
 
         if (this.conf.inPath[0] === '/' || this.conf.inPath[1] === ':') {
