@@ -23,6 +23,8 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
         this.socket.on('data', this.onData);
         this.socket.on('close', this.onClose);
         this.socket.on('error', this.onError);
+        this.socket.on('timeout', this.onClose);
+        this.socket.on('end', this.onClose);
         context.nodeEvent.emit('postConnect', this);
     };
 
@@ -33,6 +35,14 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
         this.streamPath = '/' + req.app + '/' + req.name;
         this.streamQuery = req.query;
     };
+
+    onClose() {
+        if (!this.isStop) {
+            this.stop();
+        }
+
+        super.onClose();
+    }
 
     onOutput = (buffer: Buffer) => {
         this.sendBuffer(buffer);
@@ -58,7 +68,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     stop = () => {
         this.isStop = true;
         this.endTime = Date.now();
-        this.socket.end();
+        this.socket.end(() => this.onClose());
     };
 }
 

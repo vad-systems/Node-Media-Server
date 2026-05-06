@@ -21,6 +21,8 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         this.socket.on('data', this.onData);
         this.socket.on('close', this.onClose);
         this.socket.on('error', this.onError);
+        this.socket.on('timeout', this.onClose);
+        this.socket.on('end', this.onClose);
         nms_core_1.context.nodeEvent.emit('postConnect', this);
     };
     onConnect = (req) => {
@@ -30,6 +32,12 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         this.streamPath = '/' + req.app + '/' + req.name;
         this.streamQuery = req.query;
     };
+    onClose() {
+        if (!this.isStop) {
+            this.stop();
+        }
+        super.onClose();
+    }
     onOutput = (buffer) => {
         this.sendBuffer(buffer);
     };
@@ -52,7 +60,7 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
     stop = () => {
         this.isStop = true;
         this.endTime = Date.now();
-        this.socket.end();
+        this.socket.end(() => this.onClose());
     };
 }
 exports.NodeRtmpSession = NodeRtmpSession;
