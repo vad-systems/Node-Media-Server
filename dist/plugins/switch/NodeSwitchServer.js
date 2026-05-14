@@ -48,7 +48,11 @@ class NodeSwitchServer extends nms_server_1.NodeTaskServer {
             this.switchBroadcasts.set(fullPath, broadcast);
             nms_core_1.context.broadcasts.set(fullPath, broadcast);
             // Create virtual publisher session to make it visible in the streams API
-            const session = new SwitchSession_js_1.SwitchSession(this.config, fullPath);
+            const sessionConf = {
+                ...task,
+                streamPath: fullPath,
+            };
+            const session = new SwitchSession_js_1.SwitchSession(sessionConf);
             session.broadcast = broadcast;
             broadcast.setVirtualPublisher(session);
             session.startTime = Date.now();

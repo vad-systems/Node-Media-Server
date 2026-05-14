@@ -155,7 +155,7 @@ class NodeRelayServer extends NodeTaskServer {
             name: stream,
         };
 
-        if (Object.keys(args).length > 0) {
+        if (Object.keys(args || {}).length > 0) {
             sessionConf.ouPath += '?';
             sessionConf.ouPath += querystring.encode(args);
         }

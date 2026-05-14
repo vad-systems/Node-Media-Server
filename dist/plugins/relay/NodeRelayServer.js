@@ -104,7 +104,7 @@ class NodeRelayServer extends nms_server_1.NodeTaskServer {
             ouPath: taskConf.appendName === false ? edge : (hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`),
             name: stream,
         };
-        if (Object.keys(args).length > 0) {
+        if (Object.keys(args || {}).length > 0) {
             sessionConf.ouPath += '?';
             sessionConf.ouPath += querystring_1.default.encode(args);
         }

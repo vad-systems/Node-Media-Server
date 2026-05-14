@@ -3,6 +3,7 @@ import { NodeTaskServer, BaseAvSession, Protocol } from '@vad-systems/nms-server
 import { SwitchableBroadcastServer } from './SwitchableBroadcastServer.js';
 import { SwitchSession } from './SwitchSession.js';
 import { AVPacket } from '@vad-systems/nms-protocol';
+import { SwitchSessionConfig } from '@vad-systems/nms-shared';
 
 class RawSubscriber extends BaseAvSession<any, any> {
     constructor(streamPath: string, private onPacketReceived: (packet: AVPacket) => void) {
@@ -54,7 +55,11 @@ class NodeSwitchServer extends NodeTaskServer {
             context.broadcasts.set(fullPath, broadcast);
 
             // Create virtual publisher session to make it visible in the streams API
-            const session = new SwitchSession(this.config, fullPath);
+            const sessionConf: SwitchSessionConfig = {
+                ...task,
+                streamPath: fullPath,
+            };
+            const session = new SwitchSession(sessionConf);
             session.broadcast = broadcast;
             broadcast.setVirtualPublisher(session);
             session.startTime = Date.now();
