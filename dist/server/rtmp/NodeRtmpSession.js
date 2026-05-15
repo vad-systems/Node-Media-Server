@@ -7,6 +7,7 @@ const nms_server_1 = require("..");
 class NodeRtmpSession extends nms_server_1.BaseAvSession {
     socket;
     rtmp;
+    pingInterval = null;
     constructor(config, socket) {
         super(config, socket.remoteAddress + ':' + socket.remotePort, nms_server_1.Protocol.RTMP);
         this.socket = socket;
@@ -23,6 +24,16 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         this.socket.on('error', this.onError);
         this.socket.on('timeout', this.onClose);
         this.socket.on('end', this.onClose);
+        const ping = this.conf.rtmp.ping ?? 30;
+        const pingTimeout = this.conf.rtmp.ping_timeout ?? 60;
+        if (pingTimeout > 0) {
+            this.socket.setTimeout(pingTimeout * 1000);
+        }
+        if (ping > 0) {
+            this.pingInterval = setInterval(() => {
+                this.rtmp.sendPing();
+            }, ping * 1000);
+        }
         nms_core_1.context.nodeEvent.emit('postConnect', this);
     };
     onConnect = (req) => {
@@ -33,6 +44,10 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         this.streamQuery = req.query;
     };
     onClose() {
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+            this.pingInterval = null;
+        }
         if (!this.isStop) {
             this.stop();
         }
@@ -60,7 +75,7 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
     stop = () => {
         this.isStop = true;
         this.endTime = Date.now();
-        this.socket.end(() => this.onClose());
+        this.socket.destroy();
     };
 }
 exports.NodeRtmpSession = NodeRtmpSession;

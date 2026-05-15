@@ -316,6 +316,7 @@ class Rtmp {
         this.outChunkSize = RTMP_MAX_CHUNK_SIZE;
 
         this.streams = 0;
+        this.startTimestamp = Date.now();
     }
 
     onConnectCallback = (req: any) => {
@@ -700,7 +701,12 @@ class Rtmp {
     };
 
     eventHandler = () => {
-
+        let payload = this.parserPacket.payload;
+        let eventType = payload.readUInt16BE(0);
+        let eventData = payload.readUInt32BE(2);
+        if (eventType === 7) {
+            // PingResponse
+        }
     };
 
     invokeHandler() {
@@ -867,6 +873,12 @@ class Rtmp {
             bool2: false,
         };
         this.sendDataMessage(sid, opt);
+    }
+
+    sendPing() {
+        let rtmpBuffer = Buffer.from('020000000000060400000000000600000000', 'hex');
+        rtmpBuffer.writeUInt32BE(Date.now() - this.startTimestamp, 14);
+        this.onOutputCallback(rtmpBuffer);
     }
 
     respondConnect(tid: number) {

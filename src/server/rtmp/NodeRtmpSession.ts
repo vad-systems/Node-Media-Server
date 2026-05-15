@@ -7,6 +7,7 @@ import { BaseAvSession, Protocol } from '@vad-systems/nms-server';
 class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     public readonly socket: Socket;
     private rtmp: Rtmp;
+    private pingInterval: NodeJS.Timeout | null = null;
 
     constructor(config: RtmpSessionConfig, socket: Socket) {
         super(config, socket.remoteAddress + ':' + socket.remotePort, Protocol.RTMP);
@@ -25,6 +26,20 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
         this.socket.on('error', this.onError);
         this.socket.on('timeout', this.onClose);
         this.socket.on('end', this.onClose);
+
+        const ping = this.conf.rtmp.ping ?? 30;
+        const pingTimeout = this.conf.rtmp.ping_timeout ?? 60;
+
+        if (pingTimeout > 0) {
+            this.socket.setTimeout(pingTimeout * 1000);
+        }
+
+        if (ping > 0) {
+            this.pingInterval = setInterval(() => {
+                this.rtmp.sendPing();
+            }, ping * 1000);
+        }
+
         context.nodeEvent.emit('postConnect', this);
     };
 
@@ -37,6 +52,11 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     };
 
     onClose() {
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+            this.pingInterval = null;
+        }
+
         if (!this.isStop) {
             this.stop();
         }
@@ -68,7 +88,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     stop = () => {
         this.isStop = true;
         this.endTime = Date.now();
-        this.socket.end(() => this.onClose());
+        this.socket.destroy();
     };
 }
 
