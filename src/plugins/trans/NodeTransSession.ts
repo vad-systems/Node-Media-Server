@@ -13,7 +13,7 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
         super(conf, '127.0.0.1', 'trans');
     }
 
-    run() {
+    start(...args: any[]) {
         const vc: string = this.getConfig('vc') || 'copy';
         const ac: string = this.getConfig('ac') || 'copy';
 
@@ -37,11 +37,11 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
 
             if (rtmpApp) {
                 if (rtmpApp === streamApp) {
-                    this.logger.warn('[Transmuxing RTMP] Cannot output to the same app.');
+                    this.logger.warn(`[Trans] RTMP: cannot output to the same app: ${streamApp}`);
                 } else {
                     let rtmpOutput = `rtmp://127.0.0.1:${rtmpPort}/${rtmpApp}/${streamName}?parentId=${this.id}`;
                     mapStr += `[f=flv]${rtmpOutput}|`;
-                    this.logger.log(`[Transmuxing RTMP] ${streamPath} to ${rtmpOutput}`);
+                    this.logger.log(`[Trans] RTMP: ${streamPath} -> ${rtmpOutput}`);
                 }
             }
         }
@@ -51,7 +51,7 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
             let mp4FileName = dateFormat('yyyy-mm-dd-HH-MM-ss') + '.mp4';
             let mapMp4 = `${mp4Flags}${ouPath}/${mp4FileName}|`;
             mapStr += mapMp4;
-            this.logger.log(`[Transmuxing MP4] ${streamPath} to ${ouPath}/${mp4FileName}`);
+            this.logger.log(`[Trans] MP4: ${streamPath} -> ${ouPath}/${mp4FileName}`);
         }
 
         if (isHls) {
@@ -59,7 +59,7 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
             let hlsFileName = 'index.m3u8';
             let mapHls = `${hlsFlags}${ouPath}/${hlsFileName}|`;
             mapStr += mapHls;
-            this.logger.log(`[Transmuxing HLS] ${streamPath} to ${ouPath}/${hlsFileName}`);
+            this.logger.log(`[Trans] HLS: ${streamPath} -> ${ouPath}/${hlsFileName}`);
         }
 
         if (isDash) {
@@ -67,7 +67,7 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
             let dashFileName = 'index.mpd';
             let mapDash = `${dashFlags}${ouPath}/${dashFileName}`;
             mapStr += mapDash;
-            this.logger.log(`[Transmuxing DASH] ${streamPath} to ${ouPath}/${dashFileName}`);
+            this.logger.log(`[Trans] DASH: ${streamPath} -> ${ouPath}/${dashFileName}`);
         }
 
         mkdirp.sync(ouPath);
@@ -92,13 +92,13 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
 
         let self = this;
         this.on('end', (id) => {
-            this.logger.log('end');
+            this.logger.log(`[Trans] session ended: id=${id}`);
             self.cleanTempFiles(ouPath);
             self.deleteHlsFiles(ouPath);
         });
 
-        this.logger.debug('cmd=ffmpeg', argv.join(' '));
-        super.run(argv);
+        this.logger.debug(`[Trans] ffmpeg cmd: ${argv.join(' ')}`);
+        super.start(argv);
     }
 
     deleteHlsFiles(ouPath: PathLike) {

@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { context, Logger, LoggerFactory } from '@vad-systems/nms-core';
 import { NodeFissionServer } from '@vad-systems/nms-plugin-fission';
-import { NodeHttpServer, NodeRtmpServer, NodeRtmpSession } from '@vad-systems/nms-server';
+import { NodeHttpServer, NodeRtmpServer, NodeRtmpSession, NodeSession } from '@vad-systems/nms-server';
 import { NodeAvServer, NodeAvSession } from '@vad-systems/nms-plugin-av';
 import { NodeRelayServer } from '@vad-systems/nms-plugin-relay';
 import { NodeTransServer } from '@vad-systems/nms-plugin-trans';
@@ -43,15 +43,18 @@ class NodeMediaServer {
             context.stat.accepted++;
         });
 
-        context.nodeEvent.on('doneConnect', (session) => {
+        context.nodeEvent.on('postDone', (session) => {
+            if (!(session instanceof NodeSession)) {
+                return;
+            }
             if (session instanceof NodeAvSession) {
                 let socket = session.req.socket;
-                context.stat.inbytes += socket.bytesRead;
-                context.stat.outbytes += socket.bytesWritten;
+                context.stat.inbytes += socket.bytesRead || 0;
+                context.stat.outbytes += socket.bytesWritten || 0;
             } else if (session instanceof NodeRtmpSession) {
                 let socket = session.socket;
-                context.stat.inbytes += socket.bytesRead;
-                context.stat.outbytes += socket.bytesWritten;
+                context.stat.inbytes += socket.bytesRead || 0;
+                context.stat.outbytes += socket.bytesWritten || 0;
             }
         });
     }
@@ -116,8 +119,9 @@ class NodeMediaServer {
             this.logger.error('uncaughtException', err);
         });
 
-        process.on('SIGINT', function () {
-            process.exit();
+        process.on('SIGINT', async () => {
+            this.stop();
+            setTimeout(() => process.exit(), 1000);
         });
 
         await Promise.allSettled(processorsRunning);

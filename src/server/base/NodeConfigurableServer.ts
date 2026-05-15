@@ -36,6 +36,11 @@ abstract class NodeConfigurableServer {
         this.running = true;
     }
 
+    public async restart() {
+        this.stop();
+        await this.run();
+    }
+
     public stop() {
         this.running = false;
     }

@@ -2,7 +2,7 @@ import fs from 'fs';
 import _ from 'lodash';
 import * as mkdirp from 'mkdirp';
 import { context, LoggerFactory, NodeCoreUtils } from '@vad-systems/nms-core';
-import { TransSessionConfig, checkSelectiveTask } from '@vad-systems/nms-shared';
+import { TransSessionConfig, checkSelectiveTask, SessionState } from '@vad-systems/nms-shared';
 import { BaseAvSession, NodeTaskServer } from '@vad-systems/nms-server';
 import { NodeTransSession } from '@vad-systems/nms-plugin-trans';
 
@@ -15,8 +15,16 @@ class NodeTransServer extends NodeTaskServer {
 
     async run() {
         if (!this.config.trans) {
-            this.logger.error(`Node Media Trans Server startup failed. Config trans is missing.`);
+            this.logger.error(`[Trans] Server startup failed. Config trans is missing.`);
             return;
+        }
+
+        // Cleanup any leftover trans sessions
+        for (let session of context.sessions.values()) {
+            if (session instanceof NodeTransSession) {
+                session.stop();
+                session.cleanup();
+            }
         }
 
         await super.run();
@@ -28,21 +36,21 @@ class NodeTransServer extends NodeTaskServer {
             mkdirp.sync(mediaroot.toString());
             fs.accessSync(mediaroot, fs.constants.W_OK);
         } catch (error) {
-            this.logger.error(`Node Media Trans Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
+            this.logger.error(`[Trans] Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
             return;
         }
 
         try {
             fs.accessSync(ffmpeg, fs.constants.X_OK);
         } catch (error) {
-            this.logger.error(`Node Media Trans Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
+            this.logger.error(`[Trans] Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
             return;
         }
 
         const version = await NodeCoreUtils.getFFmpegVersion(ffmpeg);
         if (version === '' || parseInt(version.split('.')[0]) < 4) {
-            this.logger.error('Node Media Trans Server startup failed. ffmpeg requires version 4.0.0 above');
-            this.logger.error('Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
+            this.logger.error('[Trans] Server startup failed. ffmpeg requires version 4.0.0 above');
+            this.logger.error('[Trans] Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
             return;
         }
 
@@ -54,7 +62,8 @@ class NodeTransServer extends NodeTaskServer {
             apps += ' ';
         }
 
-        this.logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
+        this.logger.log(`[Trans] Server started for apps: [${apps}], MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
+        this.scanBroadcasts();
     }
 
     handleTaskMatching(session: BaseAvSession<any, any>, app: string, name: string) {
@@ -88,10 +97,7 @@ class NodeTransServer extends NodeTaskServer {
             }
             if (isExisting) {
                 this.logger.debug(
-                    '[trans] session still running',
-                    `srcid=${session.id}`,
-                    `streamPath=${session.streamPath}`,
-                    taskConfig,
+                    `[Trans] session still running: srcId=${session.id} streamPath=${session.streamPath}`,
                 );
                 continue;
             }
@@ -106,29 +112,37 @@ class NodeTransServer extends NodeTaskServer {
 
             const id = sess.id;
             sess.on('end', (id) => {
-                this.logger.log('[trans] ended', `id=${id}`, sessionConfig.streamPath);
-                if (sess.broadcast) {
-                    sess.broadcast.subscribers.delete(id);
+                this.logger.log(`[Trans] session ended: id=${id} streamPath=${sessionConfig.streamPath}`);
+                const broadcast = sess.broadcast;
+                if (broadcast) {
+                    broadcast.subscribers.delete(id);
                 }
-                if (sess.isStop) {
+                if (!this.isRunning()) {
                     return;
                 }
                 setTimeout(() => {
-                    if (sess.broadcast && sess.broadcast.publisher) {
-                        this.logger.log('[trans] restart', `id=${id}`, sessionConfig.streamPath);
-                        this.handleTaskMatching(sess.broadcast.publisher as BaseAvSession<any, any>, app, name);
+                    if (broadcast && broadcast.publisher) {
+                        this.logger.log(`[Trans] session restart: id=${id} streamPath=${sessionConfig.streamPath}`);
+                        this.handleTaskMatching(broadcast.publisher as BaseAvSession<any, any>, app, name);
                     }
                 }, 1000);
             });
 
-            sess.run();
+            sess.start();
         }
     }
 
     stop() {
         super.stop();
 
-        this.logger.log(`Node Media Trans Server stopped.`);
+        for (let session of context.sessions.values()) {
+            if (session instanceof NodeTransSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+
+        this.logger.log(`[Trans] Server stopped`);
     }
 }
 

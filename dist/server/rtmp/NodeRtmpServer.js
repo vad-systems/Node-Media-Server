@@ -34,7 +34,7 @@ class NodeRtmpServer extends nms_server_1.NodeConfigurableServer {
         this.port = this.config.rtmp.port || RTMP_PORT;
         this.tcpServer = net_1.default.createServer((socket) => {
             let session = new NodeRtmpSession_js_1.NodeRtmpSession(sessionConfig, socket);
-            session.run();
+            session.start();
         });
         if (this.config.rtmp.ssl) {
             this.sslPort = this.config.rtmp.ssl.port || RTMPS_PORT;
@@ -45,7 +45,7 @@ class NodeRtmpServer extends nms_server_1.NodeConfigurableServer {
                 };
                 this.tlsServer = tls_1.default.createServer(options, (socket) => {
                     let session = new NodeRtmpSession_js_1.NodeRtmpSession(sessionConfig, socket);
-                    session.run();
+                    session.start();
                 });
             }
             catch (e) {
@@ -54,30 +54,39 @@ class NodeRtmpServer extends nms_server_1.NodeConfigurableServer {
         }
     }
     async run() {
-        await super.run();
-        if (!this.isRunning())
+        if (!this.config.rtmp) {
+            this.logger.error(`Node Media Rtmp Server startup failed. Config rtmp is missing.`);
             return;
+        }
+        // Cleanup any leftover RTMP sessions
+        for (let session of nms_core_1.context.sessions.values()) {
+            if (session instanceof NodeRtmpSession_js_1.NodeRtmpSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+        await super.run();
         this.initServer();
         if (!this.tcpServer)
             return;
         this.tcpServer.listen(this.port, () => {
-            this.logger.log(`Node Media Rtmp Server started on port: ${this.port}`);
+            this.logger.log(`[RTMP] Server started on port: ${this.port}`);
         });
         this.tcpServer.on('error', (e) => {
-            this.logger.error(`Node Media Rtmp Server ${e}`);
+            this.logger.error(`[RTMP] Server error: ${e}`);
         });
         this.tcpServer.on('close', () => {
-            this.logger.log('Node Media Rtmp Server Close.');
+            this.logger.log('[RTMP] Server closed');
         });
         if (this.tlsServer) {
             this.tlsServer.listen(this.sslPort, () => {
-                this.logger.log(`Node Media Rtmps Server started on port: ${this.sslPort}`);
+                this.logger.log(`[RTMPS] Server started on port: ${this.sslPort}`);
             });
             this.tlsServer.on('error', (e) => {
-                this.logger.error(`Node Media Rtmps Server ${e}`);
+                this.logger.error(`[RTMPS] Server error: ${e}`);
             });
             this.tlsServer.on('close', () => {
-                this.logger.log('Node Media Rtmps Server Close.');
+                this.logger.log('[RTMPS] Server closed');
             });
         }
     }
@@ -90,9 +99,10 @@ class NodeRtmpServer extends nms_server_1.NodeConfigurableServer {
         nms_core_1.context.sessions.forEach((session, id) => {
             if (session instanceof NodeRtmpSession_js_1.NodeRtmpSession) {
                 session.stop();
+                session.cleanup();
             }
         });
-        this.logger.log(`Node Media Rtmp Server stopped.`);
+        this.logger.log(`[RTMP] Server stopped`);
     }
 }
 exports.NodeRtmpServer = NodeRtmpServer;

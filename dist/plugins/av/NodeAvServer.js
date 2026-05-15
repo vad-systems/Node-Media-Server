@@ -9,7 +9,9 @@ const url_1 = __importDefault(require("url"));
 const nms_core_1 = require("../../core");
 const nms_server_1 = require("../../server");
 const nms_plugin_av_1 = require("./");
+const nms_core_2 = require("../../core");
 class NodeAvServer extends nms_server_1.NodeConfigurableServer {
+    logger = nms_core_2.LoggerFactory.getLogger('AV Server');
     constructor() {
         super();
         this.handleWsRequest = this.handleWsRequest.bind(this);
@@ -26,7 +28,15 @@ class NodeAvServer extends nms_server_1.NodeConfigurableServer {
         this.isAttached = true;
     }
     async run() {
+        // Cleanup any leftover AV sessions
+        for (let session of nms_core_1.context.sessions.values()) {
+            if (session instanceof nms_plugin_av_1.NodeAvSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
         await super.run();
+        this.logger.log('[AV] Server started');
         const server = nms_core_1.context.server;
         if (server?.httpServer?.isRunning()) {
             this.attachHttpServer(server.httpServer);
@@ -82,8 +92,19 @@ class NodeAvServer extends nms_server_1.NodeConfigurableServer {
         };
         const remoteIp = (req.ip || req.socket.remoteAddress) + ':' + req.socket.remotePort;
         let session = new nms_plugin_av_1.NodeAvSession(sessionConf, remoteIp, protocol, info);
+        this.logger.log(`[AV] creating session: protocol=${protocol} streamPath=${info.streamPath} remoteIp=${remoteIp}`);
         session.setTransport(req, res);
-        session.run();
+        session.start();
+    }
+    stop() {
+        super.stop();
+        for (let session of nms_core_1.context.sessions.values()) {
+            if (session instanceof nms_plugin_av_1.NodeAvSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+        this.logger.log('[AV] Server stopped');
     }
 }
 exports.NodeAvServer = NodeAvServer;

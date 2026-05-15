@@ -17,6 +17,7 @@ function getStreams(req, res, next) {
         stats[app][name]['fission'].push({
             app: app,
             name: name,
+            state: session.state,
             path: session.conf.streamPath,
             id: id,
             ts: session.startTime,
@@ -28,25 +29,36 @@ function getStreams(req, res, next) {
 function delStream(req, res, next) {
     let fissionSession = this.sessions.get(req.params.id);
     if (fissionSession instanceof nms_plugin_fission_1.NodeFissionSession) {
-        fissionSession.stop();
-        res.sendStatus(200);
+        fissionSession.stop(true);
+        res.json({ status: 'ok' });
     }
     else {
-        res.sendStatus(404);
+        res.status(404).json({ error: 'fission session not found' });
     }
 }
 function restartStream(req, res, next) {
     let fissionSession = this.sessions.get(req.params.id);
     if (fissionSession instanceof nms_plugin_fission_1.NodeFissionSession) {
         fissionSession.restart();
-        res.sendStatus(200);
+        res.json({ status: 'ok' });
     }
     else {
-        res.sendStatus(404);
+        res.status(404).json({ error: 'fission session not found' });
+    }
+}
+function startStream(req, res, next) {
+    let fissionSession = this.sessions.get(req.params.id);
+    if (fissionSession instanceof nms_plugin_fission_1.NodeFissionSession) {
+        fissionSession.start(req.body);
+        res.json({ status: 'ok' });
+    }
+    else {
+        res.status(404).json({ error: 'fission session not found' });
     }
 }
 exports.default = {
     getStreams,
     delStream,
     restartStream,
+    startStream,
 };

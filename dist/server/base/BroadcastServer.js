@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BroadcastServer = void 0;
 const nms_core_1 = require("../../core");
+const nms_shared_1 = require("../../shared");
 const lodash_1 = require("lodash");
 const node_crypto_1 = __importDefault(require("node:crypto"));
 const utils_js_1 = require("../../core/utils.js");
@@ -13,11 +14,24 @@ class BroadcastServer {
     logger;
     _publisher;
     _subscribers;
+    _state = nms_shared_1.BroadcastState.OFFLINE;
     constructor() {
         this.id = (0, utils_js_1.generateNewSessionID)();
         this.logger = nms_core_1.LoggerFactory.getLogger(`BroadcastServer ${this.id}`);
         this._publisher = null;
         this._subscribers = new Map();
+    }
+    get state() {
+        return this._state;
+    }
+    set state(value) {
+        this._state = value;
+    }
+    register() {
+        this.state = nms_shared_1.BroadcastState.REGISTERING;
+        nms_core_1.context.nodeEvent.emit('preRegister', this);
+        this.state = nms_shared_1.BroadcastState.REGISTERED;
+        nms_core_1.context.nodeEvent.emit('postRegister', this);
     }
     get publisher() {
         return this._publisher;
@@ -25,10 +39,16 @@ class BroadcastServer {
     set publisher(value) {
         this._publisher = value;
         if (value) {
-            this.logger.log(`[publisher] set: ${this._publisher.id}`);
+            this.logger.log(`[publisher] set publisher: ${value.id}`);
+            this.state = nms_shared_1.BroadcastState.LIVE;
+            nms_core_1.context.nodeEvent.emit('live', this);
         }
         else {
-            this.logger.log(`[publisher] remove`);
+            this.logger.log(`[publisher] remove publisher`);
+            if (this.state !== nms_shared_1.BroadcastState.STOPPED && this.state !== nms_shared_1.BroadcastState.STOPPING) {
+                this.state = nms_shared_1.BroadcastState.OFFLINE;
+                nms_core_1.context.nodeEvent.emit('offline', this);
+            }
         }
     }
     get subscribers() {
@@ -41,7 +61,7 @@ class BroadcastServer {
         if (authKey === '') {
             return true;
         }
-        let signStr = session.streamQuery?.sign; // TOOD
+        let signStr = session.streamQuery?.sign; // TODO
         if (signStr?.split('-')?.length !== 2) {
             return false;
         }
@@ -57,7 +77,7 @@ class BroadcastServer {
         return shv === ohv;
     }
     ;
-    postPlay(session) {
+    play(session) {
         nms_core_1.context.nodeEvent.emit('prePlay', session);
         const config = nms_core_1.context.configProvider.getConfig();
         if (config.auth?.play && session.remoteIp !== '') {
@@ -65,20 +85,19 @@ class BroadcastServer {
                 throw new Error(`play stream ${session.streamPath} authentication verification failed`);
             }
         }
-        this.logger.log("[play] session play", session.id);
+        this.logger.log(`[play] session start play: ${session.id}`);
         nms_core_1.context.nodeEvent.emit('postPlay', session);
         session.startTime = Date.now();
         this.subscribers.set(session.id, session);
         nms_core_1.context.idlePlayers.delete(session.id);
     }
     donePlay(session) {
-        this.logger.log("[play] session stop play", session.id);
-        session.endTime = Date.now();
+        this.logger.log(`[play] session stop play: ${session.id}`);
         nms_core_1.context.idlePlayers.add(session.id);
-        nms_core_1.context.nodeEvent.emit('donePlay', session);
+        session.didStop();
         this.subscribers.delete(session.id);
     }
-    postPublish(session) {
+    publish(session) {
         nms_core_1.context.nodeEvent.emit('prePublish', session);
         const config = nms_core_1.context.configProvider.getConfig();
         if (config.auth?.publish) {
@@ -86,7 +105,7 @@ class BroadcastServer {
                 throw new Error(`publish stream ${session.streamPath} authentication verification failed`);
             }
         }
-        this.logger.log("[publish] session publish", session.id);
+        this.logger.log(`[publish] session start publish: ${session.id}`);
         if (this.publisher == null) {
             session.startTime = Date.now();
             this.publisher = session;
@@ -99,16 +118,21 @@ class BroadcastServer {
     }
     donePublish(session) {
         if (session === this.publisher) {
-            this.logger.log("[publish] session stop publish", session.id);
-            session.endTime = Date.now();
+            this.logger.log(`[publish] session stop publish: ${session.id}`);
             nms_core_1.context.idlePlayers.add(session.id);
-            nms_core_1.context.nodeEvent.emit('donePublish', session);
-            this.subscribers.forEach((subscriber) => {
-                subscriber.stop();
-                this.subscribers.delete(subscriber.id);
-            });
+            session.didStop();
             this.publisher = null;
         }
+    }
+    stop(manual = false) {
+        this.state = nms_shared_1.BroadcastState.STOPPING;
+        nms_core_1.context.nodeEvent.emit('preDone', this);
+        if (this.publisher) {
+            this.publisher.stop(manual);
+        }
+        this.publisher = null;
+        this.state = nms_shared_1.BroadcastState.STOPPED;
+        nms_core_1.context.nodeEvent.emit('postDone', this);
     }
 }
 exports.BroadcastServer = BroadcastServer;

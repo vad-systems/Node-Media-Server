@@ -1,7 +1,7 @@
 import { Socket } from 'net';
 import { context } from '@vad-systems/nms-core';
 import { AVPacket, Rtmp } from '@vad-systems/nms-protocol';
-import { RtmpSessionConfig } from '@vad-systems/nms-shared';
+import { RtmpSessionConfig, SessionState } from '@vad-systems/nms-shared';
 import { BaseAvSession, Protocol } from '@vad-systems/nms-server';
 
 class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
@@ -15,7 +15,8 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
         this.rtmp = new Rtmp();
     }
 
-    run = () => {
+    start = () => {
+        super.start();
         this.rtmp.onConnectCallback = this.onConnect;
         this.rtmp.onPlayCallback = this.onPlay;
         this.rtmp.onPushCallback = this.onPush;
@@ -39,8 +40,6 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
                 this.rtmp.sendPing();
             }, ping * 1000);
         }
-
-        context.nodeEvent.emit('postConnect', this);
     };
 
     onConnect = (req: { app: string, name: string, host: string, query: any }) => {
@@ -49,6 +48,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
         this.streamHost = req.host;
         this.streamPath = '/' + req.app + '/' + req.name;
         this.streamQuery = req.query;
+        this.logger.log(`[RTMP] connected: streamPath=${this.streamPath} remoteIp=${this.remoteIp}`);
     };
 
     onClose() {
@@ -57,7 +57,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
             this.pingInterval = null;
         }
 
-        if (!this.isStop) {
+        if (this.state !== SessionState.STOPPED && this.state !== SessionState.STOPPING) {
             this.stop();
         }
 
@@ -73,7 +73,7 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
         try {
             this.rtmp.parserData(data);
         } catch (err: any) {
-            this.logger.warn(`${this.remoteIp} parserData error, ${err}`);
+            this.logger.warn(`[RTMP] parserData error: ${err} remoteIp=${this.remoteIp}`);
             this.stop();
         }
     };
@@ -86,9 +86,12 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
     };
 
     stop = () => {
-        this.isStop = true;
-        this.endTime = Date.now();
+        if (this.state === SessionState.STOPPED || this.state === SessionState.STOPPING) {
+            return;
+        }
+        super.stop();
         this.socket.destroy();
+        this.didStop();
     };
 }
 

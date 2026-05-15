@@ -17,6 +17,7 @@ function getStreams(req, res, next) {
         stats[app][name]['trans'].push({
             app: app,
             name: name,
+            state: session.state,
             path: session.conf.streamPath,
             id: id,
             ts: session.startTime,
@@ -28,25 +29,36 @@ function getStreams(req, res, next) {
 function delStream(req, res, next) {
     let transSession = this.sessions.get(req.params.id);
     if (transSession instanceof nms_plugin_trans_1.NodeTransSession) {
-        transSession.stop();
-        res.sendStatus(200);
+        transSession.stop(true);
+        res.json({ status: 'ok' });
     }
     else {
-        res.sendStatus(404);
+        res.status(404).json({ error: 'trans session not found' });
     }
 }
 function restartStream(req, res, next) {
     let transSession = this.sessions.get(req.params.id);
     if (transSession instanceof nms_plugin_trans_1.NodeTransSession) {
         transSession.restart();
-        res.sendStatus(200);
+        res.json({ status: 'ok' });
     }
     else {
-        res.sendStatus(404);
+        res.status(404).json({ error: 'trans session not found' });
+    }
+}
+function startStream(req, res, next) {
+    let transSession = this.sessions.get(req.params.id);
+    if (transSession instanceof nms_plugin_trans_1.NodeTransSession) {
+        transSession.start(req.body);
+        res.json({ status: 'ok' });
+    }
+    else {
+        res.status(404).json({ error: 'trans session not found' });
     }
 }
 exports.default = {
     getStreams,
     delStream,
     restartStream,
+    startStream,
 };

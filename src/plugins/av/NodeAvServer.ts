@@ -7,8 +7,11 @@ import { context } from '@vad-systems/nms-core';
 import { AvSessionConfig } from '@vad-systems/nms-shared';
 import { NodeConfigurableServer, Protocol, NodeHttpServer } from '@vad-systems/nms-server';
 import { NodeAvSession } from '@vad-systems/nms-plugin-av';
+import { LoggerFactory } from '@vad-systems/nms-core';
 
 class NodeAvServer extends NodeConfigurableServer {
+    private logger = LoggerFactory.getLogger('AV Server');
+
     constructor() {
         super();
         this.handleWsRequest = this.handleWsRequest.bind(this);
@@ -28,7 +31,16 @@ class NodeAvServer extends NodeConfigurableServer {
     }
 
     public async run() {
+        // Cleanup any leftover AV sessions
+        for (let session of context.sessions.values()) {
+            if (session instanceof NodeAvSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+
         await super.run();
+        this.logger.log('[AV] Server started');
         const server = context.server as any;
         if (server?.httpServer?.isRunning()) {
             this.attachHttpServer(server.httpServer);
@@ -98,8 +110,22 @@ class NodeAvServer extends NodeConfigurableServer {
             ).ip || req.socket.remoteAddress
         ) + ':' + req.socket.remotePort;
         let session = new NodeAvSession(sessionConf, remoteIp, protocol, info);
+        this.logger.log(`[AV] creating session: protocol=${protocol} streamPath=${info.streamPath} remoteIp=${remoteIp}`);
         session.setTransport(req, res);
-        session.run();
+        session.start();
+    }
+
+    public stop() {
+        super.stop();
+
+        for (let session of context.sessions.values()) {
+            if (session instanceof NodeAvSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+
+        this.logger.log('[AV] Server stopped');
     }
 }
 

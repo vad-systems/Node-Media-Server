@@ -23,6 +23,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
         stats[app][name]['relays'].push({
             app: app,
             name: name,
+            state: session.state,
             path: session.conf.inPath,
             url: obfuscateUrl(session.conf.ouPath),
             mode: session.conf.mode,
@@ -45,6 +46,7 @@ function getStreamByID(this: Context, req: Request, res: Response, next: NextFun
         {
             app: item.conf.app,
             name: item.conf.name,
+            state: item.state,
             path: item.conf.inPath,
             url: obfuscateUrl(item.conf.ouPath),
             mode: item.conf.mode,
@@ -68,6 +70,7 @@ function getStreamByName(this: Context, req: Request, res: Response, next: NextF
         {
             app: item.conf.app,
             name: item.conf.name,
+            state: item.state,
             url: obfuscateUrl(item.conf.ouPath),
             mode: item.conf.mode,
             ts: item.startTime,
@@ -81,10 +84,10 @@ function getStreamByName(this: Context, req: Request, res: Response, next: NextF
 function delStream(this: Context, req: Request, res: Response, next: NextFunction) {
     let relaySession = this.sessions.get(req.params.id as string);
     if (relaySession instanceof NodeRelaySession) {
-        relaySession.stop();
-        res.sendStatus(200);
+        relaySession.stop(true);
+        res.json({ status: 'ok' });
     } else {
-        res.sendStatus(404);
+        res.status(404).json({ error: 'relay session not found' });
     }
 }
 
@@ -92,9 +95,19 @@ function restartStream(this: Context, req: Request, res: Response, next: NextFun
     let relaySession = this.sessions.get(req.params.id as string);
     if (relaySession instanceof NodeRelaySession) {
         relaySession.restart();
-        res.sendStatus(200);
+        res.json({ status: 'ok' });
     } else {
-        res.sendStatus(404);
+        res.status(404).json({ error: 'relay session not found' });
+    }
+}
+
+function startStream(this: Context, req: Request, res: Response, next: NextFunction) {
+    let relaySession = this.sessions.get(req.params.id as string);
+    if (relaySession instanceof NodeRelaySession) {
+        relaySession.start(req.body);
+        res.json({ status: 'ok' });
+    } else {
+        res.status(404).json({ error: 'relay session not found' });
     }
 }
 
@@ -104,4 +117,5 @@ export default {
     getStreamByName,
     delStream,
     restartStream,
+    startStream,
 };

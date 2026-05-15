@@ -8,6 +8,7 @@ export default (context: Context) => {
     router.get('/:id', relayController.getStreamByID.bind(context));
     router.get('/:app/:name', relayController.getStreamByName.bind(context));
     router.delete('/:id', relayController.delStream.bind(context));
+    router.post('/start/:id', relayController.startStream.bind(context));
     router.post('/restart/:id', relayController.restartStream.bind(context));
     return router;
 };

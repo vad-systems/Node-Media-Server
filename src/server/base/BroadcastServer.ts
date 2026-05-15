@@ -1,5 +1,5 @@
 import { context, LoggerFactory, LoggerInstance } from '@vad-systems/nms-core';
-import { SessionConfig, SessionID } from '@vad-systems/nms-shared';
+import { BroadcastState, SessionConfig, SessionID, SessionState } from '@vad-systems/nms-shared';
 import { parseInt } from 'lodash';
 import crypto from 'node:crypto';
 import { generateNewSessionID } from '../../core/utils.js';
@@ -10,12 +10,28 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
     public readonly logger: LoggerInstance;
     private _publisher: S | null;
     private _subscribers: Map<string, NodeSession<any, any>>;
+    private _state: BroadcastState = BroadcastState.OFFLINE;
 
     constructor() {
         this.id = generateNewSessionID();
         this.logger = LoggerFactory.getLogger(`BroadcastServer ${this.id}`);
         this._publisher = null;
         this._subscribers = new Map();
+    }
+
+    public get state(): BroadcastState {
+        return this._state;
+    }
+
+    protected set state(value: BroadcastState) {
+        this._state = value;
+    }
+
+    public register() {
+        this.state = BroadcastState.REGISTERING;
+        context.nodeEvent.emit('preRegister', this);
+        this.state = BroadcastState.REGISTERED;
+        context.nodeEvent.emit('postRegister', this);
     }
 
     public get publisher(): S | null {
@@ -25,9 +41,15 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
     public set publisher(value: S | null) {
         this._publisher = value;
         if (value) {
-            this.logger.log(`[publisher] set: ${this._publisher.id}`);
+            this.logger.log(`[publisher] set publisher: ${value.id}`);
+            this.state = BroadcastState.LIVE;
+            context.nodeEvent.emit('live', this);
         } else {
-            this.logger.log(`[publisher] remove`);
+            this.logger.log(`[publisher] remove publisher`);
+            if (this.state !== BroadcastState.STOPPED && this.state !== BroadcastState.STOPPING) {
+                this.state = BroadcastState.OFFLINE;
+                context.nodeEvent.emit('offline', this);
+            }
         }
     }
 
@@ -43,7 +65,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
         if (authKey === '') {
             return true;
         }
-        let signStr = session.streamQuery?.sign as string; // TOOD
+        let signStr = session.streamQuery?.sign as string; // TODO
         if (signStr?.split('-')?.length !== 2) {
             return false;
         }
@@ -59,7 +81,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
         return shv === ohv;
     };
 
-    public postPlay(session: S) {
+    public play(session: S) {
         context.nodeEvent.emit('prePlay', session);
 
         const config = context.configProvider.getConfig();
@@ -70,7 +92,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
             }
         }
 
-        this.logger.log("[play] session play", session.id);
+        this.logger.log(`[play] session start play: ${session.id}`);
         context.nodeEvent.emit('postPlay', session);
 
         session.startTime = Date.now();
@@ -79,14 +101,13 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
     }
 
     public donePlay(session: S) {
-        this.logger.log("[play] session stop play", session.id);
-        session.endTime = Date.now();
+        this.logger.log(`[play] session stop play: ${session.id}`);
         context.idlePlayers.add(session.id);
-        context.nodeEvent.emit('donePlay', session);
+        session.didStop();
         this.subscribers.delete(session.id);
     }
 
-    public postPublish(session: S) {
+    public publish(session: S) {
         context.nodeEvent.emit('prePublish', session);
 
         const config = context.configProvider.getConfig();
@@ -97,7 +118,7 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
             }
         }
 
-        this.logger.log("[publish] session publish", session.id);
+        this.logger.log(`[publish] session start publish: ${session.id}`);
         if (this.publisher == null) {
             session.startTime = Date.now();
             this.publisher = session;
@@ -110,19 +131,27 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
 
     public donePublish(session: S) {
         if (session === this.publisher) {
-            this.logger.log("[publish] session stop publish", session.id);
+            this.logger.log(`[publish] session stop publish: ${session.id}`);
 
-            session.endTime = Date.now();
             context.idlePlayers.add(session.id);
-            context.nodeEvent.emit('donePublish', session);
-
-            this.subscribers.forEach((subscriber) => {
-                subscriber.stop();
-                this.subscribers.delete(subscriber.id);
-            });
+            session.didStop();
 
             this.publisher = null;
         }
+    }
+
+    public stop(manual = false) {
+        this.state = BroadcastState.STOPPING;
+        context.nodeEvent.emit('preDone', this);
+
+        if (this.publisher) {
+            this.publisher.stop(manual);
+        }
+
+        this.publisher = null;
+
+        this.state = BroadcastState.STOPPED;
+        context.nodeEvent.emit('postDone', this);
     }
 }
 

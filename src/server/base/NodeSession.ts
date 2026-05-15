@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { ParsedUrlQuery } from 'querystring';
 import { AVPacket } from '@vad-systems/nms-protocol';
 import { context, LoggerFactory, LoggerInstance, NodeCoreUtils } from '@vad-systems/nms-core';
-import { SessionConfig, SessionID } from '@vad-systems/nms-shared';
+import { SessionConfig, SessionID, SessionState } from '@vad-systems/nms-shared';
 import type { BroadcastServer } from './BroadcastServer.js';
 
 type SessionEventMap = {
@@ -34,22 +34,27 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
     private _inBytes: number = 0;
     private _outBytes: number = 0;
 
-    private _isStop: boolean = false;
     private _parentId: SessionID | null = null;
+    private _state: SessionState = SessionState.CONNECTING;
+    private _isManualStop: boolean = false;
 
     protected constructor(conf: T, remoteIp: string, tag: string) {
         super();
+        this.state = SessionState.CONNECTING;
         this.conf = _.cloneDeep(conf);
         this.id = NodeCoreUtils.generateNewSessionID();
         this.remoteIp = remoteIp;
         this.TAG = tag;
         this.logger = LoggerFactory.getLogger(`${this.TAG} ${this.id}`);
+        context.nodeEvent.emit('preConnect', this);
         context.sessions.set(this.id, this);
         context.idlePlayers.add(this.id);
-        context.nodeEvent.emit('preConnect', this);
+        this.state = SessionState.CONNECTED;
+        context.nodeEvent.emit('postConnect', this);
     }
 
     public cleanup() {
+        this.broadcast = null;
         context.sessions.delete(this.id);
         context.idlePlayers.delete(this.id);
     }
@@ -68,9 +73,11 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
     }
 
     public isLocal() {
-        return this.remoteIp.startsWith('127.0.0.1')
-            || this.remoteIp.startsWith('::1')
-            || this.remoteIp.startsWith('::ffff:127.0.0.1');
+        return this.remoteIp === 'localhost' ||
+            this.remoteIp.startsWith('127.') ||
+            this.remoteIp === '::1' ||
+            this.remoteIp === '::ffff:127.0.0.1' ||
+            this.remoteIp.startsWith('::ffff:127.');
     }
 
     public isFfmpegTask() {
@@ -129,7 +136,36 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
     }
 
     public set broadcast(value: BroadcastServer<any, any> | null) {
+        if (this._broadcast) {
+            context.nodeEvent.off('offline', this.onBroadcastOffline);
+            context.nodeEvent.off('postDone', this.onBroadcastStop);
+        }
         this._broadcast = value;
+        if (value) {
+            context.nodeEvent.on('offline', this.onBroadcastOffline);
+            context.nodeEvent.on('postDone', this.onBroadcastStop);
+        }
+    }
+
+    private onBroadcastOffline = (broadcast: any) => {
+        if (broadcast === this.broadcast) {
+            this.logger.log(`[session] broadcast went offline`);
+            this.onOffline();
+            if (this._isManualStop) {
+                this.cleanup();
+            }
+        }
+    };
+
+    private onBroadcastStop = (broadcast: any) => {
+        if (broadcast === this.broadcast) {
+            this.logger.log(`[session] broadcast stopped`);
+            this.stop();
+        }
+    };
+
+    protected onOffline() {
+        this.stop();
     }
 
     public get broadcast(): BroadcastServer<any, any> | null {
@@ -168,13 +204,6 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
         return this._outBytes;
     }
 
-    public get isStop(): boolean {
-        return this._isStop;
-    }
-
-    public set isStop(value: boolean) {
-        this._isStop = value;
-    }
 
     public get parentId(): SessionID | null {
         return this._parentId;
@@ -184,7 +213,57 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
         this._parentId = value;
     }
 
-    abstract stop(): void;
+    public get state(): SessionState {
+        return this._state;
+    }
+
+    public set state(value: SessionState) {
+        this._state = value;
+    }
+
+    public get isManualStop(): boolean {
+        return this._isManualStop;
+    }
+
+    public start(...args: any[]): void {
+        this.logger.log(`[session start] state: ${this.state} -> ${SessionState.STARTING}`);
+        this._isManualStop = false;
+        this.state = SessionState.STARTING;
+    }
+
+    public stop(manual: boolean = false): void {
+        if (this.state === SessionState.STOPPED || this.state === SessionState.STOPPING) {
+            return;
+        }
+        if (manual) {
+            this._isManualStop = true;
+        }
+        this.logger.log(`[session stop] manual=${manual} state: ${this.state} -> ${SessionState.STOPPING}`);
+        if (this.state !== SessionState.RESTARTING) {
+            this.state = SessionState.STOPPING;
+        }
+        context.nodeEvent.emit('preDone', this);
+    }
+
+    public didStop(): void {
+        if (this.state === SessionState.STOPPED) {
+            return;
+        }
+        this.logger.log(`[session didStop] state: ${this.state}`);
+        this.endTime = Date.now();
+        const stateBeforeEmit = this.state;
+        context.nodeEvent.emit('postDone', this);
+        if (this.state === stateBeforeEmit) {
+            this.state = SessionState.STOPPED;
+        }
+    }
+
+    public restart(): void {
+        this.logger.log(`[session restart] state: ${this.state} -> ${SessionState.RESTARTING}`);
+        this.state = SessionState.RESTARTING;
+        context.nodeEvent.emit('restart', this);
+        this.stop();
+    }
 
     abstract sendBuffer(buffer: Buffer | AVPacket): void;
 }

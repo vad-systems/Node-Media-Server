@@ -2,7 +2,7 @@ import fs from 'fs';
 import _ from 'lodash';
 import * as mkdirp from 'mkdirp';
 import { context, LoggerFactory, NodeCoreUtils } from '@vad-systems/nms-core';
-import { FissionSessionConfig, checkSelectiveTask } from '@vad-systems/nms-shared';
+import { FissionSessionConfig, checkSelectiveTask, SessionState } from '@vad-systems/nms-shared';
 import { BaseAvSession, NodeTaskServer } from '@vad-systems/nms-server';
 import { NodeFissionSession } from '@vad-systems/nms-plugin-fission';
 
@@ -15,8 +15,16 @@ class NodeFissionServer extends NodeTaskServer {
 
     async run() {
         if (!this.config.fission) {
-            this.logger.error(`Node Media Fission Server startup failed. Config fission is missing.`);
+            this.logger.error(`[Fission] Server startup failed. Config fission is missing.`);
             return;
+        }
+
+        // Cleanup any leftover fission sessions
+        for (let session of context.sessions.values()) {
+            if (session instanceof NodeFissionSession) {
+                session.stop();
+                session.cleanup();
+            }
         }
 
         await super.run();
@@ -25,43 +33,35 @@ class NodeFissionServer extends NodeTaskServer {
             mkdirp.sync(this.config.http.mediaroot.toString());
             fs.accessSync(this.config.http.mediaroot, fs.constants.W_OK);
         } catch (error) {
-            this.logger.error(`Node Media Fission Server startup failed. MediaRoot:${this.config.http.mediaroot} cannot be written.`);
+            this.logger.error(`[Fission] Server startup failed. MediaRoot:${this.config.http.mediaroot} cannot be written.`);
             return;
         }
 
         try {
             fs.accessSync(this.config.fission.ffmpeg, fs.constants.X_OK);
         } catch (error) {
-            this.logger.error(`Node Media Fission Server startup failed. ffmpeg:${this.config.fission.ffmpeg} cannot be executed.`);
+            this.logger.error(`[Fission] Server startup failed. ffmpeg:${this.config.fission.ffmpeg} cannot be executed.`);
             return;
         }
 
         let version = await NodeCoreUtils.getFFmpegVersion(this.config.fission.ffmpeg);
         if (version === '' || parseInt(version.split('.')[0]) < 4) {
-            this.logger.error('Node Media Fission Server startup failed. ffmpeg requires version 4.0.0 above');
-            this.logger.error('Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
+            this.logger.error('[Fission] Server startup failed. ffmpeg requires version 4.0.0 above');
+            this.logger.error('[Fission] Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
             return;
         }
 
-        this.logger.log(`Node Media Fission Server started, MediaRoot: ${this.config.http.mediaroot}, ffmpeg version: ${version}`);
+        this.logger.log(`[Fission] Server started, MediaRoot: ${this.config.http.mediaroot}, ffmpeg version: ${version}`);
+        this.scanBroadcasts();
     }
 
     handleTaskMatching(session: BaseAvSession<any, any>, app: string, name: string) {
         const srcId = session.id;
-        this.logger.debug(
-            '[fission postPublish] Check for fission tasks',
-            `id=${srcId}`,
-            `streamPath=${session.streamPath}`,
-        );
+        this.logger.debug(`[Fission] check for fission tasks: id=${srcId} streamPath=${session.streamPath}`);
         for (let task of this.config.fission.tasks) {
             if (!checkSelectiveTask(task, app, session.streamPath)) {
                 this.logger.debug(
-                    '[fission] pattern check failed, skip',
-                    `pattern=${task.pattern}`,
-                    `srcid=${srcId}`,
-                    `app=${app}`,
-                    `streamPath=${session.streamPath}`,
-                    task,
+                    `[Fission] pattern check failed: pattern=${task.pattern} srcId=${srcId} app=${app} streamPath=${session.streamPath}`,
                 );
                 continue;
             }
@@ -75,10 +75,7 @@ class NodeFissionServer extends NodeTaskServer {
             }
             if (isExisting) {
                 this.logger.debug(
-                    '[fission] session still running',
-                    `srcid=${srcId}`,
-                    `streamPath=${session.streamPath}`,
-                    task,
+                    `[Fission] session still running: srcId=${srcId} streamPath=${session.streamPath}`,
                 );
                 continue;
             }
@@ -86,17 +83,12 @@ class NodeFissionServer extends NodeTaskServer {
             const broadcast = session.broadcast;
             const nameSegments = name.split('_');
             if (!broadcast) {
-                this.logger.warn('No broadcast found', srcId);
+                this.logger.warn(`[Fission] no broadcast found for session: ${srcId}`);
                 continue;
             }
             if (broadcast.publisher.isLocal() && nameSegments.length > 0 && !isNaN(parseInt(nameSegments[nameSegments.length - 1]))) {
                 this.logger.debug(
-                    '[fission] duplication check failed, skip',
-                    `pattern=${task.pattern}`,
-                    `srcid=${srcId}`,
-                    `app=${app}`,
-                    `streamPath=${session.streamPath}`,
-                    task,
+                    `[Fission] duplication check failed: pattern=${task.pattern} srcId=${srcId} app=${app} streamPath=${session.streamPath}`,
                 );
                 continue;
             }
@@ -121,46 +113,31 @@ class NodeFissionServer extends NodeTaskServer {
             }
 
             this.logger.log(
-                '[fission] start',
-                `srcid=${srcId}`,
-                `id=${id}`,
-                sessionConf.streamPath,
-                `x${taskConf.model.length}`,
+                `[Fission] session start: srcId=${srcId} id=${id} streamPath=${sessionConf.streamPath} tasks=${taskConf.model.length}`,
             );
             sess.on('end', (id) => {
                 this.logger.log(
-                    '[fission] ended',
-                    `srcid=${srcId}`,
-                    `id=${id}`,
-                    sessionConf.streamPath,
-                    `x${taskConf.model.length}`,
+                    `[Fission] session ended: srcId=${srcId} id=${id} streamPath=${sessionConf.streamPath} tasks=${taskConf.model.length}`,
                 );
-                if (sess.broadcast) {
-                    sess.broadcast.subscribers.delete(id);
+                const broadcast = sess.broadcast;
+                if (broadcast) {
+                    broadcast.subscribers.delete(id);
                 }
-                if (sess.isStop) {
+                if (!this.isRunning()) {
                     return;
                 }
                 setTimeout(() => {
-                    if (sess.broadcast && sess.broadcast.publisher) {
+                    if (broadcast && broadcast.publisher) {
                         this.logger.log(
-                            '[fission] restart',
-                            `srcid=${srcId}`,
-                            `id=${id}`,
-                            sessionConf.streamPath,
-                            `x${taskConf.model.length}`,
+                            `[Fission] session restart: srcId=${srcId} id=${id} streamPath=${sessionConf.streamPath} tasks=${taskConf.model.length}`,
                         );
-                        this.handleTaskMatching(sess.broadcast.publisher as BaseAvSession<any, any>, app, name);
+                        this.handleTaskMatching(broadcast.publisher as BaseAvSession<any, any>, app, name);
                     }
                 }, 1000);
             });
-            sess.run();
+            sess.start();
             this.logger.log(
-                '[fission] started',
-                `srcid=${srcId}`,
-                `id=${id}`,
-                sessionConf.streamPath,
-                `x${taskConf.model.length}`,
+                `[Fission] session started: srcId=${srcId} id=${id} streamPath=${sessionConf.streamPath} tasks=${taskConf.model.length}`,
             );
         }
     }
@@ -168,7 +145,14 @@ class NodeFissionServer extends NodeTaskServer {
     stop() {
         super.stop();
 
-        this.logger.log(`Node Media Fission Server stopped.`);
+        for (let session of context.sessions.values()) {
+            if (session instanceof NodeFissionSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+
+        this.logger.log(`[Fission] Server stopped`);
     }
 }
 

@@ -4,6 +4,7 @@ exports.NodeFfmpegSession = void 0;
 const child_process_1 = require("child_process");
 const node_buffer_1 = require("node:buffer");
 const nms_core_1 = require("../../core");
+const nms_shared_1 = require("../../shared");
 const NodeSession_js_1 = require("./NodeSession.js");
 class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
     ffmpeg_exec = null;
@@ -16,43 +17,56 @@ class NodeFfmpegSession extends NodeSession_js_1.NodeSession {
     getRtmpInputPath(port, streamPath) {
         return `rtmp://127.0.0.1:${port}${streamPath}`;
     }
-    run(argv) {
+    start(argv) {
+        super.start();
         let argumentList = argv.filter(Boolean);
         this.ffmpeg_exec = (0, child_process_1.spawn)(this.conf.ffmpeg, argumentList);
         this.startTime = Date.now();
+        this.state = nms_shared_1.SessionState.RUNNING;
         nms_core_1.context.idlePlayers.delete(this.id);
         this.ffmpeg_exec.on('error', (e) => {
-            this.logger.ffdebug(`[ffmpeg error] ${e}`);
+            this.logger.ffdebug(`[ffmpeg] error: ${e}`);
         });
         this.ffmpeg_exec.stdout.on('data', (data) => {
-            this.logger.ffdebug(`[ffmpeg stdout] ${data}`);
+            this.logger.ffdebug(`[ffmpeg] stdout: ${data}`);
         });
         this.ffmpeg_exec.stderr.on('data', (data) => {
-            this.logger.ffdebug(`[ffmpeg stderr] ${data}`);
+            this.logger.ffdebug(`[ffmpeg] stderr: ${data}`);
         });
         this.ffmpeg_exec.on('close', (code) => {
-            this.logger.log(`[ffmpeg end] terminated with code`, code);
+            this.logger.log(`[ffmpeg] closed: code=${code}`);
+            this.ffmpeg_exec = null;
             this.emit('end', this.id);
-            nms_core_1.context.nodeEvent.emit('doneConnect', this);
-            this.cleanup();
+            this.didStop();
+            if (!this.isManualStop) {
+                this.cleanup();
+            }
         });
-        nms_core_1.context.nodeEvent.emit('postConnect', this);
     }
     end() {
-        this.logger.log("[ffmpeg end] ffmpeg kill:SIGTERM", this.id);
-        if (!this.ffmpeg_exec.kill("SIGTERM")) {
-            this.logger.warn("[ffmpeg end] ffmpeg kill:SIGKILL", this.id);
-            this.ffmpeg_exec.kill("SIGKILL");
+        this.logger.log(`[ffmpeg] kill SIGTERM: id=${this.id}`);
+        if (this.ffmpeg_exec) {
+            if (!this.ffmpeg_exec.kill("SIGTERM")) {
+                this.logger.warn(`[ffmpeg] kill SIGKILL: id=${this.id}`);
+                this.ffmpeg_exec.kill("SIGKILL");
+            }
+        }
+        else {
+            this.logger.warn(`[ffmpeg] already terminated or never started: id=${this.id}`);
+            this.emit('end', this.id);
+            this.didStop();
+            if (!this.isManualStop) {
+                this.cleanup();
+            }
         }
     }
-    stop() {
-        this.logger.log("[ffmpeg stop] session stop", this.id);
-        this.isStop = true;
+    stop(manual = false) {
+        if (this.state === nms_shared_1.SessionState.STOPPED || this.state === nms_shared_1.SessionState.STOPPING) {
+            return;
+        }
+        this.logger.log(`[ffmpeg] session stop: id=${this.id} manual=${manual}`);
+        super.stop(manual);
         this.endTime = Date.now();
-        this.end();
-    }
-    restart() {
-        this.logger.log("[ffmpeg restart] session restart", this.id);
         this.end();
     }
     sendBuffer(buffer) {

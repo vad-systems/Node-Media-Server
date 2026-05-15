@@ -340,7 +340,7 @@ class Rtmp {
                     // logger.log('RTMP_HANDSHAKE_1');
                     n = RTMP_HANDSHAKE_SIZE - this.handshakeBytes;
                     n = n <= bytes ? n : bytes;
-                    buffer.copy(this.handshakePayload, this.handshakeBytes, p, n);
+                    buffer.copy(this.handshakePayload, this.handshakeBytes, p, p + n);
                     this.handshakeBytes += n;
                     bytes -= n;
                     p += n;
@@ -562,7 +562,7 @@ class Rtmp {
             cid = 64 + this.parserBuffer[1];
         }
         else if (this.parserBasicBytes === 3) {
-            cid = (64 + this.parserBuffer[1] + this.parserBuffer[2]) << 8;
+            cid = 64 + this.parserBuffer[1] + (this.parserBuffer[2] << 8);
         }
         else {
             cid = this.parserBuffer[0] & 0x3f;
@@ -675,7 +675,13 @@ class Rtmp {
         this.onPacketCallback(packet);
     };
     onConnect = (invokeMessage) => {
-        const url = new URL(invokeMessage.cmdObj.tcUrl);
+        let url;
+        try {
+            url = new URL(invokeMessage.cmdObj.tcUrl);
+        }
+        catch (e) {
+            url = { hostname: 'localhost' };
+        }
         this.connectCmdObj = invokeMessage.cmdObj;
         this.streamApp = invokeMessage.cmdObj.app;
         this.streamHost = url.hostname;

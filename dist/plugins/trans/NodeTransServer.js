@@ -51,8 +51,15 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
     }
     async run() {
         if (!this.config.trans) {
-            this.logger.error(`Node Media Trans Server startup failed. Config trans is missing.`);
+            this.logger.error(`[Trans] Server startup failed. Config trans is missing.`);
             return;
+        }
+        // Cleanup any leftover trans sessions
+        for (let session of nms_core_1.context.sessions.values()) {
+            if (session instanceof nms_plugin_trans_1.NodeTransSession) {
+                session.stop();
+                session.cleanup();
+            }
         }
         await super.run();
         const mediaroot = this.config.http.mediaroot;
@@ -62,20 +69,20 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
             fs_1.default.accessSync(mediaroot, fs_1.default.constants.W_OK);
         }
         catch (error) {
-            this.logger.error(`Node Media Trans Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
+            this.logger.error(`[Trans] Server startup failed. MediaRoot:${mediaroot} cannot be written.`);
             return;
         }
         try {
             fs_1.default.accessSync(ffmpeg, fs_1.default.constants.X_OK);
         }
         catch (error) {
-            this.logger.error(`Node Media Trans Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
+            this.logger.error(`[Trans] Server startup failed. ffmpeg:${ffmpeg} cannot be executed.`);
             return;
         }
         const version = await nms_core_1.NodeCoreUtils.getFFmpegVersion(ffmpeg);
         if (version === '' || parseInt(version.split('.')[0]) < 4) {
-            this.logger.error('Node Media Trans Server startup failed. ffmpeg requires version 4.0.0 above');
-            this.logger.error('Download the latest ffmpeg static program:', nms_core_1.NodeCoreUtils.getFFmpegUrl());
+            this.logger.error('[Trans] Server startup failed. ffmpeg requires version 4.0.0 above');
+            this.logger.error('[Trans] Download the latest ffmpeg static program:', nms_core_1.NodeCoreUtils.getFFmpegUrl());
             return;
         }
         const tasks = this.config.trans.tasks || [];
@@ -85,7 +92,8 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
             apps += tasks[i].app;
             apps += ' ';
         }
-        this.logger.log(`Node Media Trans Server started for apps: [${apps}] , MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
+        this.logger.log(`[Trans] Server started for apps: [${apps}], MediaRoot: ${mediaroot}, ffmpeg version: ${version}`);
+        this.scanBroadcasts();
     }
     handleTaskMatching(session, app, name) {
         const { tasks, ffmpeg } = this.config.trans;
@@ -114,7 +122,7 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
                 }
             }
             if (isExisting) {
-                this.logger.debug('[trans] session still running', `srcid=${session.id}`, `streamPath=${session.streamPath}`, taskConfig);
+                this.logger.debug(`[Trans] session still running: srcId=${session.id} streamPath=${session.streamPath}`);
                 continue;
             }
             let sess = new nms_plugin_trans_1.NodeTransSession(sessionConfig);
@@ -125,26 +133,33 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
             }
             const id = sess.id;
             sess.on('end', (id) => {
-                this.logger.log('[trans] ended', `id=${id}`, sessionConfig.streamPath);
-                if (sess.broadcast) {
-                    sess.broadcast.subscribers.delete(id);
+                this.logger.log(`[Trans] session ended: id=${id} streamPath=${sessionConfig.streamPath}`);
+                const broadcast = sess.broadcast;
+                if (broadcast) {
+                    broadcast.subscribers.delete(id);
                 }
-                if (sess.isStop) {
+                if (!this.isRunning()) {
                     return;
                 }
                 setTimeout(() => {
-                    if (sess.broadcast && sess.broadcast.publisher) {
-                        this.logger.log('[trans] restart', `id=${id}`, sessionConfig.streamPath);
-                        this.handleTaskMatching(sess.broadcast.publisher, app, name);
+                    if (broadcast && broadcast.publisher) {
+                        this.logger.log(`[Trans] session restart: id=${id} streamPath=${sessionConfig.streamPath}`);
+                        this.handleTaskMatching(broadcast.publisher, app, name);
                     }
                 }, 1000);
             });
-            sess.run();
+            sess.start();
         }
     }
     stop() {
         super.stop();
-        this.logger.log(`Node Media Trans Server stopped.`);
+        for (let session of nms_core_1.context.sessions.values()) {
+            if (session instanceof nms_plugin_trans_1.NodeTransSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+        this.logger.log(`[Trans] Server stopped`);
     }
 }
 exports.NodeTransServer = NodeTransServer;

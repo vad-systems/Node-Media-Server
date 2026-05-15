@@ -6,7 +6,7 @@ class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
         super(conf, '127.0.0.1', 'relay');
     }
 
-    run() {
+    start(...args: any[]) {
         let format = this.conf.ouPath.startsWith('rtsp://') ? 'rtsp' : 'flv';
         let ouPath = this.conf.ouPath;
         if (ouPath.startsWith('rtmp://127.0.0.1') || ouPath.startsWith('rtmp://localhost')) {
@@ -38,8 +38,8 @@ class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
             }
         }
 
-        this.logger.debug('cmd=ffmpeg', argv.join(' '));
-        super.run(argv);
+        this.logger.debug(`[Relay] ffmpeg cmd: ${argv.join(' ')}`);
+        super.start(argv);
     }
 }
 

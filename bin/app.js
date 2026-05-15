@@ -189,9 +189,9 @@ nms.on("postConnect", (session) => {
     console.log("[NodeEvent on postConnect]", `id=${session.id} ip=${session.remoteIp} tag=${session.TAG}`);
 });
 
-nms.on("doneConnect", (session) => {
+nms.on("postDone", (session) => {
     console.log(
-        "[NodeEvent on doneConnect]",
+        "[NodeEvent on postDone]",
         `id=${session.id} ip=${session.remoteIp} tag=${session.TAG} inBytes=${session.inBytes} outBytes=${session.outBytes}`,
     );
 });
@@ -210,12 +210,6 @@ nms.on("postPublish", (session) => {
     );
 });
 
-nms.on("donePublish", (session) => {
-    console.log(
-        "[NodeEvent on donePublish]",
-        `id=${session.id} StreamPath=${session.streamPath} args=${JSON.stringify(session.streamQuery)}`,
-    );
-});
 
 nms.on("prePlay", (session) => {
     console.log(
@@ -227,13 +221,6 @@ nms.on("prePlay", (session) => {
 nms.on("postPlay", (session) => {
     console.log(
         "[NodeEvent on postPlay]",
-        `id=${session.id} StreamPath=${session.streamPath} args=${JSON.stringify(session.streamQuery)}`,
-    );
-});
-
-nms.on("donePlay", (session) => {
-    console.log(
-        "[NodeEvent on donePlay]",
         `id=${session.id} StreamPath=${session.streamPath} args=${JSON.stringify(session.streamQuery)}`,
     );
 });

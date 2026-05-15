@@ -28,8 +28,26 @@ class AvBroadcastServer extends BroadcastServer_js_1.BroadcastServer {
         this.flvGopCache = null;
         this.rtmpGopCache = null;
     }
-    postPlay(session) {
-        super.postPlay(session);
+    get getFlvMetaData() {
+        return this.flvMetaData;
+    }
+    get getFlvAudioHeader() {
+        return this.flvAudioHeader;
+    }
+    get getFlvVideoHeader() {
+        return this.flvVideoHeader;
+    }
+    get getRtmpMetaData() {
+        return this.rtmpMetaData;
+    }
+    get getRtmpAudioHeader() {
+        return this.rtmpAudioHeader;
+    }
+    get getRtmpVideoHeader() {
+        return this.rtmpVideoHeader;
+    }
+    play(session) {
+        super.play(session);
         switch (session.protocol) {
             case Protocol_js_1.Protocol.HTTP_FLV:
             case Protocol_js_1.Protocol.WS_FLV:

@@ -1,7 +1,8 @@
 import { context } from '@vad-systems/nms-core';
 import { AVPacket } from '@vad-systems/nms-protocol';
 import { AvBroadcastServer, BaseAvSession, Protocol } from '@vad-systems/nms-server';
-import { SessionConfig } from '@vad-systems/nms-shared';
+import { BroadcastState, SessionConfig } from '@vad-systems/nms-shared';
+import type { SwitchSession } from './SwitchSession.js';
 
 export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConfig<C>>> extends AvBroadcastServer<C, S> {
     private activeSourcePath: string | null = null;
@@ -12,7 +13,7 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
     private switchTimer: NodeJS.Timeout | null = null;
     private forceSwitchNext: boolean = false;
     private manualSwitch: boolean = false;
-    private virtualPublisher: S | null = null;
+    private activeSession: SwitchSession | null = null;
 
     constructor() {
         super();
@@ -20,6 +21,10 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
 
     public get activeSource(): string | null {
         return this.activeSourcePath;
+    }
+
+    public get currentSession(): SwitchSession | null {
+        return this.activeSession;
     }
 
     public get pendingSource(): string | null {
@@ -37,35 +42,19 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
     public setInitialSource(sourcePath: string) {
         this.activeSourcePath = sourcePath;
         this.manualSwitch = false;
-        // Check if initial source is already active
-        const sourceBroadcast = context.broadcasts.get(sourcePath) as AvBroadcastServer<any, any>;
-        if (sourceBroadcast && sourceBroadcast.publisher && !sourceBroadcast.publisher.isStop) {
-            if (this.virtualPublisher) {
-                this.virtualPublisher.isStop = false;
-                if (this.publisher == null) {
-                    this.postPublish(this.virtualPublisher);
-                }
-            }
-        } else {
-            this.publisher = null;
-        }
         // Optionally pre-load headers from initial source if it's already publishing
         this.sendSourceHeaders(sourcePath);
     }
 
-    public setVirtualPublisher(session: S) {
-        this.virtualPublisher = session;
-    }
-
-    public handleSourcePacket(sourcePath: string, packet: AVPacket) {
+    public handleSourcePacket(sourcePath: string, packet: AVPacket, session: SwitchSession) {
         if (this.switching && sourcePath === this.pendingSourcePath) {
             // Check for video keyframe to perform cut-over or if we are forcing it
             if (packet.flags === 3 || this.forceSwitchNext) {
-                this.cutOver(sourcePath, packet);
+                this.cutOver(sourcePath, packet, session);
             }
         }
 
-        if (sourcePath !== this.activeSourcePath) {
+        if (sourcePath !== this.activeSourcePath || session !== this.activeSession) {
             return;
         }
 
@@ -74,7 +63,7 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         // Track last output DTS to calculate offset later
         this.lastOutputDts = adjustedPacket.dts;
 
-        this.broadcastMessage(adjustedPacket);
+        session.forwardPacket(adjustedPacket);
     }
 
     private adjustTimestamp(packet: AVPacket): AVPacket {
@@ -92,8 +81,22 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         return newPacket;
     }
 
-    public switchSource(newSourcePath: string | null, timeout: number = 0, isManual: boolean = true) {
-        if (newSourcePath === this.activeSourcePath) {
+    public restart() {
+        this.logger.log(`[Switch] restarting broadcast`);
+        this.cancelSwitch();
+        this.activeSourcePath = null;
+        this.pendingSourcePath = null;
+        this.manualSwitch = false;
+        this.timestampOffset = 0;
+        this.lastOutputDts = 0;
+        if (this.activeSession) {
+            this.activeSession.unsetAsPublisher();
+            this.activeSession = null;
+        }
+    }
+
+    public switchSource(newSourcePath: string | null, timeout: number = 0, isManual: boolean = true, force: boolean = false) {
+        if (newSourcePath === this.activeSourcePath && this.activeSession) {
             this.cancelSwitch();
             this.manualSwitch = isManual;
             return;
@@ -102,22 +105,28 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         this.cancelSwitch();
 
         if (newSourcePath === null) {
+            if (this.activeSession) {
+                this.activeSession.unsetAsPublisher();
+                this.activeSession = null;
+            }
             this.activeSourcePath = null;
             this.manualSwitch = false;
-            this.logger.log(`Broadcast source cleared`);
+            this.logger.log(`[Switch] broadcast source cleared`);
             return;
         }
 
+        context.nodeEvent.emit('preSwitch', this);
         this.pendingSourcePath = newSourcePath;
         this.switching = true;
-        this.forceSwitchNext = false;
+        this.state = BroadcastState.SWITCHING;
+        this.forceSwitchNext = force;
         this.manualSwitch = isManual;
 
-        this.logger.log(`Switching pending: ${this.activeSourcePath} -> ${newSourcePath}`);
+        this.logger.log(`[Switch] switching pending: ${this.activeSourcePath} -> ${newSourcePath}${force ? ' (FORCED)' : ''}`);
 
         if (timeout > 0) {
             this.switchTimer = setTimeout(() => {
-                this.logger.warn(`Switch timeout reached for ${newSourcePath}, forcing switch on next packet`);
+                this.logger.log(`[Switch] switch timeout reached, forcing cut-over to ${newSourcePath}`);
                 this.forceSwitchNext = true;
             }, timeout);
         }
@@ -131,10 +140,26 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         this.switching = false;
         this.pendingSourcePath = null;
         this.forceSwitchNext = false;
+        if (this.state === BroadcastState.SWITCHING) {
+            this.state = (this.activeSession && this.activeSourcePath) ? BroadcastState.LIVE : BroadcastState.OFFLINE;
+        }
     }
 
-    private cutOver(sourcePath: string, keyframePacket: AVPacket) {
-        this.logger.log(`Performing cut-over to ${sourcePath}${this.forceSwitchNext ? ' (FORCED)' : ''}`);
+    public notifySourceOffline(sourcePath: string) {
+        if (sourcePath === this.activeSourcePath) {
+            this.logger.log(`[Switch] active source ${sourcePath} went offline`);
+            if (this.switching && this.pendingSourcePath) {
+                this.logger.log(`[Switch] forcing immediate cut-over to ${this.pendingSourcePath} due to active source failure`);
+                this.forceSwitchNext = true;
+            }
+        } else if (sourcePath === this.pendingSourcePath) {
+            this.logger.log(`[Switch] pending source ${sourcePath} went offline, cancelling switch`);
+            this.cancelSwitch();
+        }
+    }
+
+    private cutOver(sourcePath: string, keyframePacket: AVPacket, session: SwitchSession) {
+        this.logger.log(`[Switch] performing cut-over to ${sourcePath}${this.forceSwitchNext ? ' (FORCED)' : ''}`);
 
         if (this.switchTimer) {
             clearTimeout(this.switchTimer);
@@ -151,15 +176,24 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         this.flvGopCache?.clear();
         this.rtmpGopCache?.clear();
 
-        this.activeSourcePath = sourcePath;
-        if (this.virtualPublisher) {
-            this.virtualPublisher.isStop = false;
-            if (this.publisher == null) {
-                this.postPublish(this.virtualPublisher);
-            }
+        if (this.activeSession && this.activeSession !== session) {
+            this.activeSession.unsetAsPublisher();
         }
+
+        this.activeSession = session;
+        this.activeSession.setAsPublisher();
+        this.activeSourcePath = sourcePath;
+
         this.pendingSourcePath = null;
         this.switching = false;
+        this.state = BroadcastState.LIVE;
+        this.logger.log(`[Switch] switched successfully to ${sourcePath}`);
+        context.nodeEvent.emit('postSwitch', this);
+
+        // Forward the cut-over packet
+        const adjustedPacket = this.adjustTimestamp(keyframePacket);
+        this.lastOutputDts = adjustedPacket.dts;
+        session.forwardPacket(adjustedPacket);
     }
 
     private sendSourceHeaders(sourcePath: string) {
@@ -169,17 +203,17 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         }
 
         // Sync our internal headers with the source's headers
-        this.flvMetaData = sourceBroadcast['flvMetaData'];
-        this.flvAudioHeader = sourceBroadcast['flvAudioHeader'];
-        this.flvVideoHeader = sourceBroadcast['flvVideoHeader'];
-        this.rtmpMetaData = sourceBroadcast['rtmpMetaData'];
-        this.rtmpAudioHeader = sourceBroadcast['rtmpAudioHeader'];
-        this.rtmpVideoHeader = sourceBroadcast['rtmpVideoHeader'];
+        this.flvMetaData = sourceBroadcast.getFlvMetaData;
+        this.flvAudioHeader = sourceBroadcast.getFlvAudioHeader;
+        this.flvVideoHeader = sourceBroadcast.getFlvVideoHeader;
+        this.rtmpMetaData = sourceBroadcast.getRtmpMetaData;
+        this.rtmpAudioHeader = sourceBroadcast.getRtmpAudioHeader;
+        this.rtmpVideoHeader = sourceBroadcast.getRtmpVideoHeader;
 
         // Sync publisher metadata for the virtual session
-        if (this.publisher && sourceBroadcast.publisher) {
+        if (this.activeSession && sourceBroadcast.publisher) {
             const sp = sourceBroadcast.publisher;
-            const vp = this.publisher;
+            const vp = this.activeSession;
             vp.audioCodec = sp.audioCodec;
             vp.audioProfile = sp.audioProfile;
             vp.audioChannels = sp.audioChannels;

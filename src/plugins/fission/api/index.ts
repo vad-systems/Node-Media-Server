@@ -6,6 +6,7 @@ export default (context: Context) => {
     let router = express.Router();
     router.get('/', fissionController.getStreams.bind(context));
     router.delete('/:id', fissionController.delStream.bind(context));
+    router.post('/start/:id', fissionController.startStream.bind(context));
     router.post('/restart/:id', fissionController.restartStream.bind(context));
     return router;
 };

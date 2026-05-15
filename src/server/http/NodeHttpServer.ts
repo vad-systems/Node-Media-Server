@@ -44,7 +44,7 @@ class NodeHttpServer {
 
     initServer() {
         if (!this.config.http) {
-            this.logger.error(`Node Media Http Server startup failed. Config http is missing.`);
+            this.logger.error(`[HTTP] Server startup failed. Config http is missing.`);
             return;
         }
         this.port = this.config.http.port || DEFAULTHTTP_PORT;
@@ -109,15 +109,15 @@ class NodeHttpServer {
         if (!this.httpServer) return;
 
         this.httpServer.listen(this.port, () => {
-            this.logger.log(`Node Media Http Server started on port: ${this.port}`);
+            this.logger.log(`[HTTP] Server started on port: ${this.port}`);
         });
 
         this.httpServer.on('error', (e) => {
-            this.logger.error(`Node Media Http Server ${e}`);
+            this.logger.error(`[HTTP] Server error: ${e}`);
         });
 
         this.httpServer.on('close', () => {
-            this.logger.log('Node Media Http Server closed');
+            this.logger.log('[HTTP] Server closed');
         });
 
         this.wsServer = new WebSocket.Server({ server: this.httpServer });
@@ -127,26 +127,26 @@ class NodeHttpServer {
         });
 
         this.wsServer.on('listening', () => {
-            this.logger.log(`Node Media WebSocket Server started on port: ${this.port}`);
+            this.logger.log(`[WS] Server started on port: ${this.port}`);
         });
         this.wsServer.on('error', (e) => {
-            this.logger.error(`Node Media WebSocket Server ${e}`);
+            this.logger.error(`[WS] Server error: ${e}`);
         });
         this.wsServer.on('close', () => {
-            this.logger.log(`Node Media WebSocket Server closed`);
+            this.logger.log(`[WS] Server closed`);
         });
 
         if (this.httpsServer) {
             this.httpsServer.listen(this.sport, () => {
-                this.logger.log(`Node Media Https Server started on port: ${this.sport}`);
+                this.logger.log(`[HTTPS] Server started on port: ${this.sport}`);
             });
 
             this.httpsServer.on('error', (e) => {
-                this.logger.error(`Node Media Https Server ${e}`);
+                this.logger.error(`[HTTPS] Server error: ${e}`);
             });
 
             this.httpsServer.on('close', () => {
-                this.logger.log('Node Media Https Server Close.');
+                this.logger.log('[HTTPS] Server closed');
             });
 
             this.wssServer = new WebSocket.Server({ server: this.httpsServer });
@@ -156,13 +156,13 @@ class NodeHttpServer {
             });
 
             this.wssServer.on('listening', () => {
-                this.logger.log(`Node Media WebSocketSecure Server started on port: ${this.sport}`);
+                this.logger.log(`[WSS] Server started on port: ${this.sport}`);
             });
             this.wssServer.on('error', (e) => {
-                this.logger.error(`Node Media WebSocketSecure Server ${e}`);
+                this.logger.error(`[WSS] Server error: ${e}`);
             });
             this.wssServer.on('close', () => {
-                this.logger.log(`Node Media WebSocketSecure Server closed`);
+                this.logger.log(`[WSS] Server closed`);
             });
         }
     }
@@ -186,7 +186,7 @@ class NodeHttpServer {
             }
         });
 
-        this.logger.log(`Node Media Http Server stopped.`);
+        this.logger.log(`[HTTP] Server stopped`);
     }
 
 }

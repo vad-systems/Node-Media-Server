@@ -2,7 +2,7 @@ import fs from 'fs';
 import _ from 'lodash';
 import querystring from 'querystring';
 import { context, LoggerFactory, NodeCoreUtils } from '@vad-systems/nms-core';
-import { Arguments, RelayMode, RelayPushTaskConfig, RelaySessionConfig, SessionID, checkSelectiveTask } from '@vad-systems/nms-shared';
+import { Arguments, RelayMode, RelayPushTaskConfig, RelaySessionConfig, SessionID, checkSelectiveTask, SessionState } from '@vad-systems/nms-shared';
 import { BaseAvSession, NodeTaskServer } from '@vad-systems/nms-server';
 import { NodeRelaySession } from '@vad-systems/nms-plugin-relay';
 
@@ -15,8 +15,16 @@ class NodeRelayServer extends NodeTaskServer {
 
     async run() {
         if (!this.config.relay) {
-            this.logger.error(`Node Media Relay Server startup failed. Config relay is missing.`);
+            this.logger.error(`[Relay] Server startup failed. Config relay is missing.`);
             return;
+        }
+
+        // Cleanup any leftover relay sessions
+        for (let session of context.sessions.values()) {
+            if (session instanceof NodeRelaySession) {
+                session.stop();
+                session.cleanup();
+            }
         }
 
         await super.run();
@@ -24,32 +32,28 @@ class NodeRelayServer extends NodeTaskServer {
         try {
             fs.accessSync(this.config.relay.ffmpeg, fs.constants.X_OK);
         } catch (error) {
-            this.logger.error(`Node Media Relay Server startup failed. ffmpeg:${this.config.relay.ffmpeg} cannot be executed.`);
+            this.logger.error(`[Relay] Server startup failed. ffmpeg:${this.config.relay.ffmpeg} cannot be executed.`);
             return;
         }
 
         let version = await NodeCoreUtils.getFFmpegVersion(this.config.relay.ffmpeg);
         if (version === '' || parseInt(version.split('.')[0]) < 4) {
-            this.logger.error('Node Media Relay Server startup failed. ffmpeg requires version 4.0.0 above');
-            this.logger.error('Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
+            this.logger.error('[Relay] Server startup failed. ffmpeg requires version 4.0.0 above');
+            this.logger.error('[Relay] Download the latest ffmpeg static program:', NodeCoreUtils.getFFmpegUrl());
             return;
         }
 
-        context.nodeEvent.on('postPublish', this.onPostPublish);
-        context.nodeEvent.on('donePublish', this.onDonePublish);
-
-        this.logger.log(`Node Media Relay Server started, ffmpeg version: ${version}`);
+        this.logger.log(`[Relay] Server started, ffmpeg version: ${version}`);
+        this.scanBroadcasts();
     }
 
     startNewRelaySession(conf: RelaySessionConfig, srcId: SessionID, streamPath: string, args: Arguments) {
         for (let session of context.sessions.values()) {
-            if (session.getConfig('inPath') === conf.inPath && session.getConfig('ouPath') === conf.ouPath) {
+            if (session instanceof NodeRelaySession &&
+                session.getConfig('inPath') === conf.inPath &&
+                session.getConfig('ouPath') === conf.ouPath) {
                 this.logger.debug(
-                    '[relay dynamic push] session still running',
-                    `srcid=${srcId}`,
-                    conf.inPath,
-                    'to',
-                    conf.ouPath,
+                    `[Relay] dynamic push session still running: srcId=${srcId} inPath=${conf.inPath} ouPath=${conf.ouPath}`,
                 );
                 return null;
             }
@@ -65,50 +69,39 @@ class NodeRelayServer extends NodeTaskServer {
             broadcast.subscribers.set(id, session);
         }
 
-        this.logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+        this.logger.log(`[Relay] dynamic push start: srcId=${srcId} id=${id} inPath=${conf.inPath} ouPath=${conf.ouPath}`);
         session.on('end', (id) => {
-            this.logger.log('[relay dynamic push] ended', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-            if (session.broadcast) {
-                session.broadcast.subscribers.delete(id);
+            this.logger.log(`[Relay] dynamic push ended: srcId=${srcId} id=${id} inPath=${conf.inPath} ouPath=${conf.ouPath}`);
+            const broadcast = session.broadcast;
+            if (broadcast) {
+                broadcast.subscribers.delete(id);
             }
-            if (session.isStop) {
+            if (!this.isRunning()) {
                 return;
             }
             setTimeout(() => {
-                if (session.broadcast && session.broadcast.publisher) {
+                if (broadcast && broadcast.publisher) {
                     this.logger.log(
-                        '[relay dynamic push] restart',
-                        `srcid=${srcId}`,
-                        `id=${id}`,
-                        conf.inPath,
-                        'to',
-                        conf.ouPath,
+                        `[Relay] dynamic push restart: srcId=${srcId} id=${id} inPath=${conf.inPath} ouPath=${conf.ouPath}`,
                     );
-                    const [app, name] = session.broadcast.publisher.streamPath.split('/').slice(1);
-                    this.handleTaskMatching(session.broadcast.publisher as BaseAvSession<any, any>, app, name);
+                    const [app, name] = broadcast.publisher.streamPath.split('/').slice(1);
+                    this.handleTaskMatching(broadcast.publisher as BaseAvSession<any, any>, app, name);
                 }
             }, 1000);
         });
-        session.run();
-        this.logger.log('[relay dynamic push] started', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+        session.start();
+        this.logger.log(`[Relay] dynamic push started: srcId=${srcId} id=${id} inPath=${conf.inPath} ouPath=${conf.ouPath}`);
         return session;
     }
 
     handleTaskMatching(session: BaseAvSession<any, any>, app: string, stream: string) {
-        this.logger.debug('[rtmp postPublish] Check for relays', `id=${session.id}`);
+        this.logger.debug(`[Relay] check for relays: id=${session.id} app=${app} stream=${stream}`);
         const { tasks } = this.config.relay;
         if (!tasks) {
             return;
         }
 
         let i = tasks.length;
-        this.logger.debug(
-            '[rtmp postPublish] Check for relays',
-            `id=${session.id}`,
-            `app=${app}`,
-            `stream=${stream}`,
-            `i=${i}`,
-        );
         while (i--) {
             let taskConf = _.cloneDeep(tasks[i]);
             const edge = !!taskConf.edge && (
@@ -117,12 +110,7 @@ class NodeRelayServer extends NodeTaskServer {
                 ) : taskConf.edge
             );
             this.logger.debug(
-                '[rtmp postPublish] Check for relays',
-                `id=${session.id}`,
-                `app=${app}`,
-                `stream=${stream}`,
-                `i=${i}`,
-                `edge=${edge}`,
+                `[Relay] check task ${i}: id=${session.id} app=${app} stream=${stream} edge=${edge}`,
             );
 
             if (taskConf.mode === RelayMode.PUSH) {
@@ -166,7 +154,14 @@ class NodeRelayServer extends NodeTaskServer {
     stop() {
         super.stop();
 
-        this.logger.log(`Node Media Relay Server stopped.`);
+        for (let session of context.sessions.values()) {
+            if (session instanceof NodeRelaySession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+
+        this.logger.log(`[Relay] Server stopped`);
     }
 }
 

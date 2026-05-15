@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Node-Media-Server REST API
   description: API for managing and monitoring the Node-Media-Server.
-  version: 0.1.0-dev24
+  version: 0.1.0-dev27
 servers:
   - url: http://localhost:8000
     description: Default HTTP server
@@ -259,6 +259,14 @@ components:
       type: integer
       enum: [0, 1, 2, 3, 4, 5]
       description: "0: NONE, 1: ERROR, 2: WARN, 3: NORMAL, 4: DEBUG, 5: FFDEBUG"
+    
+    SessionState:
+      type: string
+      enum: [CONNECTING, CONNECTED, STARTING, RUNNING, STOPPING, STOPPED, RESTARTING]
+    
+    BroadcastState:
+      type: string
+      enum: [REGISTERING, REGISTERED, LIVE, SWITCHING, OFFLINE, STOPPING, STOPPED]
 
     StreamsTree:
       type: object
@@ -273,7 +281,9 @@ components:
     BroadcastTreeNode:
       type: object
       properties:
+        id: { type: string }
         streamPath: { type: string }
+        state: { $ref: '#/components/schemas/BroadcastState' }
         publisher: { $ref: '#/components/schemas/SessionNode' }
         subscribers:
           type: array
@@ -284,7 +294,7 @@ components:
       properties:
         id: { type: string }
         type: { type: string }
-        status: { type: string, enum: [running, stopped] }
+        state: { $ref: '#/components/schemas/SessionState' }
         children:
           type: array
           items: { $ref: '#/components/schemas/SessionNode' }
@@ -299,6 +309,8 @@ components:
             key: { type: string }
             app: { type: string }
             name: { type: string }
+            id: { type: string }
+            state: { $ref: '#/components/schemas/BroadcastState' }
             publisher:
               nullable: true
               $ref: '#/components/schemas/PublisherInfo'
@@ -314,6 +326,7 @@ components:
         stream: { type: string }
         clientId: { type: string }
         ip: { type: string }
+        state: { $ref: '#/components/schemas/SessionState' }
         protocol: { type: string }
         connectCreated: { type: integer }
         video:
@@ -342,19 +355,33 @@ components:
         app: { type: string }
         stream: { type: string }
         clientId: { type: string }
+        state: { $ref: '#/components/schemas/SessionState' }
         connectCreated: { type: integer }
         bytes: { type: integer }
         ip: { type: string }
         protocol: { type: string }
 
+    StatusResponse:
+      type: object
+      properties:
+        status: { type: string, example: ok }
+
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+
     SingleStreamInfo:
       type: object
       properties:
-        isLive: { type: boolean }
+        broadcastId: { type: string }
+        publisherId: { type: string, nullable: true }
         viewers: { type: integer }
         duration: { type: integer }
         bitrate: { type: integer }
         startTime: { type: integer, nullable: true }
+        state: { $ref: '#/components/schemas/BroadcastState' }
+        publisherState: { $ref: '#/components/schemas/SessionState' }
         arguments: { type: object }
 
     FissionStats:
@@ -371,6 +398,7 @@ components:
                 properties:
                   app: { type: string }
                   name: { type: string }
+                  state: { $ref: '#/components/schemas/SessionState' }
                   path: { type: string }
                   id: { type: string }
                   ts: { type: integer }
@@ -393,6 +421,7 @@ components:
       properties:
         app: { type: string }
         name: { type: string }
+        state: { $ref: '#/components/schemas/SessionState' }
         path: { type: string }
         url: { type: string }
         mode: { type: string }
@@ -413,6 +442,7 @@ components:
                 properties:
                   app: { type: string }
                   name: { type: string }
+                  state: { $ref: '#/components/schemas/SessionState' }
                   path: { type: string }
                   id: { type: string }
                   ts: { type: integer }
@@ -429,6 +459,7 @@ components:
         app: { type: string }
         name: { type: string }
         outputPath: { type: string }
+        state: { $ref: '#/components/schemas/BroadcastState' }
         activeSource: { type: string, nullable: true }
         pendingSource: { type: string, nullable: true }
         isSwitching: { type: boolean }
@@ -517,9 +548,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status: { type: string, example: ok }
+                $ref: '#/components/schemas/StatusResponse'
         '400':
           description: Server already running
         '404':
@@ -542,9 +571,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status: { type: string, example: ok }
+                $ref: '#/components/schemas/StatusResponse'
         '400':
           description: Server not running
         '404':
@@ -612,10 +639,114 @@ paths:
           content:
             application/json:
               schema:
-                type: string
-                example: ok
+                $ref: '#/components/schemas/StatusResponse'
         '404':
           description: Stream not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/streams/{app}/{stream}/stop:
+    post:
+      tags: [Streams]
+      summary: Stop a specific broadcast
+      parameters:
+        - name: app
+          in: path
+          required: true
+          schema: { type: string }
+        - name: stream
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Broadcast stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          description: Broadcast not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/streams/session/{id}/start:
+    post:
+      tags: [Streams]
+      summary: Start a specific session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Session started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/streams/session/{id}/stop:
+    post:
+      tags: [Streams]
+      summary: Stop a specific session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Session stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/streams/session/{id}/restart:
+    post:
+      tags: [Streams]
+      summary: Restart a specific session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Session restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/fission:
     get:
@@ -641,8 +772,44 @@ paths:
       responses:
         '200':
           description: Fission task deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
         '404':
           description: Fission task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/fission/start/{id}:
+    post:
+      tags: [Fission]
+      summary: Start a specific fission task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Fission task started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          description: Fission task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/fission/restart/{id}:
     post:
@@ -656,8 +823,16 @@ paths:
       responses:
         '200':
           description: Fission task restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
         '404':
           description: Fission task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/relay:
     get:
@@ -700,8 +875,44 @@ paths:
       responses:
         '200':
           description: Relay task deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
         '404':
           description: Relay task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/relay/start/{id}:
+    post:
+      tags: [Relay]
+      summary: Start a specific relay task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Relay task started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          description: Relay task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/relay/restart/{id}:
     post:
@@ -715,8 +926,16 @@ paths:
       responses:
         '200':
           description: Relay task restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
         '404':
           description: Relay task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/relay/{app}/{name}:
     get:
@@ -765,8 +984,44 @@ paths:
       responses:
         '200':
           description: Trans task deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
         '404':
           description: Trans task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/trans/start/{id}:
+    post:
+      tags: [Trans]
+      summary: Start a specific trans task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Trans task started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          description: Trans task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/trans/restart/{id}:
     post:
@@ -780,8 +1035,16 @@ paths:
       responses:
         '200':
           description: Trans task restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
         '404':
           description: Trans task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/switch:
     get:
@@ -796,6 +1059,10 @@ paths:
                 $ref: '#/components/schemas/SwitchStats'
         '503':
           description: Switch server not enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [Switch]
       summary: Trigger a source switch for a specific stream. Manual switches can target any live stream path.
@@ -811,12 +1078,61 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status: { type: string, example: Accepted }
+                $ref: '#/components/schemas/StatusResponse'
         '400':
           description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Output path not found or source not valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: Switch server not enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/switch/stop:
+    post:
+      tags: [Switch]
+      summary: Stop a specific switch task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path: { type: string }
+      responses:
+        '200':
+          description: Switch task stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Broadcast not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Switch server not enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

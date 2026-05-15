@@ -29,8 +29,32 @@ export class AvBroadcastServer<C, S extends BaseAvSession<C, SessionConfig<C>>> 
         this.rtmpGopCache = null;
     }
 
-    public postPlay(session: S) {
-        super.postPlay(session);
+    public get getFlvMetaData(): Buffer | null {
+        return this.flvMetaData;
+    }
+
+    public get getFlvAudioHeader(): Buffer | null {
+        return this.flvAudioHeader;
+    }
+
+    public get getFlvVideoHeader(): Buffer | null {
+        return this.flvVideoHeader;
+    }
+
+    public get getRtmpMetaData(): Buffer | null {
+        return this.rtmpMetaData;
+    }
+
+    public get getRtmpAudioHeader(): Buffer | null {
+        return this.rtmpAudioHeader;
+    }
+
+    public get getRtmpVideoHeader(): Buffer | null {
+        return this.rtmpVideoHeader;
+    }
+
+    public play(session: S) {
+        super.play(session);
 
         switch (session.protocol) {
             case Protocol.HTTP_FLV:

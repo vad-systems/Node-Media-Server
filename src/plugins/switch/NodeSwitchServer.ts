@@ -1,38 +1,15 @@
 import { context, LoggerFactory } from '@vad-systems/nms-core';
-import { NodeTaskServer, BaseAvSession, Protocol } from '@vad-systems/nms-server';
+import { NodeTaskServer, BaseAvSession, Protocol, NodeSession } from '@vad-systems/nms-server';
 import { SwitchableBroadcastServer } from './SwitchableBroadcastServer.js';
 import { SwitchSession } from './SwitchSession.js';
 import { AVPacket } from '@vad-systems/nms-protocol';
-import { SwitchSessionConfig } from '@vad-systems/nms-shared';
-
-class RawSubscriber extends BaseAvSession<any, any> {
-    constructor(streamPath: string, private onPacketReceived: (packet: AVPacket) => void) {
-        super({}, '127.0.0.1', Protocol.RAW);
-        this.streamPath = streamPath;
-    }
-
-    public play() {
-        this.onPlay();
-    }
-
-    public sendBuffer(buffer: Buffer | AVPacket) {
-        if (buffer instanceof AVPacket) {
-            this.onPacketReceived(buffer);
-        }
-    }
-
-    public stop() {
-        this.isStop = true;
-        this.onClose();
-    }
-}
+import { SwitchSessionConfig, BroadcastState, SessionState } from '@vad-systems/nms-shared';
 
 class NodeSwitchServer extends NodeTaskServer {
     private logger = LoggerFactory.getLogger('Switch Server');
     private switchBroadcasts: Map<string, SwitchableBroadcastServer<any, any>> = new Map();
-    private switchSessions: Map<string, SwitchSession> = new Map();
+    private sessions: Map<string, SwitchSession> = new Map(); // key: outputPath
     private sourceToOutputs: Map<string, Set<string>> = new Map();
-    private sourceSubscribers: Map<string, RawSubscriber> = new Map();
 
     constructor() {
         super();
@@ -40,30 +17,39 @@ class NodeSwitchServer extends NodeTaskServer {
 
     async run() {
         if (!this.config.switch || !this.config.switch.tasks) {
-            this.logger.error(`Node Media Switch Server startup failed. Config switch is missing or has no tasks.`);
+            this.logger.error(`[Switch] Server startup failed. Config switch is missing or has no tasks.`);
             return;
         }
 
+        // Cleanup any leftover switch sessions
+        for (let session of context.sessions.values()) {
+            if (session instanceof SwitchSession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+
         await super.run();
+
+        context.nodeEvent.on('live', this.onBroadcastLive);
+        context.nodeEvent.on('offline', this.onBroadcastOffline);
 
         const config = this.config.switch;
 
         for (const task of config.tasks) {
             const broadcast = new SwitchableBroadcastServer();
+            broadcast.register();
             const fullPath = `/${task.app}/${task.name}`;
             this.switchBroadcasts.set(fullPath, broadcast);
             context.broadcasts.set(fullPath, broadcast);
 
-            // Create virtual publisher session to make it visible in the streams API
             const sessionConf: SwitchSessionConfig = {
                 ...task,
                 streamPath: fullPath,
             };
-            const session = new SwitchSession(sessionConf);
-            session.broadcast = broadcast;
-            broadcast.setVirtualPublisher(session);
-            session.startTime = Date.now();
-            this.switchSessions.set(fullPath, session);
+            const switchSession = new SwitchSession(sessionConf);
+            this.sessions.set(fullPath, switchSession);
+            switchSession.start();
 
             if (task.defaultSource) {
                 broadcast.setInitialSource(task.defaultSource);
@@ -82,7 +68,9 @@ class NodeSwitchServer extends NodeTaskServer {
             }
         }
 
-        this.logger.log('Node Media Switch Server started');
+
+        this.logger.log('[Switch] Server started');
+        this.scanBroadcasts();
     }
 
     protected handleTaskMatching(session: BaseAvSession<any, any>, _app: string, _name: string) {
@@ -90,28 +78,32 @@ class NodeSwitchServer extends NodeTaskServer {
         const matchedOutputs = this.sourceToOutputs.get(sourcePath);
         if (!matchedOutputs || matchedOutputs.size === 0) return;
 
-        this.logger.log(`Source stream published: ${sourcePath}, subscribing for RAW packets for: ${Array.from(matchedOutputs).join(', ')}`);
+        this.logger.log(`[Switch] source stream published: ${sourcePath}, updating SwitchSessions for outputs: ${Array.from(matchedOutputs).join(', ')}`);
 
-        this.createRawSubscriber(session);
+        matchedOutputs.forEach(outputPath => {
+            const switchSession = this.sessions.get(outputPath);
+            if (switchSession) {
+                if (switchSession.state === SessionState.STOPPED) {
+                    this.logger.log(`[Switch] restarting stopped session for ${outputPath}`);
+                    switchSession.start();
+                }
+                switchSession.addSource(sourcePath);
+            }
 
-        // Requirement 1 & 2: Automatic activation and default source priority
-        matchedOutputs.forEach(fullPath => {
-            const broadcast = this.switchBroadcasts.get(fullPath);
+            const broadcast = this.switchBroadcasts.get(outputPath);
             const config = this.config.switch;
-            const task = config?.tasks.find(t => `/${t.app}/${t.name}` === fullPath);
+            const task = config?.tasks.find(t => `/${t.app}/${t.name}` === outputPath);
 
             if (broadcast && task) {
-                const currentActive = this.isSourceActive(broadcast.activeSource);
+                const currentActive = this.isSourceActive(broadcast.activeSource) && !!broadcast.currentSession;
 
                 if (!currentActive) {
-                    // Requirement: No active source, switch immediately
-                    this.logger.log(`Activating ${fullPath} immediately with ${sourcePath} (no current active source)`);
-                    this.doSwitch(fullPath, sourcePath, false);
+                    this.logger.log(`[Switch] activating ${outputPath} immediately with ${sourcePath} (no current active source)`);
+                    this.doSwitch(outputPath, sourcePath, false, true);
                 } else if (sourcePath === task.defaultSource && !broadcast.isManualSwitch) {
-                    // Requirement: Default source returned and current source was not manual
                     if (broadcast.activeSource !== sourcePath) {
-                        this.logger.log(`Returning ${fullPath} to default source ${sourcePath}`);
-                        this.doSwitch(fullPath, sourcePath, false);
+                        this.logger.log(`[Switch] returning ${outputPath} to default source ${sourcePath}`);
+                        this.doSwitch(outputPath, sourcePath, false);
                     }
                 }
 
@@ -120,37 +112,14 @@ class NodeSwitchServer extends NodeTaskServer {
         });
     }
 
-    private createRawSubscriber(session: BaseAvSession<any, any>) {
-        const sourcePath = session.streamPath;
-        const matchedOutputs = this.sourceToOutputs.get(sourcePath);
-        if (!matchedOutputs || matchedOutputs.size === 0) return;
-
-        if (this.sourceSubscribers.has(session.id)) return;
-
-        const subscriber = new RawSubscriber(sourcePath, (packet: AVPacket) => {
-            matchedOutputs.forEach(fullPath => {
-                const switchBroadcast = this.switchBroadcasts.get(fullPath);
-                if (switchBroadcast) {
-                    try {
-                        switchBroadcast.handleSourcePacket(sourcePath, packet);
-                    } catch (err) {
-                        this.logger.error(`Error handling source packet for ${fullPath}:`, err);
-                    }
-                }
-            });
-        });
-        subscriber.play();
-        this.sourceSubscribers.set(session.id, subscriber);
-    }
-
     public switch(fullPath: string, newSourcePath: string): boolean {
         return this.doSwitch(fullPath, newSourcePath, true);
     }
 
-    private doSwitch(fullPath: string, newSourcePath: string | null, isManual: boolean): boolean {
+    private doSwitch(fullPath: string, newSourcePath: string | null, isManual: boolean, force: boolean = false): boolean {
         const broadcast = this.switchBroadcasts.get(fullPath);
         if (!broadcast) {
-            this.logger.warn(`Switch failed: output path ${fullPath} not found`);
+            this.logger.warn(`[Switch] switch failed: output path ${fullPath} not found`);
             return false;
         }
 
@@ -161,7 +130,7 @@ class NodeSwitchServer extends NodeTaskServer {
         }
 
         if (newSourcePath === fullPath) {
-            this.logger.warn(`Switch failed: cannot switch ${fullPath} to itself`);
+            this.logger.warn(`[Switch] switch failed: cannot switch ${fullPath} to itself`);
             return false;
         }
 
@@ -172,7 +141,7 @@ class NodeSwitchServer extends NodeTaskServer {
         const isConfigured = task && (task.sources.includes(newSourcePath) || task.slatePath === newSourcePath);
 
         if (!isConfigured && (!isManual || !isLive)) {
-            this.logger.warn(`Switch failed: source ${newSourcePath} not valid or not live for ${fullPath}`);
+            this.logger.warn(`[Switch] switch failed: source ${newSourcePath} not valid or not live for ${fullPath}`);
             return false;
         }
 
@@ -180,7 +149,7 @@ class NodeSwitchServer extends NodeTaskServer {
             this.ensureSubscription(newSourcePath, fullPath);
         }
 
-        broadcast.switchSource(newSourcePath, task?.switchTimeout, isManual);
+        broadcast.switchSource(newSourcePath, task?.switchTimeout, isManual, force);
         return true;
     }
 
@@ -190,11 +159,9 @@ class NodeSwitchServer extends NodeTaskServer {
         }
         this.sourceToOutputs.get(sourcePath)!.add(outputPath);
 
-        for (const session of context.sessions.values()) {
-            if (session.streamPath === sourcePath && !session.isStop) {
-                this.createRawSubscriber(session as BaseAvSession<any, any>);
-                break;
-            }
+        const switchSession = this.sessions.get(outputPath);
+        if (switchSession) {
+            switchSession.addSource(sourcePath);
         }
     }
 
@@ -203,10 +170,14 @@ class NodeSwitchServer extends NodeTaskServer {
         this.switchBroadcasts.forEach((broadcast, fullPath) => {
             const config = this.config.switch;
             const taskConfig = config?.tasks.find(t => `/${t.app}/${t.name}` === fullPath);
+            const session = this.sessions.get(fullPath);
             tasks.push({
+                id: session?.id,
                 app: taskConfig?.app,
                 name: taskConfig?.name,
                 outputPath: fullPath,
+                state: broadcast.state,
+                sessionState: session?.state,
                 activeSource: broadcast.activeSource,
                 pendingSource: broadcast.pendingSource,
                 isSwitching: broadcast.isSwitching,
@@ -218,14 +189,29 @@ class NodeSwitchServer extends NodeTaskServer {
         return tasks;
     }
 
-    protected onDonePublish(session: any) {
-        super.onDonePublish(session);
-        const subscriber = this.sourceSubscribers.get(session.id);
-        if (subscriber) {
-            subscriber.stop();
-            this.sourceSubscribers.delete(session.id);
+    protected onPostDone(session: any) {
+        if (session instanceof SwitchSession) {
+            if (this.isRunning() && !session.isManualStop) {
+                this.logger.log(`[Switch] restarting switch session for ${session.streamPath}`);
+                const broadcast = this.switchBroadcasts.get(session.streamPath);
+                if (broadcast) {
+                    if (session.state === SessionState.RESTARTING) {
+                        broadcast.restart();
+                        const task = this.config.switch?.tasks.find(t => `/${t.app}/${t.name}` === session.streamPath);
+                        if (task && task.defaultSource) {
+                            broadcast.setInitialSource(task.defaultSource);
+                        }
+                    }
+                }
+                session.start();
+            }
+            return;
         }
-        
+
+        if (!(session instanceof NodeSession) || !session.isPublisher) {
+            return;
+        }
+
         if (session.streamPath) {
             const sourcePath = session.streamPath;
             const fullPaths = this.sourceToOutputs.get(sourcePath);
@@ -233,10 +219,48 @@ class NodeSwitchServer extends NodeTaskServer {
                 fullPaths.forEach(fullPath => {
                     const broadcast = this.switchBroadcasts.get(fullPath);
                     if (broadcast) {
-                        if (broadcast.activeSource === sourcePath) {
+                        const wasActive = broadcast.activeSource === sourcePath;
+                        const wasPending = broadcast.pendingSource === sourcePath;
+
+                        if (wasActive || wasPending) {
                             this.triggerFallback(fullPath, sourcePath);
                         }
+
+                        broadcast.notifySourceOffline(sourcePath);
                         this.updateBroadcastLiveness(broadcast);
+                    }
+                });
+            }
+        }
+    }
+
+    private onBroadcastLive = (broadcast: any) => {
+        const path = Array.from(context.broadcasts.entries()).find(([_, b]) => b === broadcast)?.[0];
+        if (path && broadcast.publisher) {
+            this.handleTaskMatching(broadcast.publisher, '', '');
+        }
+    }
+
+    private onBroadcastOffline = (broadcast: any) => {
+        const path = Array.from(context.broadcasts.entries()).find(([_, b]) => b === broadcast)?.[0];
+        if (path) {
+            // Tell all sessions that this source is gone
+            this.sessions.forEach(session => session.removeSource(path));
+
+            const affectedOutputs = this.sourceToOutputs.get(path);
+            if (affectedOutputs) {
+                affectedOutputs.forEach(fullPath => {
+                    const switchBroadcast = this.switchBroadcasts.get(fullPath);
+                    if (switchBroadcast) {
+                        const wasActive = switchBroadcast.activeSource === path;
+                        const wasPending = switchBroadcast.pendingSource === path;
+
+                        if (wasActive || wasPending) {
+                            this.triggerFallback(fullPath, path);
+                        }
+
+                        switchBroadcast.notifySourceOffline(path);
+                        this.updateBroadcastLiveness(switchBroadcast);
                     }
                 });
             }
@@ -250,12 +274,9 @@ class NodeSwitchServer extends NodeTaskServer {
 
         let targetSource: string | undefined;
 
-        // Requirement 1: Switch over to the next available source
-        // First try return to default if it's not the one that failed and it's active
         if (task.defaultSource && task.defaultSource !== failedSourcePath && this.isSourceActive(task.defaultSource)) {
             targetSource = task.defaultSource;
         } else {
-            // Try any other configured source that is active
             targetSource = task.sources.find(s => s !== failedSourcePath && this.isSourceActive(s));
         }
 
@@ -264,45 +285,37 @@ class NodeSwitchServer extends NodeTaskServer {
         }
 
         if (targetSource) {
-            this.logger.log(`Triggering fallback for ${fullPath} to: ${targetSource}`);
-            this.doSwitch(fullPath, targetSource, false);
+            this.logger.log(`[Switch] triggering fallback for ${fullPath} to: ${targetSource}`);
+            this.doSwitch(fullPath, targetSource, false, true);
         } else if (!task.slatePath) {
-            this.logger.log(`No active fallback source and no slate declared for ${fullPath}. Terminating broadcast.`);
+            this.logger.log(`[Switch] no active fallback source and no slate declared for ${fullPath}. Terminating broadcast.`);
             this.doSwitch(fullPath, null, false);
         }
     }
 
     private updateBroadcastLiveness(broadcast: SwitchableBroadcastServer<any, any>) {
         const active = this.isSourceActive(broadcast.activeSource);
-        const fullPath = Array.from(this.switchBroadcasts.entries()).find(([_, b]) => b === broadcast)?.[0];
-        if (!fullPath) return;
-
-        const session = this.switchSessions.get(fullPath);
-        if (session) {
-            const wasActive = broadcast.publisher === session;
-            if (active && !wasActive) {
-                session.isStop = false;
-                if (broadcast.publisher == null) {
-                    broadcast.postPublish(session);
-                }
-                this.logger.log(`Switchable broadcast ${fullPath} is now LIVE`);
-            } else if (!active && wasActive) {
-                session.stop();
-                this.logger.log(`Switchable broadcast ${fullPath} is now OFFLINE`);
-            }
+        if (!active) {
+            // If no active source, ensure no session is acting as publisher
+            // This is handled by doSwitch(null) or cutOver
         }
     }
 
     private isSourceActive(sourcePath: string | null): boolean {
         if (!sourcePath) return false;
         const sourceBroadcast = context.broadcasts.get(sourcePath);
-        return !!(sourceBroadcast && sourceBroadcast.publisher && !sourceBroadcast.publisher.isStop);
+        return !!(sourceBroadcast && sourceBroadcast.publisher && sourceBroadcast.publisher.state !== SessionState.STOPPED && sourceBroadcast.publisher.state !== SessionState.STOPPING);
     }
 
     stop() {
         super.stop();
-        this.switchSessions.forEach(session => session.stop());
-        this.logger.log('Node Media Switch Server stopped');
+        context.nodeEvent.off('live', this.onBroadcastLive);
+        context.nodeEvent.off('offline', this.onBroadcastOffline);
+        this.sessions.forEach(session => {
+            session.stop();
+            session.cleanup();
+        });
+        this.logger.log('[Switch] Server stopped');
     }
 }
 

@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseAvSession = void 0;
 const nms_core_1 = require("../../core");
+const nms_shared_1 = require("../../shared");
 const AvBroadcastServer_js_1 = require("./AvBroadcastServer.js");
 const NodeSession_js_1 = require("./NodeSession.js");
 class BaseAvSession extends NodeSession_js_1.NodeSession {
@@ -33,50 +34,58 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
     onPlay() {
         try {
             this.initBroadcast();
-            this.broadcast.postPlay(this);
+            this.broadcast.play(this);
         }
         catch (err) {
-            this.logger.warn(`${this.remoteIp} play ${this.streamPath} error, ${err}`);
+            this.logger.warn(`[play] ${this.remoteIp} ${this.streamPath} error: ${err}`);
             this.stop();
             return;
         }
         this.isPublisher = false;
-        this.logger.log(`${this.remoteIp} start play ${this.streamPath}`);
+        this.state = nms_shared_1.SessionState.RUNNING;
+        this.logger.log(`[play] ${this.remoteIp} started play ${this.streamPath}`);
     }
     onPush() {
         try {
             this.initBroadcast();
-            this.broadcast.postPublish(this);
+            this.broadcast.publish(this);
         }
         catch (err) {
-            this.logger.warn(`${this.remoteIp} push ${this.streamPath} error, ${err}`);
+            this.logger.warn(`[push] ${this.remoteIp} ${this.streamPath} error: ${err}`);
             this.stop();
             return;
         }
         this.isPublisher = true;
-        this.logger.log(`${this.remoteIp} start push ${this.streamPath}`);
+        this.state = nms_shared_1.SessionState.RUNNING;
+        this.logger.log(`[push] ${this.remoteIp} started push ${this.streamPath}`);
     }
     onClose() {
-        this.logger.log(`close`);
+        this.logger.log(`[close] ${this.streamPath}`);
         if (this.isPublisher) {
             this.broadcast?.donePublish(this);
         }
         else {
             this.broadcast?.donePlay(this);
         }
-        nms_core_1.context.nodeEvent.emit('doneConnect', this);
-        this.cleanup();
+        this.didStop();
+        if (!this.isManualStop) {
+            this.cleanup();
+        }
     }
     onError(err) {
-        this.logger.error(`${this.remoteIp} socket error, ${err}`);
+        this.logger.error(`[error] ${this.remoteIp} socket error: ${err}`);
     }
     onPacket(packet) {
         this.avBroadcast?.broadcastMessage(packet);
     }
     initBroadcast() {
         if (!this.broadcast) {
-            this.broadcast = nms_core_1.context.broadcasts.get(this.streamPath) ?? new AvBroadcastServer_js_1.AvBroadcastServer();
-            nms_core_1.context.broadcasts.set(this.streamPath, this.broadcast);
+            this.broadcast = nms_core_1.context.broadcasts.get(this.streamPath);
+            if (!this.broadcast) {
+                this.broadcast = new AvBroadcastServer_js_1.AvBroadcastServer();
+                nms_core_1.context.broadcasts.set(this.streamPath, this.broadcast);
+                this.broadcast.register();
+            }
         }
     }
     set audioCodec(codec) {

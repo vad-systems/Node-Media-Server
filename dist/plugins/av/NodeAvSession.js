@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeAvSession = void 0;
 const ws_1 = __importDefault(require("ws"));
-const nms_core_1 = require("../../core");
 const nms_protocol_1 = require("../../protocol");
+const nms_shared_1 = require("../../shared");
 const nms_server_1 = require("../../server");
 class NodeAvSession extends nms_server_1.BaseAvSession {
     req;
@@ -28,7 +28,8 @@ class NodeAvSession extends nms_server_1.BaseAvSession {
         this.req = req;
         this.res = res;
     }
-    run = () => {
+    start = () => {
+        super.start();
         if (this.res instanceof ws_1.default) {
             this.res.on('message', this.onData);
             this.res.on('close', this.onClose);
@@ -45,7 +46,6 @@ class NodeAvSession extends nms_server_1.BaseAvSession {
         else {
             this.onPlay();
         }
-        nms_core_1.context.nodeEvent.emit('postConnect', this);
     };
     onPush() {
         super.onPush();
@@ -57,7 +57,7 @@ class NodeAvSession extends nms_server_1.BaseAvSession {
             this.flv.parserData(data);
         }
         catch (err) {
-            this.logger.warn(`${this.remoteIp} parserData error, ${err}`);
+            this.logger.warn(`[AV] parserData error: ${err} remoteIp=${this.remoteIp}`);
             this.stop();
         }
     };
@@ -79,15 +79,24 @@ class NodeAvSession extends nms_server_1.BaseAvSession {
         }
         this.outBytes += buffer.length;
     };
+    onClose = () => {
+        if (this.state !== nms_shared_1.SessionState.STOPPED && this.state !== nms_shared_1.SessionState.STOPPING) {
+            this.stop();
+        }
+        super.onClose();
+    };
     stop = () => {
-        this.isStop = true;
-        this.endTime = Date.now();
+        if (this.state === nms_shared_1.SessionState.STOPPED || this.state === nms_shared_1.SessionState.STOPPING) {
+            return;
+        }
+        super.stop();
         if (this.res instanceof ws_1.default) {
             this.res.close();
         }
         else {
             this.res.end();
         }
+        this.didStop();
     };
 }
 exports.NodeAvSession = NodeAvSession;

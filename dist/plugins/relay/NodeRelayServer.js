@@ -18,31 +18,39 @@ class NodeRelayServer extends nms_server_1.NodeTaskServer {
     }
     async run() {
         if (!this.config.relay) {
-            this.logger.error(`Node Media Relay Server startup failed. Config relay is missing.`);
+            this.logger.error(`[Relay] Server startup failed. Config relay is missing.`);
             return;
+        }
+        // Cleanup any leftover relay sessions
+        for (let session of nms_core_1.context.sessions.values()) {
+            if (session instanceof nms_plugin_relay_1.NodeRelaySession) {
+                session.stop();
+                session.cleanup();
+            }
         }
         await super.run();
         try {
             fs_1.default.accessSync(this.config.relay.ffmpeg, fs_1.default.constants.X_OK);
         }
         catch (error) {
-            this.logger.error(`Node Media Relay Server startup failed. ffmpeg:${this.config.relay.ffmpeg} cannot be executed.`);
+            this.logger.error(`[Relay] Server startup failed. ffmpeg:${this.config.relay.ffmpeg} cannot be executed.`);
             return;
         }
         let version = await nms_core_1.NodeCoreUtils.getFFmpegVersion(this.config.relay.ffmpeg);
         if (version === '' || parseInt(version.split('.')[0]) < 4) {
-            this.logger.error('Node Media Relay Server startup failed. ffmpeg requires version 4.0.0 above');
-            this.logger.error('Download the latest ffmpeg static program:', nms_core_1.NodeCoreUtils.getFFmpegUrl());
+            this.logger.error('[Relay] Server startup failed. ffmpeg requires version 4.0.0 above');
+            this.logger.error('[Relay] Download the latest ffmpeg static program:', nms_core_1.NodeCoreUtils.getFFmpegUrl());
             return;
         }
-        nms_core_1.context.nodeEvent.on('postPublish', this.onPostPublish);
-        nms_core_1.context.nodeEvent.on('donePublish', this.onDonePublish);
-        this.logger.log(`Node Media Relay Server started, ffmpeg version: ${version}`);
+        this.logger.log(`[Relay] Server started, ffmpeg version: ${version}`);
+        this.scanBroadcasts();
     }
     startNewRelaySession(conf, srcId, streamPath, args) {
         for (let session of nms_core_1.context.sessions.values()) {
-            if (session.getConfig('inPath') === conf.inPath && session.getConfig('ouPath') === conf.ouPath) {
-                this.logger.debug('[relay dynamic push] session still running', `srcid=${srcId}`, conf.inPath, 'to', conf.ouPath);
+            if (session instanceof nms_plugin_relay_1.NodeRelaySession &&
+                session.getConfig('inPath') === conf.inPath &&
+                session.getConfig('ouPath') === conf.ouPath) {
+                this.logger.debug(`[Relay] dynamic push session still running: srcId=${srcId} inPath=${conf.inPath} ouPath=${conf.ouPath}`);
                 return null;
             }
         }
@@ -54,39 +62,39 @@ class NodeRelayServer extends nms_server_1.NodeTaskServer {
             session.broadcast = broadcast;
             broadcast.subscribers.set(id, session);
         }
-        this.logger.log('[relay dynamic push] start', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+        this.logger.log(`[Relay] dynamic push start: srcId=${srcId} id=${id} inPath=${conf.inPath} ouPath=${conf.ouPath}`);
         session.on('end', (id) => {
-            this.logger.log('[relay dynamic push] ended', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-            if (session.broadcast) {
-                session.broadcast.subscribers.delete(id);
+            this.logger.log(`[Relay] dynamic push ended: srcId=${srcId} id=${id} inPath=${conf.inPath} ouPath=${conf.ouPath}`);
+            const broadcast = session.broadcast;
+            if (broadcast) {
+                broadcast.subscribers.delete(id);
             }
-            if (session.isStop) {
+            if (!this.isRunning()) {
                 return;
             }
             setTimeout(() => {
-                if (session.broadcast && session.broadcast.publisher) {
-                    this.logger.log('[relay dynamic push] restart', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
-                    const [app, name] = session.broadcast.publisher.streamPath.split('/').slice(1);
-                    this.handleTaskMatching(session.broadcast.publisher, app, name);
+                if (broadcast && broadcast.publisher) {
+                    this.logger.log(`[Relay] dynamic push restart: srcId=${srcId} id=${id} inPath=${conf.inPath} ouPath=${conf.ouPath}`);
+                    const [app, name] = broadcast.publisher.streamPath.split('/').slice(1);
+                    this.handleTaskMatching(broadcast.publisher, app, name);
                 }
             }, 1000);
         });
-        session.run();
-        this.logger.log('[relay dynamic push] started', `srcid=${srcId}`, `id=${id}`, conf.inPath, 'to', conf.ouPath);
+        session.start();
+        this.logger.log(`[Relay] dynamic push started: srcId=${srcId} id=${id} inPath=${conf.inPath} ouPath=${conf.ouPath}`);
         return session;
     }
     handleTaskMatching(session, app, stream) {
-        this.logger.debug('[rtmp postPublish] Check for relays', `id=${session.id}`);
+        this.logger.debug(`[Relay] check for relays: id=${session.id} app=${app} stream=${stream}`);
         const { tasks } = this.config.relay;
         if (!tasks) {
             return;
         }
         let i = tasks.length;
-        this.logger.debug('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`);
         while (i--) {
             let taskConf = lodash_1.default.cloneDeep(tasks[i]);
             const edge = !!taskConf.edge && (typeof taskConf.edge === typeof {} ? (taskConf.edge[stream] || taskConf.edge['_default'] || '') : taskConf.edge);
-            this.logger.debug('[rtmp postPublish] Check for relays', `id=${session.id}`, `app=${app}`, `stream=${stream}`, `i=${i}`, `edge=${edge}`);
+            this.logger.debug(`[Relay] check task ${i}: id=${session.id} app=${app} stream=${stream} edge=${edge}`);
             if (taskConf.mode === nms_shared_1.RelayMode.PUSH) {
                 this.handlePushTask(taskConf, app, session.streamPath, edge, stream, session.streamQuery, session.id);
             }
@@ -112,7 +120,13 @@ class NodeRelayServer extends nms_server_1.NodeTaskServer {
     }
     stop() {
         super.stop();
-        this.logger.log(`Node Media Relay Server stopped.`);
+        for (let session of nms_core_1.context.sessions.values()) {
+            if (session instanceof nms_plugin_relay_1.NodeRelaySession) {
+                session.stop();
+                session.cleanup();
+            }
+        }
+        this.logger.log(`[Relay] Server stopped`);
     }
 }
 exports.NodeRelayServer = NodeRelayServer;

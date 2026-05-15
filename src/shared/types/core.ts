@@ -16,11 +16,17 @@ export type NodeEventMap = {
     postConnect: [NodeSession<any, any, any>];
     prePlay: [NodeSession<any, any, any>];
     postPlay: [NodeSession<any, any, any>];
-    donePlay: [NodeSession<any, any, any>];
-    doneConnect: [NodeSession<any, any, any>];
     prePublish: [NodeSession<any, any, any>];
     postPublish: [NodeSession<any, any, any>];
-    donePublish: [NodeSession<any, any, any>];
+    preDone: [NodeSession<any, any, any> | BroadcastServer<any, any>];
+    postDone: [NodeSession<any, any, any> | BroadcastServer<any, any>];
+    restart: [NodeSession<any, any, any>];
+    preRegister: [BroadcastServer<any, any>];
+    postRegister: [BroadcastServer<any, any>];
+    live: [BroadcastServer<any, any>];
+    preSwitch: [BroadcastServer<any, any>];
+    postSwitch: [BroadcastServer<any, any>];
+    offline: [BroadcastServer<any, any>];
     configChanged: [];
     wsConnection: [WebSocket, Http.IncomingMessage];
     logMessage: string[];
@@ -37,6 +43,26 @@ export enum LogType {
     NORMAL = 3,
     DEBUG = 4,
     FFDEBUG = 5,
+}
+
+export enum SessionState {
+    CONNECTING = 'CONNECTING',
+    CONNECTED = 'CONNECTED',
+    STARTING = 'STARTING',
+    RUNNING = 'RUNNING',
+    STOPPING = 'STOPPING',
+    STOPPED = 'STOPPED',
+    RESTARTING = 'RESTARTING',
+}
+
+export enum BroadcastState {
+    REGISTERING = 'REGISTERING',
+    REGISTERED = 'REGISTERED',
+    LIVE = 'LIVE',
+    SWITCHING = 'SWITCHING',
+    OFFLINE = 'OFFLINE',
+    STOPPING = 'STOPPING',
+    STOPPED = 'STOPPED',
 }
 
 export type Context = {

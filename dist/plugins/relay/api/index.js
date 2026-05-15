@@ -11,6 +11,7 @@ exports.default = (context) => {
     router.get('/:id', controller_js_1.default.getStreamByID.bind(context));
     router.get('/:app/:name', controller_js_1.default.getStreamByName.bind(context));
     router.delete('/:id', controller_js_1.default.delStream.bind(context));
+    router.post('/start/:id', controller_js_1.default.startStream.bind(context));
     router.post('/restart/:id', controller_js_1.default.restartStream.bind(context));
     return router;
 };

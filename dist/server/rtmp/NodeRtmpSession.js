@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeRtmpSession = void 0;
-const nms_core_1 = require("../../core");
 const nms_protocol_1 = require("../../protocol");
+const nms_shared_1 = require("../../shared");
 const nms_server_1 = require("..");
 class NodeRtmpSession extends nms_server_1.BaseAvSession {
     socket;
@@ -13,7 +13,8 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         this.socket = socket;
         this.rtmp = new nms_protocol_1.Rtmp();
     }
-    run = () => {
+    start = () => {
+        super.start();
         this.rtmp.onConnectCallback = this.onConnect;
         this.rtmp.onPlayCallback = this.onPlay;
         this.rtmp.onPushCallback = this.onPush;
@@ -34,7 +35,6 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
                 this.rtmp.sendPing();
             }, ping * 1000);
         }
-        nms_core_1.context.nodeEvent.emit('postConnect', this);
     };
     onConnect = (req) => {
         this.streamApp = req.app;
@@ -42,13 +42,14 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         this.streamHost = req.host;
         this.streamPath = '/' + req.app + '/' + req.name;
         this.streamQuery = req.query;
+        this.logger.log(`[RTMP] connected: streamPath=${this.streamPath} remoteIp=${this.remoteIp}`);
     };
     onClose() {
         if (this.pingInterval) {
             clearInterval(this.pingInterval);
             this.pingInterval = null;
         }
-        if (!this.isStop) {
+        if (this.state !== nms_shared_1.SessionState.STOPPED && this.state !== nms_shared_1.SessionState.STOPPING) {
             this.stop();
         }
         super.onClose();
@@ -62,7 +63,7 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
             this.rtmp.parserData(data);
         }
         catch (err) {
-            this.logger.warn(`${this.remoteIp} parserData error, ${err}`);
+            this.logger.warn(`[RTMP] parserData error: ${err} remoteIp=${this.remoteIp}`);
             this.stop();
         }
     };
@@ -73,9 +74,12 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
         }
     };
     stop = () => {
-        this.isStop = true;
-        this.endTime = Date.now();
+        if (this.state === nms_shared_1.SessionState.STOPPED || this.state === nms_shared_1.SessionState.STOPPING) {
+            return;
+        }
+        super.stop();
         this.socket.destroy();
+        this.didStop();
     };
 }
 exports.NodeRtmpSession = NodeRtmpSession;

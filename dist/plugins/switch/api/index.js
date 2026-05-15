@@ -8,6 +8,7 @@ const controller_js_1 = __importDefault(require("./controller.js"));
 exports.default = (context) => {
     let router = express_1.default.Router();
     router.post('/', controller_js_1.default.switchSource.bind(context));
+    router.post('/stop', controller_js_1.default.stopTask.bind(context));
     router.get('/', controller_js_1.default.getStatus.bind(context));
     return router;
 };

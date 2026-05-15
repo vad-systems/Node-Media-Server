@@ -73,16 +73,19 @@ class NodeMediaServer {
         nms_core_1.context.nodeEvent.on('postPublish', (session) => {
             nms_core_1.context.stat.accepted++;
         });
-        nms_core_1.context.nodeEvent.on('doneConnect', (session) => {
+        nms_core_1.context.nodeEvent.on('postDone', (session) => {
+            if (!(session instanceof nms_server_1.NodeSession)) {
+                return;
+            }
             if (session instanceof nms_plugin_av_1.NodeAvSession) {
                 let socket = session.req.socket;
-                nms_core_1.context.stat.inbytes += socket.bytesRead;
-                nms_core_1.context.stat.outbytes += socket.bytesWritten;
+                nms_core_1.context.stat.inbytes += socket.bytesRead || 0;
+                nms_core_1.context.stat.outbytes += socket.bytesWritten || 0;
             }
             else if (session instanceof nms_server_1.NodeRtmpSession) {
                 let socket = session.socket;
-                nms_core_1.context.stat.inbytes += socket.bytesRead;
-                nms_core_1.context.stat.outbytes += socket.bytesWritten;
+                nms_core_1.context.stat.inbytes += socket.bytesRead || 0;
+                nms_core_1.context.stat.outbytes += socket.bytesWritten || 0;
             }
         });
     }
@@ -139,8 +142,9 @@ class NodeMediaServer {
         process.on('uncaughtException', (err) => {
             this.logger.error('uncaughtException', err);
         });
-        process.on('SIGINT', function () {
-            process.exit();
+        process.on('SIGINT', async () => {
+            this.stop();
+            setTimeout(() => process.exit(), 1000);
         });
         await Promise.allSettled(processorsRunning);
     }

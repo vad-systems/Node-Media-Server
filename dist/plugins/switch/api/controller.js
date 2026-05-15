@@ -25,7 +25,22 @@ function getStatus(req, res) {
     const status = nms.switchServer.getStatus();
     res.json(status);
 }
+function stopTask(req, res) {
+    const { path } = req.body;
+    if (!path) {
+        return res.status(400).json({ error: 'path is required' });
+    }
+    const broadcast = this.broadcasts.get(path);
+    if (broadcast) {
+        broadcast.stop(true);
+        res.json({ status: 'ok' });
+    }
+    else {
+        res.status(404).json({ error: 'broadcast not found' });
+    }
+}
 exports.default = {
     switchSource,
-    getStatus
+    getStatus,
+    stopTask
 };

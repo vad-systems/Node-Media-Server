@@ -268,7 +268,7 @@ class Flv {
                         packet.flags = 6;
                     }
                     if (fourCC.compare(FOURCC.HEVC) === 0) {
-                        if (videoPacketType === VideoPacketType.CodedFrames) {
+                        if (videoPacketType === VideoPacketType.CodedFrames && data.length >= 8) {
                             const cts = data.readUintBE(5, 3);
                             packet.pts = packet.dts + cts;
                         }
@@ -276,23 +276,20 @@ class Flv {
                 }
             }
             else {
-                const cts = data.readUintBE(2, 3);
-                const videoPacketType = data[1];
                 packet.codec_id = codecID;
-                packet.pts = packet.dts + cts;
-                packet.flags = 4;
-                if (codecID === FlvVideoCodec.H264) {
+                if (codecID === FlvVideoCodec.H264 && data.length >= 5) {
+                    const cts = data.readUintBE(2, 3);
+                    const videoPacketType = data[1];
+                    packet.pts = packet.dts + cts;
                     if (videoPacketType === VideoPacketType.AvcSequenceHeader) {
                         packet.flags = 2;
                     }
                     else {
-                        if (frameType === FlvFrameType.KEY) {
-                            packet.flags = 3;
-                        }
-                        else {
-                            packet.flags = 4;
-                        }
+                        packet.flags = frameType === FlvFrameType.KEY ? 3 : 4;
                     }
+                }
+                else {
+                    packet.flags = frameType === FlvFrameType.KEY ? 3 : 4;
                 }
             }
         }

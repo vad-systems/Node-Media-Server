@@ -7,7 +7,7 @@ class NodeRelaySession extends nms_server_1.NodeFfmpegSession {
     constructor(conf) {
         super(conf, '127.0.0.1', 'relay');
     }
-    run() {
+    start(...args) {
         let format = this.conf.ouPath.startsWith('rtsp://') ? 'rtsp' : 'flv';
         let ouPath = this.conf.ouPath;
         if (ouPath.startsWith('rtmp://127.0.0.1') || ouPath.startsWith('rtmp://localhost')) {
@@ -32,8 +32,8 @@ class NodeRelaySession extends nms_server_1.NodeFfmpegSession {
                 argv.unshift('-rtsp_transport');
             }
         }
-        this.logger.debug('cmd=ffmpeg', argv.join(' '));
-        super.run(argv);
+        this.logger.debug(`[Relay] ffmpeg cmd: ${argv.join(' ')}`);
+        super.start(argv);
     }
 }
 exports.NodeRelaySession = NodeRelaySession;

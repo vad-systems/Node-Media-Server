@@ -4,7 +4,7 @@ import Http from 'http';
 import express from 'express';
 import { context } from '@vad-systems/nms-core';
 import { AVPacket, Flv } from '@vad-systems/nms-protocol';
-import { AvSessionConfig } from '@vad-systems/nms-shared';
+import { AvSessionConfig, SessionState } from '@vad-systems/nms-shared';
 import { BaseAvSession, Protocol } from '@vad-systems/nms-server';
 
 class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
@@ -43,7 +43,8 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
         this.res = res;
     }
 
-    run = () => {
+    start = () => {
+        super.start();
         if (this.res instanceof WebSocket) {
             this.res.on('message', this.onData);
             this.res.on('close', this.onClose);
@@ -58,7 +59,6 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
         } else {
             this.onPlay();
         }
-        context.nodeEvent.emit('postConnect', this);
     };
 
     onPush() {
@@ -71,7 +71,7 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
         try {
             this.flv.parserData(data);
         } catch (err: any) {
-            this.logger.warn(`${this.remoteIp} parserData error, ${err}`);
+            this.logger.warn(`[AV] parserData error: ${err} remoteIp=${this.remoteIp}`);
             this.stop();
         }
     };
@@ -95,9 +95,18 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
         this.outBytes += buffer.length;
     };
 
+    onClose = () => {
+        if (this.state !== SessionState.STOPPED && this.state !== SessionState.STOPPING) {
+            this.stop();
+        }
+        super.onClose();
+    };
+
     stop = () => {
-        this.isStop = true;
-        this.endTime = Date.now();
+        if (this.state === SessionState.STOPPED || this.state === SessionState.STOPPING) {
+            return;
+        }
+        super.stop();
         if (this.res instanceof WebSocket) {
             this.res.close();
         } else {
@@ -105,6 +114,7 @@ class NodeAvSession extends BaseAvSession<never, AvSessionConfig> {
                 this.res as express.Response
             ).end();
         }
+        this.didStop();
     };
 }
 

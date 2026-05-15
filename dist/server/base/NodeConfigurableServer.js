@@ -30,6 +30,10 @@ class NodeConfigurableServer {
     async run() {
         this.running = true;
     }
+    async restart() {
+        this.stop();
+        await this.run();
+    }
     stop() {
         this.running = false;
     }

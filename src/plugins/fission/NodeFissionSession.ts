@@ -6,7 +6,7 @@ class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig>
         super(conf, '127.0.0.1', 'fission');
     }
 
-    run() {
+    start(...args: any[]) {
         let inPath = this.getRtmpInputPath(this.conf.rtmpPort, this.conf.streamPath);
         let argv = ['-i', inPath];
         for (let m of this.conf.model) {
@@ -45,8 +45,8 @@ class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig>
             ];
         }
 
-        this.logger.debug('cmd=ffmpeg', argv.join(' '));
-        super.run(argv);
+        this.logger.debug(`[Fission] ffmpeg cmd: ${argv.join(' ')}`);
+        super.start(argv);
     }
 }
 

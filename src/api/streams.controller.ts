@@ -1,6 +1,6 @@
 import { FlvAudioCodec, FlvVideoCodec } from '@vad-systems/nms-protocol';
 import { BaseAvSession } from '@vad-systems/nms-server';
-import { Context } from '@vad-systems/nms-shared';
+import { Context, SessionState } from '@vad-systems/nms-shared';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 
@@ -12,13 +12,16 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
         const publisher = broadcast.publisher as BaseAvSession<any, any>;
         _.setWith(stats, [app, name], {
             key,
+            id: broadcast.id,
             app,
             name,
+            state: broadcast.state,
             publisher: publisher ? {
                 app,
                 stream: name,
                 clientId: publisher.id,
                 ip: publisher.remoteIp,
+                state: publisher.state,
                 protocol: publisher.protocol === 'websocket-flv' ? 'ws' : (
                     publisher.protocol === 'http-flv' ? 'http' : publisher.protocol
                 ),
@@ -50,6 +53,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
                                 connectCreated: subscriber.startTime,
                                 bytes: subscriber.outBytes,
                                 ip: subscriber.remoteIp,
+                                state: subscriber.state,
                                 protocol: 'rtmp',
                             };
                         }
@@ -62,6 +66,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
                                 connectCreated: subscriber.startTime,
                                 bytes: subscriber.outBytes,
                                 ip: subscriber.remoteIp,
+                                state: subscriber.state,
                                 protocol: subscriber.TAG === 'websocket-flv' ? 'ws' : 'http',
                             };
                         }
@@ -75,6 +80,7 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
                                 connectCreated: subscriber.startTime,
                                 bytes: subscriber.outBytes,
                                 ip: subscriber.remoteIp,
+                                state: subscriber.state,
                                 protocol: subscriber.TAG,
                             };
                         }
@@ -90,11 +96,11 @@ function getStreams(this: Context, req: Request, res: Response, next: NextFuncti
 
 function getStream(this: Context, req: Request, res: Response, next: NextFunction) {
     let streamStats: any = {
-        isLive: false,
         viewers: 0,
         duration: 0,
         bitrate: 0,
         startTime: null,
+        state: null,
         arguments: {},
     };
 
@@ -103,17 +109,21 @@ function getStream(this: Context, req: Request, res: Response, next: NextFunctio
 
     let publisherSession: BaseAvSession<any, any> = broadcast?.publisher;
 
-    streamStats.isLive = publisherSession && !publisherSession.isStop;
+    const isLive = publisherSession && (publisherSession.state === SessionState.RUNNING);
+    streamStats.broadcastId = broadcast?.id || null;
+    streamStats.publisherId = publisherSession?.id || null;
     streamStats.viewers = broadcast?.subscribers?.size || 0;
-    streamStats.duration = streamStats.isLive
+    streamStats.state = broadcast?.state || null;
+    streamStats.duration = isLive
         ? Math.ceil((
             Date.now() - publisherSession.startTime
         ) / 1000)
         : 0;
     streamStats.bitrate = (publisherSession?.videoDatarate || 0) + (publisherSession?.audioDatarate || 0);
-    streamStats.startTime = streamStats.isLive
+    streamStats.startTime = isLive
         ? publisherSession.startTime
         : null;
+    streamStats.publisherState = publisherSession?.state || null;
     streamStats.arguments = publisherSession?.streamQuery || {};
 
     res.json(streamStats);
@@ -126,8 +136,8 @@ function delStream(this: Context, req: Request, res: Response, next: NextFunctio
     );
 
     if (publisherSession) {
-        publisherSession.stop();
-        res.json('ok');
+        publisherSession.stop(true);
+        res.json({ status: 'ok' });
     } else {
         res.status(404).json({ error: 'stream not found' });
     }
@@ -142,7 +152,7 @@ function getStreamsTree(this: Context, req: Request, res: Response, next: NextFu
         const node = {
             id: session.id,
             type: session.TAG,
-            status: session.isStop ? 'stopped' : 'running',
+            state: session.state,
             children: [] as any[],
         };
         sessionNodes.set(session.id, node);
@@ -166,7 +176,9 @@ function getStreamsTree(this: Context, req: Request, res: Response, next: NextFu
     const broadcasts: any[] = [];
     this.broadcasts.forEach((broadcast, streamPath) => {
         const bNode: any = {
+            id: broadcast.id,
             streamPath,
+            state: broadcast.state,
             publisher: null,
             subscribers: [] as any[],
         };
@@ -200,9 +212,64 @@ function getStreamsTree(this: Context, req: Request, res: Response, next: NextFu
     });
 }
 
+function startSession(this: Context, req: Request, res: Response, next: NextFunction) {
+    const session = this.sessions.get(req.params.id as string);
+    if (session) {
+        let args = req.body;
+        if (session.isFfmpegTask()) {
+            if (!Array.isArray(args)) {
+                if (typeof args === 'object' && args !== null && Array.isArray(args.args)) {
+                    args = args.args;
+                } else {
+                    args = [];
+                }
+            }
+        }
+        session.start(args);
+        res.json({ status: 'ok' });
+    } else {
+        res.status(404).json({ error: 'session not found' });
+    }
+}
+
+function stopSession(this: Context, req: Request, res: Response, next: NextFunction) {
+    const session = this.sessions.get(req.params.id as string);
+    if (session) {
+        session.stop(true);
+        res.json({ status: 'ok' });
+    } else {
+        res.status(404).json({ error: 'session not found' });
+    }
+}
+
+function restartSession(this: Context, req: Request, res: Response, next: NextFunction) {
+    const session = this.sessions.get(req.params.id as string);
+    if (session) {
+        session.restart();
+        res.json({ status: 'ok' });
+    } else {
+        res.status(404).json({ error: 'session not found' });
+    }
+}
+
+function stopBroadcast(this: Context, req: Request, res: Response, next: NextFunction) {
+    let publishStreamPath = `/${req.params.app}/${req.params.stream}`;
+    let broadcast = this.broadcasts.get(publishStreamPath);
+    if (broadcast) {
+        broadcast.stop();
+        res.json({ status: 'ok' });
+    } else {
+        res.status(404).json({ error: 'broadcast not found' });
+    }
+}
+
 export default {
     delStream,
     getStreams,
     getStream,
     getStreamsTree,
+    startSession,
+    stopSession,
+    restartSession,
+    stopBroadcast,
 };

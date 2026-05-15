@@ -1,6 +1,6 @@
 import { context } from '@vad-systems/nms-core';
 import { AVPacket, FlvAudioCodec, FlvVideoCodec } from '@vad-systems/nms-protocol';
-import { SessionConfig } from '@vad-systems/nms-shared';
+import { SessionConfig, SessionState } from '@vad-systems/nms-shared';
 import { AvBroadcastServer } from './AvBroadcastServer.js';
 import { NodeSession } from './NodeSession.js';
 import { Protocol } from './Protocol.js';
@@ -39,42 +39,46 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     protected onPlay() {
         try {
             this.initBroadcast();
-            this.broadcast.postPlay(this);
+            this.broadcast.play(this);
         } catch (err: any) {
-            this.logger.warn(`${this.remoteIp} play ${this.streamPath} error, ${err}`);
+            this.logger.warn(`[play] ${this.remoteIp} ${this.streamPath} error: ${err}`);
             this.stop();
             return;
         }
         this.isPublisher = false;
-        this.logger.log(`${this.remoteIp} start play ${this.streamPath}`);
+        this.state = SessionState.RUNNING;
+        this.logger.log(`[play] ${this.remoteIp} started play ${this.streamPath}`);
     }
 
     protected onPush() {
         try {
             this.initBroadcast();
-            this.broadcast.postPublish(this);
+            this.broadcast.publish(this);
         } catch (err: any) {
-            this.logger.warn(`${this.remoteIp} push ${this.streamPath} error, ${err}`);
+            this.logger.warn(`[push] ${this.remoteIp} ${this.streamPath} error: ${err}`);
             this.stop();
             return;
         }
         this.isPublisher = true;
-        this.logger.log(`${this.remoteIp} start push ${this.streamPath}`);
+        this.state = SessionState.RUNNING;
+        this.logger.log(`[push] ${this.remoteIp} started push ${this.streamPath}`);
     }
 
     protected onClose() {
-        this.logger.log(`close`);
+        this.logger.log(`[close] ${this.streamPath}`);
         if (this.isPublisher) {
             this.broadcast?.donePublish(this);
         } else {
             this.broadcast?.donePlay(this);
         }
-        context.nodeEvent.emit('doneConnect', this);
-        this.cleanup();
+        this.didStop();
+        if (!this.isManualStop) {
+            this.cleanup();
+        }
     }
 
     protected onError(err: any) {
-        this.logger.error(`${this.remoteIp} socket error, ${err}`);
+        this.logger.error(`[error] ${this.remoteIp} socket error: ${err}`);
     }
 
     protected onPacket(packet: AVPacket) {
@@ -83,8 +87,12 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
 
     private initBroadcast() {
         if (!this.broadcast) {
-            this.broadcast = context.broadcasts.get(this.streamPath) as AvBroadcastServer<any, any> ?? new AvBroadcastServer();
-            context.broadcasts.set(this.streamPath, this.broadcast);
+            this.broadcast = context.broadcasts.get(this.streamPath) as AvBroadcastServer<any, any>;
+            if (!this.broadcast) {
+                this.broadcast = new AvBroadcastServer();
+                context.broadcasts.set(this.streamPath, this.broadcast);
+                this.broadcast.register();
+            }
         }
     }
 
