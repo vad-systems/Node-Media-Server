@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const sse_js_1 = require("../../../api/sse.js");
 function switchSource(req, res) {
     const { path, source } = req.body;
     if (!path || !source) {
@@ -18,12 +19,23 @@ function switchSource(req, res) {
     }
 }
 function getStatus(req, res) {
-    const nms = this.server;
-    if (!nms.switchServer) {
-        return res.status(503).json({ error: 'Switch server not enabled' });
+    const fetchStatus = () => {
+        const nms = this.server;
+        if (!nms.switchServer) {
+            throw new Error('Switch server not enabled');
+        }
+        return nms.switchServer.getStatus();
+    };
+    if ((0, sse_js_1.isSSERequest)(req)) {
+        (0, sse_js_1.streamStats)(req, res, fetchStatus, 2000);
+        return;
     }
-    const status = nms.switchServer.getStatus();
-    res.json(status);
+    try {
+        res.json(fetchStatus());
+    }
+    catch (e) {
+        res.status(503).json({ error: e.message });
+    }
 }
 function stopTask(req, res) {
     const { path } = req.body;

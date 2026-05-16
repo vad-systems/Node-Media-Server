@@ -3,6 +3,7 @@ import { Config, Context, obfuscateUrl } from '@vad-systems/nms-shared';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
 import OS from 'os';
+import { isSSERequest, streamStats } from './sse.js';
 
 const Package = require('../../package.json');
 
@@ -146,38 +147,45 @@ function stopServer(this: Context, req: Request<{ server: string }>, res: Respon
 }
 
 function getStatus(this: Context, req: Request, res: Response, next: NextFunction) {
-    const response = {
-        av: {
-            running: this.server?.avServer?.isRunning() || false,
-        },
-        fission: {
-            running: this.server?.fissionServer?.isRunning() || false,
-        },
-        relay: {
-            running: this.server?.relayServer?.isRunning() || false,
-        },
-        rtmp: {
-            running: this.server?.rtmpServer?.isRunning() || false,
-        },
-        trans: {
-            running: this.server?.transServer?.isRunning() || false,
-        },
-        task: {
-            running: this.server?.transServer?.isRunning() || false,
-        },
-        switch: {
-            running: this.server?.switchServer?.isRunning() || false,
-        },
+    const fetchStatus = () => {
+        return {
+            av: {
+                running: this.server?.avServer?.isRunning() || false,
+            },
+            fission: {
+                running: this.server?.fissionServer?.isRunning() || false,
+            },
+            relay: {
+                running: this.server?.relayServer?.isRunning() || false,
+            },
+            rtmp: {
+                running: this.server?.rtmpServer?.isRunning() || false,
+            },
+            trans: {
+                running: this.server?.transServer?.isRunning() || false,
+            },
+            task: {
+                running: this.server?.transServer?.isRunning() || false,
+            },
+            switch: {
+                running: this.server?.switchServer?.isRunning() || false,
+            },
+        };
     };
 
-    res.json(response);
+    if (isSSERequest(req)) {
+        streamStats(req, res, fetchStatus, 5000);
+        return;
+    }
+
+    res.json(fetchStatus());
 }
 
 function getInfo(this: Context, req: Request, res: Response, next: NextFunction) {
-    let s = this.sessions;
-    percentageCPU().then((cpuload) => {
-        let sinfo = getSessionsInfo(s);
-        let info = {
+    const fetchInfo = async () => {
+        const cpuload = await percentageCPU();
+        let sinfo = getSessionsInfo(this.sessions);
+        return {
             os: {
                 arch: OS.arch(),
                 platform: OS.platform(),
@@ -212,8 +220,14 @@ function getInfo(this: Context, req: Request, res: Response, next: NextFunction)
             },
             version: Package.version,
         };
-        res.json(info);
-    });
+    };
+
+    if (isSSERequest(req)) {
+        streamStats(req, res, fetchInfo, 2000);
+        return;
+    }
+
+    fetchInfo().then(info => res.json(info)).catch(next);
 }
 
 function getLogs(this: Context, req: Request, res: Response, next: NextFunction) {

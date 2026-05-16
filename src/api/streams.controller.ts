@@ -3,95 +3,104 @@ import { BaseAvSession } from '@vad-systems/nms-server';
 import { Context, SessionState } from '@vad-systems/nms-shared';
 import { NextFunction, Request, Response } from 'express';
 import _ from 'lodash';
+import { isSSERequest, streamStats } from './sse.js';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
-    let stats: any = {};
+    const fetchStats = () => {
+        let stats: any = {};
 
-    this.broadcasts.forEach((broadcast, key) => {
-        const [k, app, name] = key.split('/');
-        const publisher = broadcast.publisher as BaseAvSession<any, any>;
-        _.setWith(stats, [app, name], {
-            key,
-            id: broadcast.id,
-            app,
-            name,
-            state: broadcast.state,
-            publisher: publisher ? {
+        this.broadcasts.forEach((broadcast, key) => {
+            const [k, app, name] = key.split('/');
+            const publisher = broadcast.publisher as BaseAvSession<any, any>;
+            _.setWith(stats, [app, name], {
+                key,
+                id: broadcast.id,
                 app,
-                stream: name,
-                clientId: publisher.id,
-                ip: publisher.remoteIp,
-                state: publisher.state,
-                protocol: publisher.protocol === 'websocket-flv' ? 'ws' : (
-                    publisher.protocol === 'http-flv' ? 'http' : publisher.protocol
-                ),
-                connectCreated: publisher.startTime,
-                video: publisher.videoCodec !== null ? {
-                    codec: FlvVideoCodec[publisher.videoCodec],
-                    width: publisher.videoWidth,
-                    height: publisher.videoHeight,
-                    profile: publisher.videoProfile,
-                    level: publisher.videoLevel,
-                    fps: publisher.videoFramerate,
+                name,
+                state: broadcast.state,
+                publisher: publisher ? {
+                    app,
+                    stream: name,
+                    clientId: publisher.id,
+                    ip: publisher.remoteIp,
+                    state: publisher.state,
+                    protocol: publisher.protocol === 'websocket-flv' ? 'ws' : (
+                        publisher.protocol === 'http-flv' ? 'http' : publisher.protocol
+                    ),
+                    connectCreated: publisher.startTime,
+                    video: publisher.videoCodec !== null ? {
+                        codec: FlvVideoCodec[publisher.videoCodec],
+                        width: publisher.videoWidth,
+                        height: publisher.videoHeight,
+                        profile: publisher.videoProfile,
+                        level: publisher.videoLevel,
+                        fps: publisher.videoFramerate,
+                    } : null,
+                    audio: publisher.audioCodec !== null ? {
+                        codec: FlvAudioCodec[publisher.audioCodec],
+                        profile: publisher.audioProfile,
+                        channels: publisher.audioChannels,
+                        samplerate: publisher.audioSamplerate,
+                    } : null,
+                    bytes: publisher.inBytes,
                 } : null,
-                audio: publisher.audioCodec !== null ? {
-                    codec: FlvAudioCodec[publisher.audioCodec],
-                    profile: publisher.audioProfile,
-                    channels: publisher.audioChannels,
-                    samplerate: publisher.audioSamplerate,
-                } : null,
-                bytes: publisher.inBytes,
-            } : null,
-            subscribers: [...broadcast.subscribers.values()].map(
-                subscriber => {
-                    switch (subscriber.TAG) {
-                        case 'rtmp': {
-                            return {
-                                app,
-                                stream: name,
-                                clientId: subscriber.id,
-                                connectCreated: subscriber.startTime,
-                                bytes: subscriber.outBytes,
-                                ip: subscriber.remoteIp,
-                                state: subscriber.state,
-                                protocol: 'rtmp',
-                            };
+                subscribers: [...broadcast.subscribers.values()].map(
+                    subscriber => {
+                        switch (subscriber.TAG) {
+                            case 'rtmp': {
+                                return {
+                                    app,
+                                    stream: name,
+                                    clientId: subscriber.id,
+                                    connectCreated: subscriber.startTime,
+                                    bytes: subscriber.outBytes,
+                                    ip: subscriber.remoteIp,
+                                    state: subscriber.state,
+                                    protocol: 'rtmp',
+                                };
+                            }
+                            case 'http-flv':
+                            case 'websocket-flv': {
+                                return {
+                                    app,
+                                    stream: name,
+                                    clientId: subscriber.id,
+                                    connectCreated: subscriber.startTime,
+                                    bytes: subscriber.outBytes,
+                                    ip: subscriber.remoteIp,
+                                    state: subscriber.state,
+                                    protocol: subscriber.TAG === 'websocket-flv' ? 'ws' : 'http',
+                                };
+                            }
+                            case 'relay':
+                            case 'trans':
+                            case 'fission': {
+                                return {
+                                    app,
+                                    stream: name,
+                                    clientId: subscriber.id,
+                                    connectCreated: subscriber.startTime,
+                                    bytes: subscriber.outBytes,
+                                    ip: subscriber.remoteIp,
+                                    state: subscriber.state,
+                                    protocol: subscriber.TAG,
+                                };
+                            }
                         }
-                        case 'http-flv':
-                        case 'websocket-flv': {
-                            return {
-                                app,
-                                stream: name,
-                                clientId: subscriber.id,
-                                connectCreated: subscriber.startTime,
-                                bytes: subscriber.outBytes,
-                                ip: subscriber.remoteIp,
-                                state: subscriber.state,
-                                protocol: subscriber.TAG === 'websocket-flv' ? 'ws' : 'http',
-                            };
-                        }
-                        case 'relay':
-                        case 'trans':
-                        case 'fission': {
-                            return {
-                                app,
-                                stream: name,
-                                clientId: subscriber.id,
-                                connectCreated: subscriber.startTime,
-                                bytes: subscriber.outBytes,
-                                ip: subscriber.remoteIp,
-                                state: subscriber.state,
-                                protocol: subscriber.TAG,
-                            };
-                        }
-                    }
-                    return null;
-                },
-            ).filter(Boolean),
+                        return null;
+                    },
+                ).filter(Boolean),
+            });
         });
-    });
+        return stats;
+    };
 
-    res.json(stats);
+    if (isSSERequest(req)) {
+        streamStats(req, res, fetchStats, 2000);
+        return;
+    }
+
+    res.json(fetchStats());
 }
 
 function getStream(this: Context, req: Request, res: Response, next: NextFunction) {
@@ -144,72 +153,81 @@ function delStream(this: Context, req: Request, res: Response, next: NextFunctio
 }
 
 function getStreamsTree(this: Context, req: Request, res: Response, next: NextFunction) {
-    const sessionsMap = new Map<string, any>();
-    const sessionNodes = new Map<string, any>();
+    const fetchTree = () => {
+        const sessionsMap = new Map<string, any>();
+        const sessionNodes = new Map<string, any>();
 
-    // 1. Create all session nodes
-    this.sessions.forEach((session) => {
-        const node = {
-            id: session.id,
-            type: session.TAG,
-            state: session.state,
-            children: [] as any[],
-        };
-        sessionNodes.set(session.id, node);
-        sessionsMap.set(session.id, session);
-    });
-
-    // 2. Establish parent-child relationships
-    const childrenIds = new Set<string>();
-    this.sessions.forEach((session) => {
-        if (session.parentId && sessionNodes.has(session.parentId)) {
-            const parentNode = sessionNodes.get(session.parentId);
-            const childNode = sessionNodes.get(session.id);
-            if (!parentNode.children.includes(childNode)) {
-                parentNode.children.push(childNode);
-            }
-            childrenIds.add(session.id);
-        }
-    });
-
-    // 3. Build broadcast tree
-    const broadcasts: any[] = [];
-    this.broadcasts.forEach((broadcast, streamPath) => {
-        const bNode: any = {
-            id: broadcast.id,
-            streamPath,
-            state: broadcast.state,
-            publisher: null,
-            subscribers: [] as any[],
-        };
-
-        if (broadcast.publisher) {
-            bNode.publisher = sessionNodes.get(broadcast.publisher.id);
-        }
-
-        broadcast.subscribers.forEach((subscriber) => {
-            bNode.subscribers.push(sessionNodes.get(subscriber.id));
+        // 1. Create all session nodes
+        this.sessions.forEach((session) => {
+            const node = {
+                id: session.id,
+                type: session.TAG,
+                state: session.state,
+                children: [] as any[],
+            };
+            sessionNodes.set(session.id, node);
+            sessionsMap.set(session.id, session);
         });
 
-        broadcasts.push(bNode);
-    });
+        // 2. Establish parent-child relationships
+        const childrenIds = new Set<string>();
+        this.sessions.forEach((session) => {
+            if (session.parentId && sessionNodes.has(session.parentId)) {
+                const parentNode = sessionNodes.get(session.parentId);
+                const childNode = sessionNodes.get(session.id);
+                if (!parentNode.children.includes(childNode)) {
+                    parentNode.children.push(childNode);
+                }
+                childrenIds.add(session.id);
+            }
+        });
 
-    // 4. Identify orphaned sessions
-    // Orphaned = No parent AND not a publisher or subscriber in any broadcast
-    const sessionsInBroadcasts = new Set<string>();
-    this.broadcasts.forEach((broadcast) => {
-        if (broadcast.publisher) sessionsInBroadcasts.add(broadcast.publisher.id);
-        broadcast.subscribers.forEach((s) => sessionsInBroadcasts.add(s.id));
-    });
+        // 3. Build broadcast tree
+        const broadcasts: any[] = [];
+        this.broadcasts.forEach((broadcast, streamPath) => {
+            const bNode: any = {
+                id: broadcast.id,
+                streamPath,
+                state: broadcast.state,
+                publisher: null,
+                subscribers: [] as any[],
+            };
 
-    const orphans = Array.from(sessionNodes.values()).filter(
-        (node) => !childrenIds.has(node.id) && !sessionsInBroadcasts.has(node.id)
-    );
+            if (broadcast.publisher) {
+                bNode.publisher = sessionNodes.get(broadcast.publisher.id);
+            }
 
-    res.json({
-        broadcasts,
-        orphans,
-    });
+            broadcast.subscribers.forEach((subscriber) => {
+                bNode.subscribers.push(sessionNodes.get(subscriber.id));
+            });
+
+            broadcasts.push(bNode);
+        });
+
+        // 4. Identify orphaned sessions
+        // Orphaned = No parent AND not a publisher or subscriber in any broadcast
+        const sessionsInBroadcasts = new Set<string>();
+        this.broadcasts.forEach((broadcast) => {
+            if (broadcast.publisher) sessionsInBroadcasts.add(broadcast.publisher.id);
+            broadcast.subscribers.forEach((s) => sessionsInBroadcasts.add(s.id));
+        });
+
+        const orphans = Array.from(sessionNodes.values()).filter(
+            (node) => !childrenIds.has(node.id) && !sessionsInBroadcasts.has(node.id)
+        );
+
+        return {
+            broadcasts,
+            orphans,
+        };
+    };
+
+    if (isSSERequest(req)) {
+        streamStats(req, res, fetchTree, 2000);
+        return;
+    }
+
+    res.json(fetchTree());
 }
 
 function startSession(this: Context, req: Request, res: Response, next: NextFunction) {

@@ -1,6 +1,7 @@
 import { Context } from '@vad-systems/nms-shared';
 import { Request, Response } from 'express';
 import NodeMediaServer from '../../../NodeMediaServer.js';
+import { isSSERequest, streamStats } from '../../../api/sse.js';
 
 function switchSource(this: Context, req: Request, res: Response) {
     const { path, source } = req.body;
@@ -22,13 +23,24 @@ function switchSource(this: Context, req: Request, res: Response) {
 }
 
 function getStatus(this: Context, req: Request, res: Response) {
-    const nms = this.server as NodeMediaServer;
-    if (!nms.switchServer) {
-        return res.status(503).json({ error: 'Switch server not enabled' });
+    const fetchStatus = () => {
+        const nms = this.server as NodeMediaServer;
+        if (!nms.switchServer) {
+            throw new Error('Switch server not enabled');
+        }
+        return nms.switchServer.getStatus();
+    };
+
+    if (isSSERequest(req)) {
+        streamStats(req, res, fetchStatus, 2000);
+        return;
     }
 
-    const status = nms.switchServer.getStatus();
-    res.json(status);
+    try {
+        res.json(fetchStatus());
+    } catch (e: any) {
+        res.status(503).json({ error: e.message });
+    }
 }
 
 function stopTask(this: Context, req: Request, res: Response) {

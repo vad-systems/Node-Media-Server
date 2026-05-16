@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const nms_shared_1 = require("../shared");
 const lodash_1 = __importDefault(require("lodash"));
 const os_1 = __importDefault(require("os"));
+const sse_js_1 = require("./sse.js");
 const Package = require('../../package.json');
 function cpuAverage() {
     let totalIdle = 0, totalTick = 0;
@@ -126,36 +127,42 @@ function stopServer(req, res, next) {
     }
 }
 function getStatus(req, res, next) {
-    const response = {
-        av: {
-            running: this.server?.avServer?.isRunning() || false,
-        },
-        fission: {
-            running: this.server?.fissionServer?.isRunning() || false,
-        },
-        relay: {
-            running: this.server?.relayServer?.isRunning() || false,
-        },
-        rtmp: {
-            running: this.server?.rtmpServer?.isRunning() || false,
-        },
-        trans: {
-            running: this.server?.transServer?.isRunning() || false,
-        },
-        task: {
-            running: this.server?.transServer?.isRunning() || false,
-        },
-        switch: {
-            running: this.server?.switchServer?.isRunning() || false,
-        },
+    const fetchStatus = () => {
+        return {
+            av: {
+                running: this.server?.avServer?.isRunning() || false,
+            },
+            fission: {
+                running: this.server?.fissionServer?.isRunning() || false,
+            },
+            relay: {
+                running: this.server?.relayServer?.isRunning() || false,
+            },
+            rtmp: {
+                running: this.server?.rtmpServer?.isRunning() || false,
+            },
+            trans: {
+                running: this.server?.transServer?.isRunning() || false,
+            },
+            task: {
+                running: this.server?.transServer?.isRunning() || false,
+            },
+            switch: {
+                running: this.server?.switchServer?.isRunning() || false,
+            },
+        };
     };
-    res.json(response);
+    if ((0, sse_js_1.isSSERequest)(req)) {
+        (0, sse_js_1.streamStats)(req, res, fetchStatus, 5000);
+        return;
+    }
+    res.json(fetchStatus());
 }
 function getInfo(req, res, next) {
-    let s = this.sessions;
-    percentageCPU().then((cpuload) => {
-        let sinfo = getSessionsInfo(s);
-        let info = {
+    const fetchInfo = async () => {
+        const cpuload = await percentageCPU();
+        let sinfo = getSessionsInfo(this.sessions);
+        return {
             os: {
                 arch: os_1.default.arch(),
                 platform: os_1.default.platform(),
@@ -190,8 +197,12 @@ function getInfo(req, res, next) {
             },
             version: Package.version,
         };
-        res.json(info);
-    });
+    };
+    if ((0, sse_js_1.isSSERequest)(req)) {
+        (0, sse_js_1.streamStats)(req, res, fetchInfo, 2000);
+        return;
+    }
+    fetchInfo().then(info => res.json(info)).catch(next);
 }
 function getLogs(req, res, next) {
     res.setHeader('Content-Type', 'text/event-stream');

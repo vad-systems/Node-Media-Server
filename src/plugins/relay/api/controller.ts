@@ -2,37 +2,46 @@ import { NextFunction, Request, Response } from 'express';
 import { get, set } from 'lodash';
 import { Context, obfuscateUrl } from '@vad-systems/nms-shared';
 import { NodeRelaySession } from '@vad-systems/nms-plugin-relay';
+import { isSSERequest, streamStats } from '../../../api/sse.js';
 
 function getStreams(this: Context, req: Request, res: Response, next: NextFunction) {
-    let stats: any = {};
-    this.sessions.forEach(function (session, id) {
-        if (!(
-            session instanceof NodeRelaySession
-        )) {
-            return;
-        }
+    const fetchStats = () => {
+        let stats: any = {};
+        this.sessions.forEach(function (session, id) {
+            if (!(
+                session instanceof NodeRelaySession
+            )) {
+                return;
+            }
 
-        let { app, name } = session.conf;
+            let { app, name } = session.conf;
 
-        if (!get(stats, [app, name])) {
-            set(stats, [app, name], {
-                relays: [],
+            if (!get(stats, [app, name])) {
+                set(stats, [app, name], {
+                    relays: [],
+                });
+            }
+
+            stats[app][name]['relays'].push({
+                app: app,
+                name: name,
+                state: session.state,
+                path: session.conf.inPath,
+                url: obfuscateUrl(session.conf.ouPath),
+                mode: session.conf.mode,
+                ts: session.startTime,
+                id: id,
             });
-        }
-
-        stats[app][name]['relays'].push({
-            app: app,
-            name: name,
-            state: session.state,
-            path: session.conf.inPath,
-            url: obfuscateUrl(session.conf.ouPath),
-            mode: session.conf.mode,
-            ts: session.startTime,
-            id: id,
         });
-    });
+        return stats;
+    };
 
-    res.json(stats);
+    if (isSSERequest(req)) {
+        streamStats(req, res, fetchStats, 2000);
+        return;
+    }
+
+    res.json(fetchStats());
 }
 
 function getStreamByID(this: Context, req: Request, res: Response, next: NextFunction) {

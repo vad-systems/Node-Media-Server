@@ -3,30 +3,38 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const lodash_1 = require("lodash");
 const nms_shared_1 = require("../../../shared");
 const nms_plugin_relay_1 = require("..");
+const sse_js_1 = require("../../../api/sse.js");
 function getStreams(req, res, next) {
-    let stats = {};
-    this.sessions.forEach(function (session, id) {
-        if (!(session instanceof nms_plugin_relay_1.NodeRelaySession)) {
-            return;
-        }
-        let { app, name } = session.conf;
-        if (!(0, lodash_1.get)(stats, [app, name])) {
-            (0, lodash_1.set)(stats, [app, name], {
-                relays: [],
+    const fetchStats = () => {
+        let stats = {};
+        this.sessions.forEach(function (session, id) {
+            if (!(session instanceof nms_plugin_relay_1.NodeRelaySession)) {
+                return;
+            }
+            let { app, name } = session.conf;
+            if (!(0, lodash_1.get)(stats, [app, name])) {
+                (0, lodash_1.set)(stats, [app, name], {
+                    relays: [],
+                });
+            }
+            stats[app][name]['relays'].push({
+                app: app,
+                name: name,
+                state: session.state,
+                path: session.conf.inPath,
+                url: (0, nms_shared_1.obfuscateUrl)(session.conf.ouPath),
+                mode: session.conf.mode,
+                ts: session.startTime,
+                id: id,
             });
-        }
-        stats[app][name]['relays'].push({
-            app: app,
-            name: name,
-            state: session.state,
-            path: session.conf.inPath,
-            url: (0, nms_shared_1.obfuscateUrl)(session.conf.ouPath),
-            mode: session.conf.mode,
-            ts: session.startTime,
-            id: id,
         });
-    });
-    res.json(stats);
+        return stats;
+    };
+    if ((0, sse_js_1.isSSERequest)(req)) {
+        (0, sse_js_1.streamStats)(req, res, fetchStats, 2000);
+        return;
+    }
+    res.json(fetchStats());
 }
 function getStreamByID(req, res, next) {
     const relaySession = Array.from(this.sessions.values()).filter((session) => session instanceof nms_plugin_relay_1.NodeRelaySession &&

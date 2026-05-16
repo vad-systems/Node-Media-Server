@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Node-Media-Server REST API
   description: API for managing and monitoring the Node-Media-Server.
-  version: 0.1.0-dev28
+  version: 0.1.0-dev29
 servers:
   - url: http://localhost:8000
     description: Default HTTP server
@@ -499,6 +499,7 @@ paths:
     get:
       tags: [Server]
       summary: Get general server information
+      description: Returns general server information. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: Server information retrieved
@@ -506,11 +507,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerInfo'
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded ServerInfo object preceded by data: '
 
   /api/server/status:
     get:
       tags: [Server]
       summary: Get running status of server components
+      description: Returns running status of server components. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: Component status retrieved
@@ -518,6 +524,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerStatus'
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded ServerStatus object preceded by data: '
 
   /api/server/config:
     get:
@@ -610,6 +620,7 @@ paths:
     get:
       tags: [Streams]
       summary: List all active streams and subscribers
+      description: Returns a list of all active streams and their subscribers. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: List of streams retrieved
@@ -617,11 +628,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StreamStats'
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded StreamStats object preceded by data: '
 
   /api/streams/tree:
     get:
       tags: [Streams]
       summary: List all active streams and sessions in a tree structure
+      description: Returns a tree of all active streams and sessions. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: A tree of streams and sessions
@@ -629,6 +645,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StreamsTree'
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded StreamsTree object preceded by data: '
 
   /api/streams/{app}/{stream}:
     get:
@@ -781,6 +801,7 @@ paths:
     get:
       tags: [Fission]
       summary: List active fission tasks
+      description: Returns a list of active fission tasks. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: Fission tasks retrieved
@@ -788,6 +809,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FissionStats'
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded FissionStats object preceded by data: '
 
   /api/fission/{id}:
     delete:
@@ -867,6 +892,7 @@ paths:
     get:
       tags: [Relay]
       summary: List active relay tasks
+      description: Returns a list of active relay tasks. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: Relay tasks retrieved
@@ -874,6 +900,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RelayStats'
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded RelayStats object preceded by data: '
 
   /api/relay/{id}:
     get:
@@ -993,6 +1023,7 @@ paths:
     get:
       tags: [Trans]
       summary: List active trans tasks
+      description: Returns a list of active trans tasks. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: Trans tasks retrieved
@@ -1000,6 +1031,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TransStats'
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded TransStats object preceded by data: '
 
   /api/trans/{id}:
     delete:
@@ -1079,6 +1114,7 @@ paths:
     get:
       tags: [Switch]
       summary: List all switch tasks and their status
+      description: Returns a list of all switch tasks and their status. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: Switch tasks retrieved
@@ -1086,6 +1122,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SwitchStats'
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded SwitchStats object preceded by data: '
         '503':
           description: Switch server not enabled
           content:
@@ -1170,6 +1210,7 @@ paths:
     get:
       tags: [Static]
       summary: List all static tasks and their status
+      description: Returns a list of all static tasks and their status. Supports server-sent events for periodic updates.
       responses:
         '200':
           description: Static tasks retrieved
@@ -1187,6 +1228,10 @@ paths:
                     state: { $ref: '#/components/schemas/SessionState' }
                     input: { type: string }
                     textPath: { type: string }
+            text/event-stream:
+              schema:
+                type: string
+                description: 'JSON-encoded array of static task statuses preceded by data: '
         '503':
           description: Static server not enabled
           content:
