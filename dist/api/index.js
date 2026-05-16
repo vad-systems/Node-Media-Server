@@ -10,6 +10,7 @@ const nms_plugin_fission_1 = require("../plugins/fission");
 const nms_plugin_relay_1 = require("../plugins/relay");
 const nms_plugin_trans_1 = require("../plugins/trans");
 const nms_plugin_switch_1 = require("../plugins/switch");
+const nms_plugin_static_1 = require("../plugins/static");
 const middleware_js_1 = require("./middleware.js");
 function setupRoutes(app, context) {
     const config = context.configProvider.getConfig();
@@ -19,4 +20,5 @@ function setupRoutes(app, context) {
     app.use('/api/trans', (0, middleware_js_1.pluginEnabled)('trans').bind(context), (0, nms_plugin_trans_1.transApi)(context));
     app.use('/api/fission', (0, middleware_js_1.pluginEnabled)('fission').bind(context), (0, nms_plugin_fission_1.fissionApi)(context));
     app.use('/api/switch', (0, middleware_js_1.pluginEnabled)('switch').bind(context), (0, nms_plugin_switch_1.switchApi)(context));
+    app.use('/api/static', (0, middleware_js_1.pluginEnabled)('static').bind(context), (0, nms_plugin_static_1.staticApi)(context));
 }

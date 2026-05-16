@@ -44,6 +44,7 @@ const nms_plugin_av_1 = require("./plugins/av");
 const nms_plugin_relay_1 = require("./plugins/relay");
 const nms_plugin_trans_1 = require("./plugins/trans");
 const nms_plugin_switch_1 = require("./plugins/switch");
+const nms_plugin_static_1 = require("./plugins/static");
 const types = __importStar(require("./shared"));
 const nms_shared_1 = require("./shared");
 const Package = require('../package.json');
@@ -55,6 +56,7 @@ class NodeMediaServer {
     relayServer;
     fissionServer;
     switchServer;
+    staticServer;
     logger = nms_core_1.LoggerFactory.getLogger('Core');
     static types = types;
     constructor(config) {
@@ -67,6 +69,7 @@ class NodeMediaServer {
         this.relayServer = new nms_plugin_relay_1.NodeRelayServer();
         this.fissionServer = new nms_plugin_fission_1.NodeFissionServer();
         this.switchServer = new nms_plugin_switch_1.NodeSwitchServer();
+        this.staticServer = new nms_plugin_static_1.NodeStaticServer();
         nms_core_1.context.nodeEvent.on('postPlay', (session) => {
             nms_core_1.context.stat.accepted++;
         });
@@ -139,6 +142,14 @@ class NodeMediaServer {
                 processorsRunning.push(this.switchServer.run());
             }
         }
+        if (config.static) {
+            if (config.cluster) {
+                this.logger.warn('NodeStaticServer does not work in cluster mode');
+            }
+            else {
+                processorsRunning.push(this.staticServer.run());
+            }
+        }
         process.on('uncaughtException', (err) => {
             this.logger.error('uncaughtException', err);
         });
@@ -166,6 +177,9 @@ class NodeMediaServer {
         }
         if (this.switchServer.isRunning()) {
             this.switchServer.stop();
+        }
+        if (this.staticServer.isRunning()) {
+            this.staticServer.stop();
         }
         if (this.transServer.isRunning()) {
             this.transServer.stop();

@@ -8,6 +8,7 @@ function pluginEnabled(pluginName) {
             trans: this.server.transServer,
             fission: this.server.fissionServer,
             switch: this.server.switchServer,
+            static: this.server.staticServer,
         };
         const server = serverMap[pluginName];
         if (!server || !server.isRunning()) {

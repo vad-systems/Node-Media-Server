@@ -23,6 +23,7 @@ __exportStar(require("./rtmp.js"), exports);
 __exportStar(require("./task.js"), exports);
 __exportStar(require("./av.js"), exports);
 __exportStar(require("./switch.js"), exports);
+__exportStar(require("./static.js"), exports);
 class Config {
     http;
     https;
@@ -32,6 +33,7 @@ class Config {
     fission;
     av;
     switch;
+    static;
     cluster;
     auth;
     logType;
@@ -45,6 +47,7 @@ class Config {
         this.fission = config.fission;
         this.av = config.av;
         this.switch = config.switch;
+        this.static = config.static;
         this.cluster = config.cluster;
         this.auth = config.auth;
         this.logType = config.logType;

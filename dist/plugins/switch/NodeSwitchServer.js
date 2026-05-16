@@ -47,9 +47,6 @@ class NodeSwitchServer extends nms_server_1.NodeTaskServer {
                 broadcast.setInitialSource(task.defaultSource);
             }
             const allSources = [...task.sources];
-            if (task.slatePath && !allSources.includes(task.slatePath)) {
-                allSources.push(task.slatePath);
-            }
             for (const source of allSources) {
                 if (!this.sourceToOutputs.has(source)) {
                     this.sourceToOutputs.set(source, new Set());
@@ -115,7 +112,7 @@ class NodeSwitchServer extends nms_server_1.NodeTaskServer {
         const config = this.config.switch;
         const task = config?.tasks.find(t => `/${t.app}/${t.name}` === fullPath);
         const isLive = this.isSourceActive(newSourcePath);
-        const isConfigured = task && (task.sources.includes(newSourcePath) || task.slatePath === newSourcePath);
+        const isConfigured = task && task.sources.includes(newSourcePath);
         if (!isConfigured && (!isManual || !isLive)) {
             this.logger.warn(`[Switch] switch failed: source ${newSourcePath} not valid or not live for ${fullPath}`);
             return false;
@@ -153,8 +150,7 @@ class NodeSwitchServer extends nms_server_1.NodeTaskServer {
                 pendingSource: broadcast.pendingSource,
                 isSwitching: broadcast.isSwitching,
                 sources: taskConfig?.sources || [],
-                defaultSource: taskConfig?.defaultSource,
-                slatePath: taskConfig?.slatePath
+                defaultSource: taskConfig?.defaultSource
             });
         });
         return tasks;
@@ -239,15 +235,12 @@ class NodeSwitchServer extends nms_server_1.NodeTaskServer {
         else {
             targetSource = task.sources.find(s => s !== failedSourcePath && this.isSourceActive(s));
         }
-        if (!targetSource && task.slatePath && task.slatePath !== failedSourcePath && this.isSourceActive(task.slatePath)) {
-            targetSource = task.slatePath;
-        }
         if (targetSource) {
             this.logger.log(`[Switch] triggering fallback for ${fullPath} to: ${targetSource}`);
             this.doSwitch(fullPath, targetSource, false, true);
         }
-        else if (!task.slatePath) {
-            this.logger.log(`[Switch] no active fallback source and no slate declared for ${fullPath}. Terminating broadcast.`);
+        else {
+            this.logger.log(`[Switch] no active fallback source for ${fullPath}. Terminating broadcast.`);
             this.doSwitch(fullPath, null, false);
         }
     }

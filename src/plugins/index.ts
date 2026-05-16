@@ -3,3 +3,4 @@ export * from '@vad-systems/nms-plugin-trans';
 export * from '@vad-systems/nms-plugin-fission';
 export * from '@vad-systems/nms-plugin-av';
 export * from '@vad-systems/nms-plugin-switch';
+export * from '@vad-systems/nms-plugin-static';

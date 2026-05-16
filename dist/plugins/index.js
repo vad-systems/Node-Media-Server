@@ -19,3 +19,4 @@ __exportStar(require("./trans"), exports);
 __exportStar(require("./fission"), exports);
 __exportStar(require("./av"), exports);
 __exportStar(require("./switch"), exports);
+__exportStar(require("./static"), exports);

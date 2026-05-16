@@ -11,6 +11,7 @@ exports.default = (context) => {
     router.get('/status', server_controller_js_1.default.getStatus.bind(context));
     router.get('/config', server_controller_js_1.default.getConfig.bind(context));
     router.patch('/config', server_controller_js_1.default.updateConfig.bind(context));
+    router.get('/logs', server_controller_js_1.default.getLogs.bind(context));
     router.post('/:server/start', server_controller_js_1.default.startServer.bind(context));
     router.post('/:server/stop', server_controller_js_1.default.stopServer.bind(context));
     return router;

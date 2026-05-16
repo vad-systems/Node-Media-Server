@@ -1,13 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 import { Context } from '@vad-systems/nms-shared';
 
-export function pluginEnabled(pluginName: 'relay' | 'trans' | 'fission' | 'switch') {
+export function pluginEnabled(pluginName: 'relay' | 'trans' | 'fission' | 'switch' | 'static') {
     return function(this: Context, req: Request, res: Response, next: NextFunction) {
-        const serverMap = {
+        const serverMap: Record<string, any> = {
             relay: this.server.relayServer,
             trans: this.server.transServer,
             fission: this.server.fissionServer,
             switch: this.server.switchServer,
+            static: (this.server as any).staticServer,
         };
 
         const server = serverMap[pluginName];

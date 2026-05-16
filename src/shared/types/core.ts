@@ -29,6 +29,7 @@ export type NodeEventMap = {
     offline: [BroadcastServer<any, any>];
     configChanged: [];
     wsConnection: [WebSocket, Http.IncomingMessage];
+    log: [any[]];
     logMessage: string[];
     errorMessage: string[];
     warnMessage: string[];

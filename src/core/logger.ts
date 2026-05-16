@@ -20,6 +20,7 @@ const setRollingLogLength = (logLength: number) => {
 const addRollingLog = (...args: any[]) => {
     context.rollingLog.push([...args]);
     context.rollingLog = context.rollingLog.slice(-rollingLogLength);
+    context.nodeEvent.emit('log', args);
 };
 
 context.nodeEvent.on('configChanged', () => {

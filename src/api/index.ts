@@ -6,6 +6,7 @@ import { fissionApi } from '@vad-systems/nms-plugin-fission';
 import { relayApi } from '@vad-systems/nms-plugin-relay';
 import { transApi } from '@vad-systems/nms-plugin-trans';
 import { switchApi } from '@vad-systems/nms-plugin-switch';
+import { staticApi } from '@vad-systems/nms-plugin-static';
 import { pluginEnabled } from './middleware.js';
 
 export function setupRoutes(app: express.Application, context: Context) {
@@ -18,4 +19,5 @@ export function setupRoutes(app: express.Application, context: Context) {
     app.use('/api/trans', pluginEnabled('trans').bind(context), transApi(context));
     app.use('/api/fission', pluginEnabled('fission').bind(context), fissionApi(context));
     app.use('/api/switch', pluginEnabled('switch').bind(context), switchApi(context));
+    app.use('/api/static', pluginEnabled('static').bind(context), staticApi(context));
 }

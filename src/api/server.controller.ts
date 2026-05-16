@@ -216,6 +216,46 @@ function getInfo(this: Context, req: Request, res: Response, next: NextFunction)
     });
 }
 
+function getLogs(this: Context, req: Request, res: Response, next: NextFunction) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const sendLog = (args: any[]) => {
+        const message = args.map(arg => {
+            if (typeof arg === 'object') {
+                try {
+                    return JSON.stringify(arg);
+                } catch (e) {
+                    return String(arg);
+                }
+            }
+            return String(arg);
+        }).join(' ');
+
+        const cleanMessage = message.replace(/\u001b\[[0-9;]*m/g, '');
+        const lines = cleanMessage.split('\n');
+        for (const line of lines) {
+            res.write(`data: ${line}\n`);
+        }
+        res.write('\n');
+    };
+
+    for (const log of this.rollingLog) {
+        sendLog(log);
+    }
+
+    const listener = (args: any[]) => {
+        sendLog(args);
+    };
+
+    this.nodeEvent.on('log', listener);
+
+    req.on('close', () => {
+        this.nodeEvent.off('log', listener);
+    });
+}
+
 export default {
     getInfo,
     getStatus,
@@ -223,4 +263,5 @@ export default {
     updateConfig,
     startServer,
     stopServer,
+    getLogs,
 };

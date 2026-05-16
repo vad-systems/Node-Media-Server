@@ -7,7 +7,6 @@ export type SwitchTaskConfig = {
     readonly sources: string[];
     readonly defaultSource?: string;
     readonly switchTimeout?: number;
-    readonly slatePath?: string;
     readonly args?: Arguments;
 }
 

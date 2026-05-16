@@ -21,6 +21,7 @@ const setRollingLogLength = (logLength) => {
 const addRollingLog = (...args) => {
     context_js_1.default.rollingLog.push([...args]);
     context_js_1.default.rollingLog = context_js_1.default.rollingLog.slice(-rollingLogLength);
+    context_js_1.default.nodeEvent.emit('log', args);
 };
 context_js_1.default.nodeEvent.on('configChanged', () => {
     setLogType(context_js_1.default.configProvider.getConfig().logType);

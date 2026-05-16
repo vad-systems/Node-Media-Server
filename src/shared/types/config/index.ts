@@ -6,8 +6,10 @@ export * from './rtmp.js';
 export * from './task.js';
 export * from './av.js';
 export * from './switch.js';
+export * from './static.js';
 
 import { LogType } from '../core.js';
+import { StaticConfig } from './static.js';
 import { AvConfig } from './av.js';
 import { FissionConfig } from './fission.js';
 import { HttpConfig, HttpsConfig } from './http.js';
@@ -36,6 +38,7 @@ export type ConfigType = {
     readonly fission?: FissionConfig;
     readonly av?: AvConfig;
     readonly switch?: SwitchConfig;
+    readonly static?: StaticConfig;
 
     readonly cluster?: ClusterConfig;
     readonly auth?: AuthConfig;
@@ -53,6 +56,7 @@ export class Config {
     readonly fission?: FissionConfig;
     readonly av?: AvConfig;
     readonly switch?: SwitchConfig;
+    readonly static?: StaticConfig;
 
     readonly cluster?: ClusterConfig;
     readonly auth?: AuthConfig;
@@ -69,6 +73,7 @@ export class Config {
         this.fission = config.fission;
         this.av = config.av;
         this.switch = config.switch;
+        this.static = config.static;
         this.cluster = config.cluster;
         this.auth = config.auth;
         this.logType = config.logType;

@@ -6,6 +6,7 @@ import { NodeAvServer, NodeAvSession } from '@vad-systems/nms-plugin-av';
 import { NodeRelayServer } from '@vad-systems/nms-plugin-relay';
 import { NodeTransServer } from '@vad-systems/nms-plugin-trans';
 import { NodeSwitchServer } from '@vad-systems/nms-plugin-switch';
+import { NodeStaticServer } from '@vad-systems/nms-plugin-static';
 import * as types from '@vad-systems/nms-shared';
 import { Config, ConfigType, NodeEventMap } from '@vad-systems/nms-shared';
 
@@ -19,6 +20,7 @@ class NodeMediaServer {
     public relayServer: NodeRelayServer;
     public fissionServer: NodeFissionServer;
     public switchServer: NodeSwitchServer;
+    public staticServer: NodeStaticServer;
     private logger = LoggerFactory.getLogger('Core');
 
     static types = types;
@@ -34,6 +36,7 @@ class NodeMediaServer {
         this.relayServer = new NodeRelayServer();
         this.fissionServer = new NodeFissionServer();
         this.switchServer = new NodeSwitchServer();
+        this.staticServer = new NodeStaticServer();
 
         context.nodeEvent.on('postPlay', (session) => {
             context.stat.accepted++;
@@ -115,6 +118,14 @@ class NodeMediaServer {
             }
         }
 
+        if (config.static) {
+            if (config.cluster) {
+                this.logger.warn('NodeStaticServer does not work in cluster mode');
+            } else {
+                processorsRunning.push(this.staticServer.run());
+            }
+        }
+
         process.on('uncaughtException', (err) => {
             this.logger.error('uncaughtException', err);
         });
@@ -150,6 +161,10 @@ class NodeMediaServer {
 
         if (this.switchServer.isRunning()) {
             this.switchServer.stop();
+        }
+
+        if (this.staticServer.isRunning()) {
+            this.staticServer.stop();
         }
 
         if (this.transServer.isRunning()) {
