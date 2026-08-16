@@ -16,7 +16,12 @@ class NodeRelaySession extends nms_server_1.NodeFfmpegSession {
         let argv = [
             '-re',
             '-i', this.conf.inPath,
-            ...(this.conf.rescale ? ['-c:v', `h264`] : ['-c:v', 'copy']),
+            ...(this.conf.rescale
+                ? [
+                    '-c:v', 'libx264',
+                    '-force_key_frames', 'expr:gte(t,n_forced*2)'
+                ]
+                : ['-c:v', 'copy']),
             '-c:a', 'copy',
             ...(this.conf.rescale ? ['-vf', `scale=${this.conf.rescale}`] : []),
             '-f', format,
