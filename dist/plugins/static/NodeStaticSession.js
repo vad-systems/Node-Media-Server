@@ -15,7 +15,7 @@ class NodeStaticSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
         const argv = [
             '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
             '-loop', '1', '-re', '-i', this.conf.input,
-            '-force_key_frames', '50',
+            '-force_key_frames', 'expr:gte(t,n_forced*2)',
             '-c:v', 'libx264',
             '-r', '25',
             '-pix_fmt', 'yuv420p',
