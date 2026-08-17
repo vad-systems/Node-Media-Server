@@ -124,6 +124,15 @@ class BroadcastServer<C, S extends NodeSession<C, SessionConfig<C>>> {
             this.publisher = session;
             context.idlePlayers.delete(session.id);
         } else {
+            const incumbent = this.publisher;
+
+            if (incumbent.isPublisherStale()) {
+                this.logger.warn(
+                    `[publisher] stale publisher detected: incumbent=${incumbent.id} challenger=${session.id}; stopping incumbent`,
+                );
+                incumbent.stop();
+            }
+
             throw new Error(`streamPath=${session.streamPath} already has a publisher`);
         }
         context.nodeEvent.emit('postPublish', session);

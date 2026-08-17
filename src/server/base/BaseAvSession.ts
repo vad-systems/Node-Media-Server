@@ -21,6 +21,8 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     private _videoFramerate: number = null;
     private _videoDatarate: number = null;
 
+    private _lastMediaPacketAt: number | null = null;
+
     protected constructor(conf: T, remoteIp: string, protocol: Protocol) {
         super(conf, remoteIp, protocol.toString());
         this.protocol = protocol;
@@ -34,6 +36,10 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
 
     protected get avBroadcast(): AvBroadcastServer<any, any> {
         return this.broadcast as AvBroadcastServer<any, any>;
+    }
+
+    public get lastMediaPacketAt(): number | null {
+        return this._lastMediaPacketAt;
     }
 
     protected onPlay() {
@@ -82,6 +88,16 @@ abstract class BaseAvSession<A, T extends SessionConfig<A>> extends NodeSession<
     }
 
     protected onPacket(packet: AVPacket) {
+        // Only coded A/V represents ongoing media progress.
+        // Sequence headers and script/metadata packets must not keep
+        // a stale publisher alive.
+        if (
+            this.isPublisher &&
+            (packet.flags === 1 || packet.flags === 3 || packet.flags === 4)
+        ) {
+            this._lastMediaPacketAt = Date.now();
+        }
+
         this.avBroadcast?.broadcastMessage(packet);
     }
 

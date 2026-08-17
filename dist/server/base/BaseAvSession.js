@@ -19,6 +19,7 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
     _videoHeight = null;
     _videoFramerate = null;
     _videoDatarate = null;
+    _lastMediaPacketAt = null;
     constructor(conf, remoteIp, protocol) {
         super(conf, remoteIp, protocol.toString());
         this.protocol = protocol;
@@ -30,6 +31,9 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
     }
     get avBroadcast() {
         return this.broadcast;
+    }
+    get lastMediaPacketAt() {
+        return this._lastMediaPacketAt;
     }
     onPlay() {
         try {
@@ -76,6 +80,13 @@ class BaseAvSession extends NodeSession_js_1.NodeSession {
         this.logger.error(`[error] ${this.remoteIp} socket error: ${err}`);
     }
     onPacket(packet) {
+        // Only coded A/V represents ongoing media progress.
+        // Sequence headers and script/metadata packets must not keep
+        // a stale publisher alive.
+        if (this.isPublisher &&
+            (packet.flags === 1 || packet.flags === 3 || packet.flags === 4)) {
+            this._lastMediaPacketAt = Date.now();
+        }
         this.avBroadcast?.broadcastMessage(packet);
     }
     initBroadcast() {

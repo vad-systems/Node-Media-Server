@@ -84,6 +84,10 @@ abstract class NodeSession<A, T extends SessionConfig<A>, E extends Record<keyof
         return false;
     }
 
+    public isPublisherStale(_now: number = Date.now()): boolean {
+        return false;
+    }
+
     protected set streamPath(path: string) {
         this._streamPath = path;
     }
