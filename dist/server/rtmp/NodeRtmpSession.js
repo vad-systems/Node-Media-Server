@@ -73,6 +73,19 @@ class NodeRtmpSession extends nms_server_1.BaseAvSession {
             this.socket.write(buffer);
         }
     };
+    isPublisherStale(now = Date.now()) {
+        const staleTimeout = this.conf.rtmp.publisher_stale_timeout ?? 0;
+        if (staleTimeout <= 0 ||
+            !this.isPublisher ||
+            this.state !== nms_shared_1.SessionState.RUNNING) {
+            return false;
+        }
+        const lastMediaActivity = this.lastMediaPacketAt ?? this.startTime;
+        if (lastMediaActivity === null) {
+            return false;
+        }
+        return now - lastMediaActivity >= staleTimeout * 1000;
+    }
     stop = () => {
         if (this.state === nms_shared_1.SessionState.STOPPED || this.state === nms_shared_1.SessionState.STOPPING) {
             return;

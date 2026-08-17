@@ -85,6 +85,25 @@ class NodeRtmpSession extends BaseAvSession<never, RtmpSessionConfig> {
         }
     };
 
+    public isPublisherStale(now: number = Date.now()): boolean {
+        const staleTimeout = this.conf.rtmp.publisher_stale_timeout ?? 0;
+
+        if (
+            staleTimeout <= 0 ||
+            !this.isPublisher ||
+            this.state !== SessionState.RUNNING
+        ) {
+            return false;
+        }
+
+        const lastMediaActivity = this.lastMediaPacketAt ?? this.startTime;
+        if (lastMediaActivity === null) {
+            return false;
+        }
+
+        return now - lastMediaActivity >= staleTimeout * 1000;
+    }
+
     stop = () => {
         if (this.state === SessionState.STOPPED || this.state === SessionState.STOPPING) {
             return;

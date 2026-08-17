@@ -69,6 +69,9 @@ class NodeSession extends events_1.default {
     isFfmpegTask() {
         return false;
     }
+    isPublisherStale(_now = Date.now()) {
+        return false;
+    }
     set streamPath(path) {
         this._streamPath = path;
     }

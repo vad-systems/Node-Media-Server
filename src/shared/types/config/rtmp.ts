@@ -14,6 +14,11 @@ export type RtmpConfig = {
     readonly chunk_size?: number;
     readonly ping?: number;
     readonly ping_timeout?: number;
+    /**
+     * Seconds without coded audio/video before an incumbent publisher may
+     * be treated as stale. 0 or undefined disables stale-publisher recovery.
+     */
+    readonly publisher_stale_timeout?: number;
     readonly gop_cache?: boolean;
 }
 
