@@ -51,6 +51,7 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
             // Check for video keyframe to perform cut-over or if we are forcing it
             if (packet.flags === 3 || this.forceSwitchNext) {
                 this.cutOver(sourcePath, packet, session);
+                return;
             }
         }
 
@@ -170,8 +171,6 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
             this.lastOutputDts + 1
         ) - keyframePacket.dts;
 
-        this.sendSourceHeaders(sourcePath);
-
         // Clear GOP cache to ensure new subscribers get packets from the new source only
         this.flvGopCache?.clear();
         this.rtmpGopCache?.clear();
@@ -183,6 +182,8 @@ export class SwitchableBroadcastServer<C, S extends BaseAvSession<C, SessionConf
         this.activeSession = session;
         this.activeSession.setAsPublisher();
         this.activeSourcePath = sourcePath;
+
+        this.sendSourceHeaders(sourcePath);
 
         this.pendingSourcePath = null;
         this.switching = false;
