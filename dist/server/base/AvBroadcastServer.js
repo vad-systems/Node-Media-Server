@@ -121,7 +121,9 @@ class AvBroadcastServer extends BroadcastServer_js_1.BroadcastServer {
                 this.flvAudioHeader = node_buffer_1.Buffer.from(flvMessage);
                 this.rtmpAudioHeader = node_buffer_1.Buffer.from(rtmpMessage);
                 let audioInfo = nms_protocol_1.av.readAACSpecificConfig(packet.data);
-                this.publisher.audioProfile = nms_protocol_1.av.getAACProfileName(audioInfo);
+                if (audioInfo) {
+                    this.publisher.audioProfile = nms_protocol_1.av.getAACProfileName(audioInfo);
+                }
                 break;
             case 1:
                 this.flvGopCache?.add(flvMessage);
@@ -131,8 +133,10 @@ class AvBroadcastServer extends BroadcastServer_js_1.BroadcastServer {
                 this.flvVideoHeader = node_buffer_1.Buffer.from(flvMessage);
                 this.rtmpVideoHeader = node_buffer_1.Buffer.from(rtmpMessage);
                 let videoInfo = nms_protocol_1.av.readAVCSpecificConfig(packet.data);
-                this.publisher.videoProfile = nms_protocol_1.av.getAVCProfileName(videoInfo);
-                this.publisher.videoLevel = videoInfo.level;
+                if (videoInfo) {
+                    this.publisher.videoProfile = nms_protocol_1.av.getAVCProfileName(videoInfo);
+                    this.publisher.videoLevel = videoInfo.level;
+                }
                 break;
             case 3:
                 this.flvGopCache?.clear();

@@ -73,8 +73,17 @@ function getSampleRate(bitop, info) {
 }
 function readAACSpecificConfig(aacSequenceHeader) {
     let info = {};
+    if (!aacSequenceHeader || aacSequenceHeader.length < 2) {
+        return info;
+    }
     let bitop = new bitop_js_1.default(aacSequenceHeader);
-    bitop.read(16);
+    const isExHeader = (aacSequenceHeader[0] >> 4) === flv_js_1.FlvAudioCodec.ExHeader;
+    if (isExHeader) {
+        bitop.read(40);
+    }
+    else {
+        bitop.read(16);
+    }
     info.object_type = getObjectType(bitop);
     info.sample_rate = getSampleRate(bitop, info);
     info.chan_config = bitop.read(4);
@@ -95,6 +104,9 @@ function readAACSpecificConfig(aacSequenceHeader) {
     return info;
 }
 function getAACProfileName(info) {
+    if (!info) {
+        return '';
+    }
     switch (info.object_type) {
         case 1:
             return 'Main';
@@ -274,7 +286,7 @@ function HEVCParsePtl(bitop, hevc, max_sub_layers_minus1) {
             general_ptl.sub_layer_progressive_source_flag[i] = bitop.read(1);
             general_ptl.sub_layer_interlaced_source_flag[i] = bitop.read(1);
             general_ptl.sub_layer_non_packed_constraint_flag[i] = bitop.read(1);
-            general_ptl.general_frame_only_constraint_flag[i] = bitop.read(1);
+            general_ptl.sub_layer_frame_only_constraint_flag[i] = bitop.read(1);
             bitop.read(32);
             bitop.read(12);
         }
@@ -344,6 +356,9 @@ function readHEVCSpecificConfig(hevcSequenceHeader) {
     info.height = 0;
     info.profile = 0;
     info.level = 0;
+    if (!hevcSequenceHeader || hevcSequenceHeader.length < 28) {
+        return info;
+    }
     hevcSequenceHeader = hevcSequenceHeader.slice(5);
     do {
         let hevc = {};
@@ -371,13 +386,15 @@ function readHEVCSpecificConfig(hevcSequenceHeader) {
         hevc.numTemporalLayers = (hevcSequenceHeader[21] >> 3) & 0x07;
         hevc.temporalIdNested = (hevcSequenceHeader[21] >> 2) & 0x01;
         hevc.lengthSizeMinusOne = hevcSequenceHeader[21] & 0x03;
+        info.profile = hevc.general_profile_idc;
+        info.level = hevc.general_level_idc / 30.0;
         let numOfArrays = hevcSequenceHeader[22];
         let p = hevcSequenceHeader.slice(23);
         for (let i = 0; i < numOfArrays; i++) {
             if (p.length < 3) {
                 break;
             }
-            let nalutype = p[0];
+            let nalutype = p[0] & 0x3F;
             let n = (p[1]) << 8 | p[2];
             p = p.slice(3);
             for (let j = 0; j < n; j++) {
@@ -394,10 +411,10 @@ function readHEVCSpecificConfig(hevcSequenceHeader) {
                     let sps = Buffer.alloc(k);
                     p.copy(sps, 0, 0, k);
                     hevc.psps = HEVCParseSPS(sps, hevc);
-                    info.profile = hevc.general_profile_idc;
-                    info.level = hevc.general_level_idc / 30.0;
-                    info.width = hevc.psps.pic_width_in_luma_samples - (hevc.psps.conf_win_left_offset + hevc.psps.conf_win_right_offset);
-                    info.height = hevc.psps.pic_height_in_luma_samples - (hevc.psps.conf_win_top_offset + hevc.psps.conf_win_bottom_offset);
+                    if (hevc.psps && hevc.psps.pic_width_in_luma_samples != null) {
+                        info.width = hevc.psps.pic_width_in_luma_samples - (hevc.psps.conf_win_left_offset + hevc.psps.conf_win_right_offset);
+                        info.height = hevc.psps.pic_height_in_luma_samples - (hevc.psps.conf_win_top_offset + hevc.psps.conf_win_bottom_offset);
+                    }
                 }
                 p = p.slice(k);
             }
@@ -411,11 +428,11 @@ function readAV1SpecificConfig(av1SequenceHeader) {
     info.height = 0;
     info.profile = 0;
     info.level = 0;
-    if (av1SequenceHeader.length < 6) {
+    if (!av1SequenceHeader || av1SequenceHeader.length < 6) {
         return info;
     }
     let bitop = new bitop_js_1.default(av1SequenceHeader);
-    bitop.read(40); // 5 bytes: VideoTagHeader (1) + AV1PacketType (1) + CompositionTime (3)
+    bitop.read(40); // 5 bytes: VideoTagHeader (1) + AV1PacketType (1) + CompositionTime (3) or ExHeader (1) + FourCC (4)
     bitop.read(1); // marker
     bitop.read(7); // version
     info.profile = bitop.read(3);
@@ -423,18 +440,36 @@ function readAV1SpecificConfig(av1SequenceHeader) {
     return info;
 }
 function readAVCSpecificConfig(avcSequenceHeader) {
+    if (!avcSequenceHeader || avcSequenceHeader.length < 5) {
+        return { width: 0, height: 0, profile: 0, level: 0 };
+    }
+    const isExHeader = (avcSequenceHeader[0] >> 4 & 0b1000) !== 0;
+    if (isExHeader) {
+        const fourCC = avcSequenceHeader.subarray(1, 5);
+        if (fourCC.compare(flv_js_1.FOURCC.HEVC) === 0 || fourCC.toString('latin1') === 'hev1') {
+            return readHEVCSpecificConfig(avcSequenceHeader);
+        }
+        else if (fourCC.compare(flv_js_1.FOURCC.AV1) === 0) {
+            return readAV1SpecificConfig(avcSequenceHeader);
+        }
+        return { width: 0, height: 0, profile: 0, level: 0 };
+    }
     let codec_id = avcSequenceHeader[0] & 0x0f;
     if (codec_id == flv_js_1.FlvVideoCodec.H264) {
         return readH264SpecificConfig(avcSequenceHeader);
     }
-    else if (codec_id == flv_js_1.FlvVideoCodec.H265 || codec_id == flv_js_1.FlvVideoCodec.HEVC) { // TODO: H265?
+    else if (codec_id == flv_js_1.FlvVideoCodec.H265 || codec_id == flv_js_1.FlvVideoCodec.HEVC) {
         return readHEVCSpecificConfig(avcSequenceHeader);
     }
     else if (codec_id == flv_js_1.FlvVideoCodec.AV1) {
         return readAV1SpecificConfig(avcSequenceHeader);
     }
+    return { width: 0, height: 0, profile: 0, level: 0 };
 }
 function getAVCProfileName(info) {
+    if (!info) {
+        return '';
+    }
     switch (info.profile) {
         case 1:
             return 'Main';

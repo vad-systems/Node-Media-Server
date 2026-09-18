@@ -1,5 +1,5 @@
 import Bitop from './bitop.js';
-import { FlvVideoCodec } from './flv.js';
+import { FlvAudioCodec, FlvVideoCodec, FOURCC } from './flv.js';
 
 const AAC_SAMPLE_RATE = [
     96000, 88200, 64000, 48000,
@@ -68,8 +68,16 @@ function getSampleRate(bitop: Bitop, info: any): number {
 
 function readAACSpecificConfig(aacSequenceHeader: Buffer): any {
     let info: any = {};
+    if (!aacSequenceHeader || aacSequenceHeader.length < 2) {
+        return info;
+    }
     let bitop = new Bitop(aacSequenceHeader);
-    bitop.read(16);
+    const isExHeader = (aacSequenceHeader[0] >> 4) === FlvAudioCodec.ExHeader;
+    if (isExHeader) {
+        bitop.read(40);
+    } else {
+        bitop.read(16);
+    }
     info.object_type = getObjectType(bitop);
     info.sample_rate = getSampleRate(bitop, info);
     info.chan_config = bitop.read(4);
@@ -92,6 +100,9 @@ function readAACSpecificConfig(aacSequenceHeader: Buffer): any {
 }
 
 function getAACProfileName(info: any): string {
+    if (!info) {
+        return '';
+    }
     switch (info.object_type) {
         case 1:
             return 'Main';
@@ -337,7 +348,7 @@ function HEVCParsePtl(bitop: Bitop, hevc: any, max_sub_layers_minus1: number): a
             general_ptl.sub_layer_progressive_source_flag[i] = bitop.read(1);
             general_ptl.sub_layer_interlaced_source_flag[i] = bitop.read(1);
             general_ptl.sub_layer_non_packed_constraint_flag[i] = bitop.read(1);
-            general_ptl.general_frame_only_constraint_flag[i] = bitop.read(1);
+            general_ptl.sub_layer_frame_only_constraint_flag[i] = bitop.read(1);
             bitop.read(32);
             bitop.read(12);
         }
@@ -412,6 +423,9 @@ function readHEVCSpecificConfig(hevcSequenceHeader: Buffer): any {
     info.height = 0;
     info.profile = 0;
     info.level = 0;
+    if (!hevcSequenceHeader || hevcSequenceHeader.length < 28) {
+        return info;
+    }
     hevcSequenceHeader = hevcSequenceHeader.slice(5);
 
     do {
@@ -475,13 +489,17 @@ function readHEVCSpecificConfig(hevcSequenceHeader: Buffer): any {
             hevcSequenceHeader[21] >> 2
         ) & 0x01;
         hevc.lengthSizeMinusOne = hevcSequenceHeader[21] & 0x03;
+
+        info.profile = hevc.general_profile_idc;
+        info.level = hevc.general_level_idc / 30.0;
+
         let numOfArrays = hevcSequenceHeader[22];
         let p = hevcSequenceHeader.slice(23);
         for (let i = 0; i < numOfArrays; i++) {
             if (p.length < 3) {
                 break;
             }
-            let nalutype = p[0];
+            let nalutype = p[0] & 0x3F;
             let n = (
                 p[1]
             ) << 8 | p[2];
@@ -502,14 +520,14 @@ function readHEVCSpecificConfig(hevcSequenceHeader: Buffer): any {
                     let sps = Buffer.alloc(k);
                     p.copy(sps, 0, 0, k);
                     hevc.psps = HEVCParseSPS(sps, hevc);
-                    info.profile = hevc.general_profile_idc;
-                    info.level = hevc.general_level_idc / 30.0;
-                    info.width = hevc.psps.pic_width_in_luma_samples - (
-                        hevc.psps.conf_win_left_offset + hevc.psps.conf_win_right_offset
-                    );
-                    info.height = hevc.psps.pic_height_in_luma_samples - (
-                        hevc.psps.conf_win_top_offset + hevc.psps.conf_win_bottom_offset
-                    );
+                    if (hevc.psps && hevc.psps.pic_width_in_luma_samples != null) {
+                        info.width = hevc.psps.pic_width_in_luma_samples - (
+                            hevc.psps.conf_win_left_offset + hevc.psps.conf_win_right_offset
+                        );
+                        info.height = hevc.psps.pic_height_in_luma_samples - (
+                            hevc.psps.conf_win_top_offset + hevc.psps.conf_win_bottom_offset
+                        );
+                    }
                 }
                 p = p.slice(k);
             }
@@ -527,12 +545,12 @@ function readAV1SpecificConfig(av1SequenceHeader: Buffer): any {
     info.profile = 0;
     info.level = 0;
 
-    if (av1SequenceHeader.length < 6) {
+    if (!av1SequenceHeader || av1SequenceHeader.length < 6) {
         return info;
     }
 
     let bitop = new Bitop(av1SequenceHeader);
-    bitop.read(40); // 5 bytes: VideoTagHeader (1) + AV1PacketType (1) + CompositionTime (3)
+    bitop.read(40); // 5 bytes: VideoTagHeader (1) + AV1PacketType (1) + CompositionTime (3) or ExHeader (1) + FourCC (4)
 
     bitop.read(1); // marker
     bitop.read(7); // version
@@ -543,17 +561,37 @@ function readAV1SpecificConfig(av1SequenceHeader: Buffer): any {
 }
 
 function readAVCSpecificConfig(avcSequenceHeader: Buffer): any {
+    if (!avcSequenceHeader || avcSequenceHeader.length < 5) {
+        return { width: 0, height: 0, profile: 0, level: 0 };
+    }
+
+    const isExHeader = (avcSequenceHeader[0] >> 4 & 0b1000) !== 0;
+    if (isExHeader) {
+        const fourCC = avcSequenceHeader.subarray(1, 5);
+        if (fourCC.compare(FOURCC.HEVC) === 0 || fourCC.toString('latin1') === 'hev1') {
+            return readHEVCSpecificConfig(avcSequenceHeader);
+        } else if (fourCC.compare(FOURCC.AV1) === 0) {
+            return readAV1SpecificConfig(avcSequenceHeader);
+        }
+        return { width: 0, height: 0, profile: 0, level: 0 };
+    }
+
     let codec_id = avcSequenceHeader[0] & 0x0f;
     if (codec_id == FlvVideoCodec.H264) {
         return readH264SpecificConfig(avcSequenceHeader);
-    } else if (codec_id == FlvVideoCodec.H265 || codec_id == FlvVideoCodec.HEVC) { // TODO: H265?
+    } else if (codec_id == FlvVideoCodec.H265 || codec_id == FlvVideoCodec.HEVC) {
         return readHEVCSpecificConfig(avcSequenceHeader);
     } else if (codec_id == FlvVideoCodec.AV1) {
         return readAV1SpecificConfig(avcSequenceHeader);
     }
+
+    return { width: 0, height: 0, profile: 0, level: 0 };
 }
 
 function getAVCProfileName(info: any): string {
+    if (!info) {
+        return '';
+    }
     switch (info.profile) {
         case 1:
             return 'Main';

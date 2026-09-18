@@ -61,7 +61,7 @@ export enum FlvAudioCodec {
     AAC_LATM = 13,
 }
 
-class FOURCC {
+export class FOURCC {
     public static AV1 = Buffer.from('av01');
     public static VP9 = Buffer.from('vp09');
     public static HEVC = Buffer.from('hvc1');

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FlvAudioCodec = exports.FlvVideoCodec = void 0;
+exports.FOURCC = exports.FlvAudioCodec = exports.FlvVideoCodec = void 0;
 const node_buffer_1 = require("node:buffer");
 const nms_core_1 = require("../core");
 const AVPacket_js_1 = __importDefault(require("./AVPacket.js"));
@@ -75,6 +75,7 @@ class FOURCC {
     static FLAC = node_buffer_1.Buffer.from('fLaC');
     static AAC = node_buffer_1.Buffer.from('mp4a');
 }
+exports.FOURCC = FOURCC;
 var VideoPacketType;
 (function (VideoPacketType) {
     VideoPacketType[VideoPacketType["SequenceStart"] = 0] = "SequenceStart";

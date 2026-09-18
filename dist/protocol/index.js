@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FlvVideoCodec = exports.FlvAudioCodec = exports.Rtmp = exports.Flv = exports.AVPacket = exports.av = exports.amf = exports.Bitop = void 0;
+exports.FOURCC = exports.FlvVideoCodec = exports.FlvAudioCodec = exports.Rtmp = exports.Flv = exports.AVPacket = exports.av = exports.amf = exports.Bitop = void 0;
 const bitop_js_1 = __importDefault(require("./bitop.js"));
 exports.Bitop = bitop_js_1.default;
 const amf = __importStar(require("./amf.js"));
@@ -49,5 +49,6 @@ const flv_js_1 = __importStar(require("./flv.js"));
 exports.Flv = flv_js_1.default;
 Object.defineProperty(exports, "FlvAudioCodec", { enumerable: true, get: function () { return flv_js_1.FlvAudioCodec; } });
 Object.defineProperty(exports, "FlvVideoCodec", { enumerable: true, get: function () { return flv_js_1.FlvVideoCodec; } });
+Object.defineProperty(exports, "FOURCC", { enumerable: true, get: function () { return flv_js_1.FOURCC; } });
 const rtmp_js_1 = __importDefault(require("./rtmp.js"));
 exports.Rtmp = rtmp_js_1.default;

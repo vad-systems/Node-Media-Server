@@ -133,7 +133,9 @@ export class AvBroadcastServer<C, S extends BaseAvSession<C, SessionConfig<C>>> 
                 this.flvAudioHeader = Buffer.from(flvMessage);
                 this.rtmpAudioHeader = Buffer.from(rtmpMessage);
                 let audioInfo = av.readAACSpecificConfig(packet.data);
-                this.publisher.audioProfile = av.getAACProfileName(audioInfo);
+                if (audioInfo) {
+                    this.publisher.audioProfile = av.getAACProfileName(audioInfo);
+                }
                 break;
             case 1:
                 this.flvGopCache?.add(flvMessage);
@@ -143,8 +145,10 @@ export class AvBroadcastServer<C, S extends BaseAvSession<C, SessionConfig<C>>> 
                 this.flvVideoHeader = Buffer.from(flvMessage);
                 this.rtmpVideoHeader = Buffer.from(rtmpMessage);
                 let videoInfo = av.readAVCSpecificConfig(packet.data);
-                this.publisher.videoProfile = av.getAVCProfileName(videoInfo);
-                this.publisher.videoLevel = videoInfo.level;
+                if (videoInfo) {
+                    this.publisher.videoProfile = av.getAVCProfileName(videoInfo);
+                    this.publisher.videoLevel = videoInfo.level;
+                }
                 break;
             case 3:
                 this.flvGopCache?.clear();
