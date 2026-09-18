@@ -10,13 +10,14 @@ class NodeFissionSession extends nms_server_1.NodeFfmpegSession {
         let inPath = this.getRtmpInputPath(this.conf.rtmpPort, this.conf.streamPath);
         let argv = ['-i', inPath];
         for (let m of this.conf.model) {
-            let x264 = [
+            const vc = m.vc || this.conf.vc || 'libx264';
+            const vcParam = m.vcParam || this.conf.vcParam || (vc === 'libx264' ? ['-preset', 'veryfast', '-tune', 'zerolatency'] : []);
+            const ac = m.ac || this.conf.ac || 'aac';
+            const acParam = m.acParam || this.conf.acParam || ['-b:a', m.ab];
+            let video = [
                 '-c:v',
-                'libx264',
-                '-preset',
-                'veryfast',
-                '-tune',
-                'zerolatency',
+                vc,
+                ...vcParam,
                 '-maxrate',
                 m.vb,
                 '-bufsize',
@@ -28,7 +29,7 @@ class NodeFissionSession extends nms_server_1.NodeFfmpegSession {
                 '-s',
                 m.vs,
             ];
-            let aac = ['-c:a', 'aac', '-b:a', m.ab];
+            let audio = ['-c:a', ac, ...acParam];
             let outPathStr = `rtmp://127.0.0.1:${this.conf.rtmpPort}/${this.conf.streamApp}/${this.conf.streamName}_${m.vs.split('x')[1]}?parentId=${this.id}`;
             let outPath = [
                 '-f',
@@ -37,8 +38,8 @@ class NodeFissionSession extends nms_server_1.NodeFfmpegSession {
             ];
             argv = [
                 ...argv,
-                ...x264,
-                ...aac,
+                ...video,
+                ...audio,
                 ...outPath,
             ];
         }

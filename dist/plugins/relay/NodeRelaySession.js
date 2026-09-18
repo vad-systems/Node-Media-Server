@@ -13,16 +13,18 @@ class NodeRelaySession extends nms_server_1.NodeFfmpegSession {
         if (ouPath.startsWith('rtmp://127.0.0.1') || ouPath.startsWith('rtmp://localhost')) {
             ouPath += (ouPath.includes('?') ? '&' : '?') + `parentId=${this.id}`;
         }
+        const vc = this.conf.vc || (this.conf.rescale ? 'libx264' : 'copy');
+        const vcParam = this.conf.vcParam || [];
+        const ac = this.conf.ac || 'copy';
+        const acParam = this.conf.acParam || [];
         let argv = [
             '-re',
             '-i', this.conf.inPath,
-            ...(this.conf.rescale
-                ? [
-                    '-c:v', 'libx264',
-                    '-force_key_frames', 'expr:gte(t,n_forced*2)'
-                ]
-                : ['-c:v', 'copy']),
-            '-c:a', 'copy',
+            '-c:v', vc,
+            ...(vc !== 'copy' ? ['-force_key_frames', 'expr:gte(t,n_forced*2)'] : []),
+            ...vcParam,
+            '-c:a', ac,
+            ...acParam,
             ...(this.conf.rescale ? ['-vf', `scale=${this.conf.rescale}`] : []),
             '-f', format,
             ouPath,

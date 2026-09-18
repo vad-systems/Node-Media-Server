@@ -12,11 +12,16 @@ class NodeStaticSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
     run() {
         const port = this.conf.rtmpPort || 1935;
         const outPath = `rtmp://127.0.0.1:${port}${this.streamPath}`;
+        const vc = this.conf.vc || 'libx264';
+        const vcParam = this.conf.vcParam || [];
+        const ac = this.conf.ac || 'aac';
+        const acParam = this.conf.acParam || [];
         const argv = [
             '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
             '-loop', '1', '-re', '-i', this.conf.input,
             '-force_key_frames', 'expr:gte(t,n_forced*2)',
-            '-c:v', 'libx264',
+            '-c:v', vc,
+            ...vcParam,
             '-r', '25',
             '-pix_fmt', 'yuv420p',
         ];
@@ -25,7 +30,7 @@ class NodeStaticSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
             vf += `,drawtext=textfile=${this.conf.textPath}:fontcolor=white:y=850-(text_h/2):x=(w-text_w)/2:fontsize=36:line_spacing=10:reload=60`;
         }
         argv.push('-vf', vf);
-        argv.push('-c:a', 'aac', '-f', 'flv', outPath);
+        argv.push('-c:a', ac, ...acParam, '-f', 'flv', outPath);
         this.start(argv);
     }
 }

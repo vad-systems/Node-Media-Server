@@ -12,18 +12,21 @@ class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
         if (ouPath.startsWith('rtmp://127.0.0.1') || ouPath.startsWith('rtmp://localhost')) {
             ouPath += (ouPath.includes('?') ? '&' : '?') + `parentId=${this.id}`;
         }
+        const vc = this.conf.vc || (this.conf.rescale ? 'libx264' : 'copy');
+        const vcParam = this.conf.vcParam || [];
+        const ac = this.conf.ac || 'copy';
+        const acParam = this.conf.acParam || [];
+
         let argv = [
             '-re',
             '-i', this.conf.inPath,
+            '-c:v', vc,
             ...(
-                this.conf.rescale
-                    ? [
-                        '-c:v', 'libx264',
-                        '-force_key_frames', 'expr:gte(t,n_forced*2)'
-                    ]
-                    : ['-c:v', 'copy']
+                vc !== 'copy' ? ['-force_key_frames', 'expr:gte(t,n_forced*2)'] : []
             ),
-            '-c:a', 'copy',
+            ...vcParam,
+            '-c:a', ac,
+            ...acParam,
             ...(
                 this.conf.rescale ? ['-vf', `scale=${this.conf.rescale}`] : []
             ),

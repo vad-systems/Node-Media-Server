@@ -19,6 +19,10 @@ type RelayTaskConfig = {
     readonly rescale?: string;
     readonly rtsp_transport?: RtspTransport;
     readonly appendName?: boolean;
+    readonly vc?: string;
+    readonly vcParam?: string[];
+    readonly ac?: string;
+    readonly acParam?: string[];
 }
 
 export type RelayPullTaskConfig = RelayTaskConfig & TaskConfig & {

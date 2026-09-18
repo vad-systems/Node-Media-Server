@@ -5,6 +5,10 @@ export type StaticTaskConfig = TaskConfig & {
     readonly name: string;
     readonly input: string;
     readonly textPath?: string;
+    readonly vc?: string;
+    readonly vcParam?: string[];
+    readonly ac?: string;
+    readonly acParam?: string[];
 }
 
 export type StaticConfig = {

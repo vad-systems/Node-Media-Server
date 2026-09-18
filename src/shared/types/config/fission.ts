@@ -7,10 +7,18 @@ export type FissionModelConfig = {
     readonly vf: string;
     readonly vs: string;
     readonly ab: string;
+    readonly vc?: string;
+    readonly vcParam?: string[];
+    readonly ac?: string;
+    readonly acParam?: string[];
 }
 
 export type FissionTaskConfig = SelectiveTaskConfig & {
     readonly model: FissionModelConfig[];
+    readonly vc?: string;
+    readonly vcParam?: string[];
+    readonly ac?: string;
+    readonly acParam?: string[];
 }
 
 export type FissionConfig = {
