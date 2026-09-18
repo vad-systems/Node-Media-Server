@@ -6,4 +6,6 @@ export type SessionConfig<A extends Arguments> = {
 
 export type FfmpegSessionConfig<A> = SessionConfig<A> & {
     readonly ffmpeg: string;
+    readonly vaapi_device?: string;
+    readonly vaapiDevice?: string;
 }

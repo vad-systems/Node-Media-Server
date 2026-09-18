@@ -44,6 +44,7 @@ class SwitchableBroadcastServer extends nms_server_1.AvBroadcastServer {
             // Check for video keyframe to perform cut-over or if we are forcing it
             if (packet.flags === 3 || this.forceSwitchNext) {
                 this.cutOver(sourcePath, packet, session);
+                return;
             }
         }
         if (sourcePath !== this.activeSourcePath || session !== this.activeSession) {
@@ -143,7 +144,6 @@ class SwitchableBroadcastServer extends nms_server_1.AvBroadcastServer {
             this.switchTimer = null;
         }
         this.timestampOffset = (this.lastOutputDts + 1) - keyframePacket.dts;
-        this.sendSourceHeaders(sourcePath);
         // Clear GOP cache to ensure new subscribers get packets from the new source only
         this.flvGopCache?.clear();
         this.rtmpGopCache?.clear();
@@ -153,6 +153,7 @@ class SwitchableBroadcastServer extends nms_server_1.AvBroadcastServer {
         this.activeSession = session;
         this.activeSession.setAsPublisher();
         this.activeSourcePath = sourcePath;
+        this.sendSourceHeaders(sourcePath);
         this.pendingSourcePath = null;
         this.switching = false;
         this.state = nms_shared_1.BroadcastState.LIVE;

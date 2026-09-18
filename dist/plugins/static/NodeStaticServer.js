@@ -42,6 +42,7 @@ class NodeStaticServer extends NodeConfigurableServer_js_1.NodeConfigurableServe
         const sessionConfig = {
             ...task,
             ffmpeg: this.config.static?.ffmpeg || 'ffmpeg',
+            vaapi_device: task.vaapi_device || task.vaapiDevice || this.config.static?.vaapi_device || this.config.static?.vaapiDevice,
             streamPath,
             rtmpPort: this.config.rtmp?.port || 1935
         };

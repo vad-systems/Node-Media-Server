@@ -104,6 +104,7 @@ class NodeTransServer extends nms_server_1.NodeTaskServer {
             let sessionConfig = {
                 ...lodash_1.default.cloneDeep(taskConfig),
                 ffmpeg,
+                vaapi_device: taskConfig.vaapi_device || taskConfig.vaapiDevice || this.config.trans.vaapi_device || this.config.trans.vaapiDevice,
                 mediaroot: mediaroot,
                 rtmpPort: this.config.rtmp.port,
                 streamPath: session.streamPath,

@@ -76,6 +76,7 @@ class NodeTransServer extends NodeTaskServer {
             let sessionConfig: TransSessionConfig = {
                 ..._.cloneDeep(taskConfig),
                 ffmpeg,
+                vaapi_device: taskConfig.vaapi_device || (taskConfig as any).vaapiDevice || this.config.trans.vaapi_device || (this.config.trans as any).vaapiDevice,
                 mediaroot: mediaroot,
                 rtmpPort: this.config.rtmp.port,
                 streamPath: session.streamPath,

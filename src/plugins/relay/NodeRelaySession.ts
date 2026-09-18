@@ -12,21 +12,49 @@ class NodeRelaySession extends NodeFfmpegSession<never, RelaySessionConfig> {
         if (ouPath.startsWith('rtmp://127.0.0.1') || ouPath.startsWith('rtmp://localhost')) {
             ouPath += (ouPath.includes('?') ? '&' : '?') + `parentId=${this.id}`;
         }
+        const vc = this.conf.vc;
+        const isVaapi = vc === 'h264_vaapi';
+        const vaapiDevice = this.conf.vaapi_device || this.conf.vaapiDevice || '/dev/dri/renderD128';
+
+        let vcodecArgs: string[] = [];
+        if (isVaapi) {
+            vcodecArgs = [
+                '-c:v',
+                'h264_vaapi',
+                '-force_key_frames',
+                'expr:gte(t,n_forced*2)',
+                ...(
+                    this.conf.rescale ? ['-vf', `scale_vaapi=${this.conf.rescale.replace('x', ':')}`] : []
+                ),
+                ...(this.conf.vcParam || []),
+            ];
+        } else if (this.conf.rescale) {
+            vcodecArgs = [
+                '-c:v',
+                vc || 'libx264',
+                '-force_key_frames',
+                'expr:gte(t,n_forced*2)',
+                '-vf',
+                `scale=${this.conf.rescale}`,
+                ...(this.conf.vcParam || []),
+            ];
+        } else if (vc) {
+            vcodecArgs = [
+                '-c:v',
+                vc,
+                ...(this.conf.vcParam || []),
+            ];
+        } else {
+            vcodecArgs = ['-c:v', 'copy'];
+        }
+
         let argv = [
+            ...(isVaapi ? ['-hwaccel', 'vaapi', '-hwaccel_device', vaapiDevice, '-hwaccel_output_format', 'vaapi'] : []),
             '-re',
             '-i', this.conf.inPath,
-            ...(
-                this.conf.rescale
-                    ? [
-                        '-c:v', 'libx264',
-                        '-force_key_frames', 'expr:gte(t,n_forced*2)'
-                    ]
-                    : ['-c:v', 'copy']
-            ),
-            '-c:a', 'copy',
-            ...(
-                this.conf.rescale ? ['-vf', `scale=${this.conf.rescale}`] : []
-            ),
+            ...vcodecArgs,
+            '-c:a', this.conf.ac || 'copy',
+            ...(this.conf.acParam || []),
             '-f', format,
             ouPath,
         ];

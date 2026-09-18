@@ -12,20 +12,29 @@ class NodeStaticSession extends NodeFfmpegSession_js_1.NodeFfmpegSession {
     run() {
         const port = this.conf.rtmpPort || 1935;
         const outPath = `rtmp://127.0.0.1:${port}${this.streamPath}`;
-        const argv = [
-            '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
-            '-loop', '1', '-re', '-i', this.conf.input,
-            '-force_key_frames', 'expr:gte(t,n_forced*2)',
-            '-c:v', 'libx264',
-            '-r', '25',
-            '-pix_fmt', 'yuv420p',
-        ];
+        const isVaapi = this.conf.vc === 'h264_vaapi';
+        const vaapiDevice = this.conf.vaapi_device || this.conf.vaapiDevice || '/dev/dri/renderD128';
         let vf = 'scale=1920:1080';
         if (this.conf.textPath) {
             vf += `,drawtext=textfile=${this.conf.textPath}:fontcolor=white:y=850-(text_h/2):x=(w-text_w)/2:fontsize=36:line_spacing=10:reload=60`;
         }
-        argv.push('-vf', vf);
-        argv.push('-c:a', 'aac', '-f', 'flv', outPath);
+        if (isVaapi) {
+            vf += ',format=nv12,hwupload';
+        }
+        const argv = [
+            ...(isVaapi ? ['-vaapi_device', vaapiDevice] : []),
+            '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+            '-loop', '1', '-re', '-i', this.conf.input,
+            '-force_key_frames', 'expr:gte(t,n_forced*2)',
+            '-c:v', this.conf.vc || 'libx264',
+            ...(this.conf.vcParam || []),
+            '-r', '25',
+            ...(isVaapi ? [] : ['-pix_fmt', 'yuv420p']),
+            '-vf', vf,
+            '-c:a', 'aac',
+            '-f', 'flv',
+            outPath,
+        ];
         this.start(argv);
     }
 }

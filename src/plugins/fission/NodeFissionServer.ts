@@ -96,6 +96,7 @@ class NodeFissionServer extends NodeTaskServer {
             let sessionConf: FissionSessionConfig = {
                 ..._.cloneDeep(taskConf),
                 ffmpeg: this.config.fission.ffmpeg,
+                vaapi_device: taskConf.vaapi_device || (taskConf as any).vaapiDevice || this.config.fission.vaapi_device || (this.config.fission as any).vaapiDevice,
                 mediaroot: this.config.http.mediaroot,
                 rtmpPort: this.config.rtmp.port,
                 streamPath: session.streamPath,

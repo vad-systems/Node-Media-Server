@@ -47,6 +47,7 @@ export class NodeStaticServer extends NodeConfigurableServer {
         const sessionConfig: StaticSessionConfig = {
             ...task,
             ffmpeg: this.config.static?.ffmpeg || 'ffmpeg',
+            vaapi_device: task.vaapi_device || (task as any).vaapiDevice || this.config.static?.vaapi_device || (this.config.static as any)?.vaapiDevice,
             streamPath,
             rtmpPort: this.config.rtmp?.port || 1935
         };

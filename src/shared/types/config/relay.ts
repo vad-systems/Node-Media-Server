@@ -19,6 +19,12 @@ type RelayTaskConfig = {
     readonly rescale?: string;
     readonly rtsp_transport?: RtspTransport;
     readonly appendName?: boolean;
+    readonly vc?: string;
+    readonly vcParam?: string[];
+    readonly ac?: string;
+    readonly acParam?: string[];
+    readonly vaapi_device?: string;
+    readonly vaapiDevice?: string;
 }
 
 export type RelayPullTaskConfig = RelayTaskConfig & TaskConfig & {
@@ -32,6 +38,8 @@ export type RelayPushTaskConfig = RelayTaskConfig & SelectiveTaskConfig & {
 export type RelayConfig = {
     readonly ffmpeg: string;
     readonly tasks: (RelayPushTaskConfig | RelayPullTaskConfig)[];
+    readonly vaapi_device?: string;
+    readonly vaapiDevice?: string;
 }
 
 export type RelaySessionConfig = (RelayPushTaskConfig | RelayPullTaskConfig) & FfmpegSessionConfig<never> & {

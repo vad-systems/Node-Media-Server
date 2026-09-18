@@ -98,13 +98,16 @@ class NodeTransSession extends nms_server_1.NodeFfmpegSession {
             this.logger.log(`[Trans] DASH: ${streamPath} -> ${ouPath}/${dashFileName}`);
         }
         mkdirp.sync(ouPath);
-        const vcParam = this.getConfig('vcParam');
+        const isVaapi = vc === 'h264_vaapi';
+        const vaapiDevice = this.getConfig('vaapi_device') || this.getConfig('vaapiDevice') || '/dev/dri/renderD128';
+        let vcParam = this.getConfig('vcParam') ? [...this.getConfig('vcParam')] : [];
         const acParam = this.getConfig('acParam');
         let argv = [
             '-y',
+            ...(isVaapi ? ['-hwaccel', 'vaapi', '-hwaccel_device', vaapiDevice, '-hwaccel_output_format', 'vaapi'] : []),
             '-i', inPath,
             '-c:v', vc,
-            ...(vcParam || []),
+            ...vcParam,
             '-c:a', ac,
             ...(acParam || []),
             '-f', 'tee',

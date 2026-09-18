@@ -127,6 +127,7 @@ components:
       type: object
       properties:
         ffmpeg: { type: string }
+        vaapi_device: { type: string }
         tasks:
           type: array
           items: { $ref: '#/components/schemas/TransTaskConfig' }
@@ -150,11 +151,13 @@ components:
         vcParam: { type: array, items: { type: string } }
         ac: { type: string }
         acParam: { type: array, items: { type: string } }
+        vaapi_device: { type: string }
 
     RelayConfig:
       type: object
       properties:
         ffmpeg: { type: string }
+        vaapi_device: { type: string }
         tasks:
           type: array
           items:
@@ -187,6 +190,11 @@ components:
         rescale: { type: string }
         rtsp_transport: { $ref: '#/components/schemas/RtspTransport' }
         appendName: { type: boolean }
+        vc: { type: string }
+        vcParam: { type: array, items: { type: string } }
+        ac: { type: string }
+        acParam: { type: array, items: { type: string } }
+        vaapi_device: { type: string }
 
     RelayMode:
       type: string
@@ -200,6 +208,7 @@ components:
       type: object
       properties:
         ffmpeg: { type: string }
+        vaapi_device: { type: string }
         tasks:
           type: array
           items: { $ref: '#/components/schemas/FissionTaskConfig' }
@@ -209,6 +218,9 @@ components:
       properties:
         app: { type: string }
         pattern: { type: string }
+        vc: { type: string }
+        vcParam: { type: array, items: { type: string } }
+        vaapi_device: { type: string }
         model:
           type: array
           items: { $ref: '#/components/schemas/FissionModelConfig' }
@@ -220,6 +232,8 @@ components:
         vf: { type: string }
         vs: { type: string }
         ab: { type: string }
+        vc: { type: string }
+        vcParam: { type: array, items: { type: string } }
 
     AvConfig:
       type: object
@@ -249,6 +263,7 @@ components:
       type: object
       properties:
         ffmpeg: { type: string }
+        vaapi_device: { type: string }
         tasks:
           type: array
           items: { $ref: '#/components/schemas/StaticTaskConfig' }
@@ -260,6 +275,9 @@ components:
         name: { type: string }
         input: { type: string }
         textPath: { type: string }
+        vc: { type: string }
+        vcParam: { type: array, items: { type: string } }
+        vaapi_device: { type: string }
 
     AuthConfig:
       type: object

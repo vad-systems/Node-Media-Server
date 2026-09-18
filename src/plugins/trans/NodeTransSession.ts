@@ -72,15 +72,18 @@ class NodeTransSession extends NodeFfmpegSession<object, TransSessionConfig> {
 
         mkdirp.sync(ouPath);
 
-        const vcParam = this.getConfig('vcParam') as string[];
+        const isVaapi = vc === 'h264_vaapi';
+        const vaapiDevice = this.getConfig<string>('vaapi_device') || this.getConfig<string>('vaapiDevice') || '/dev/dri/renderD128';
+
+        let vcParam = (this.getConfig('vcParam') as string[]) ? [...(this.getConfig('vcParam') as string[])] : [];
         const acParam = this.getConfig('acParam') as string[];
+
         let argv = [
             '-y',
+            ...(isVaapi ? ['-hwaccel', 'vaapi', '-hwaccel_device', vaapiDevice, '-hwaccel_output_format', 'vaapi'] : []),
             '-i', inPath,
             '-c:v', vc,
-            ...(
-                vcParam || []
-            ),
+            ...vcParam,
             '-c:a', ac,
             ...(
                 acParam || []

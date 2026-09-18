@@ -7,29 +7,64 @@ class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig>
     }
 
     start(...args: any[]) {
+        const taskVc = this.conf.vc;
+        const taskVcParam = this.conf.vcParam || [];
+        const hasVaapi = this.conf.model.some((m) => (m.vc || taskVc) === 'h264_vaapi') || taskVc === 'h264_vaapi';
+        const vaapiDevice = this.conf.vaapi_device || this.conf.vaapiDevice || '/dev/dri/renderD128';
+
         let inPath = this.getRtmpInputPath(this.conf.rtmpPort, this.conf.streamPath);
-        let argv = ['-i', inPath];
+        let argv = [
+            ...(hasVaapi ? ['-hwaccel', 'vaapi', '-hwaccel_device', vaapiDevice, '-hwaccel_output_format', 'vaapi'] : []),
+            '-i', inPath,
+        ];
         for (let m of this.conf.model) {
-            let x264 = [
-                '-c:v',
-                'libx264',
-                '-preset',
-                'veryfast',
-                '-tune',
-                'zerolatency',
-                '-maxrate',
-                m.vb,
-                '-bufsize',
-                m.vb,
-                '-g',
-                (
-                    parseInt(m.vf) * 2
-                ).toString(),
-                '-r',
-                m.vf,
-                '-s',
-                m.vs,
-            ];
+            const mVc = m.vc || taskVc || 'libx264';
+            const isVaapi = mVc === 'h264_vaapi';
+            const mVcParam = m.vcParam || taskVcParam;
+
+            let vcodecArgs: string[] = [];
+            if (isVaapi) {
+                let vfStr = `scale_vaapi=${m.vs.replace('x', ':')}`;
+                vcodecArgs = [
+                    '-c:v',
+                    'h264_vaapi',
+                    '-maxrate',
+                    m.vb,
+                    '-bufsize',
+                    m.vb,
+                    '-g',
+                    (
+                        parseInt(m.vf) * 2
+                    ).toString(),
+                    '-r',
+                    m.vf,
+                    '-vf',
+                    vfStr,
+                    ...mVcParam,
+                ];
+            } else {
+                vcodecArgs = [
+                    '-c:v',
+                    mVc,
+                    '-preset',
+                    'veryfast',
+                    '-tune',
+                    'zerolatency',
+                    '-maxrate',
+                    m.vb,
+                    '-bufsize',
+                    m.vb,
+                    '-g',
+                    (
+                        parseInt(m.vf) * 2
+                    ).toString(),
+                    '-r',
+                    m.vf,
+                    '-s',
+                    m.vs,
+                    ...mVcParam,
+                ];
+            }
             let aac = ['-c:a', 'aac', '-b:a', m.ab];
             let outPathStr = `rtmp://127.0.0.1:${this.conf.rtmpPort}/${this.conf.streamApp}/${this.conf.streamName}_${m.vs.split('x')[1]}?parentId=${this.id}`;
             let outPath = [
@@ -39,7 +74,7 @@ class NodeFissionSession extends NodeFfmpegSession<object, FissionSessionConfig>
             ];
             argv = [
                 ...argv,
-                ...x264,
+                ...vcodecArgs,
                 ...aac,
                 ...outPath,
             ];

@@ -18,11 +18,15 @@ export type TransTaskConfig = SelectiveTaskConfig & {
     readonly vcParam?: string[];
     readonly ac?: string;
     readonly acParam?: string[];
+    readonly vaapi_device?: string;
+    readonly vaapiDevice?: string;
 }
 
 export type TransConfig = {
     readonly ffmpeg: string;
     readonly tasks: TransTaskConfig[];
+    readonly vaapi_device?: string;
+    readonly vaapiDevice?: string;
 }
 
 export type TransSessionConfig = TransTaskConfig & FfmpegSessionConfig<object> & {

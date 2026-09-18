@@ -119,6 +119,7 @@ class NodeFissionServer extends nms_server_1.NodeTaskServer {
             let sessionConf = {
                 ...lodash_1.default.cloneDeep(taskConf),
                 ffmpeg: this.config.fission.ffmpeg,
+                vaapi_device: taskConf.vaapi_device || taskConf.vaapiDevice || this.config.fission.vaapi_device || this.config.fission.vaapiDevice,
                 mediaroot: this.config.http.mediaroot,
                 rtmpPort: this.config.rtmp.port,
                 streamPath: session.streamPath,

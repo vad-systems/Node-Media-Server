@@ -136,6 +136,7 @@ class NodeRelayServer extends NodeTaskServer {
         let sessionConf: RelaySessionConfig = {
             ..._.cloneDeep(taskConf),
             ffmpeg: this.config.relay.ffmpeg,
+            vaapi_device: taskConf.vaapi_device || (taskConf as any).vaapiDevice || this.config.relay.vaapi_device || (this.config.relay as any).vaapiDevice,
             inPath: `rtmp://127.0.0.1:${this.config.rtmp.port}${streamPath}`,
             ouPath: taskConf.appendName === false ? edge : (
                 hasApp ? `${edge}/${stream}` : `${edge}${streamPath}`

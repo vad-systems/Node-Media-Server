@@ -7,15 +7,23 @@ export type FissionModelConfig = {
     readonly vf: string;
     readonly vs: string;
     readonly ab: string;
+    readonly vc?: string;
+    readonly vcParam?: string[];
 }
 
 export type FissionTaskConfig = SelectiveTaskConfig & {
     readonly model: FissionModelConfig[];
+    readonly vc?: string;
+    readonly vcParam?: string[];
+    readonly vaapi_device?: string;
+    readonly vaapiDevice?: string;
 }
 
 export type FissionConfig = {
     readonly ffmpeg: string;
     readonly tasks: FissionTaskConfig[];
+    readonly vaapi_device?: string;
+    readonly vaapiDevice?: string;
 }
 
 export type FissionSessionConfig = FissionTaskConfig & FfmpegSessionConfig<object> & {
